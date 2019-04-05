@@ -1,54 +1,67 @@
 <GridLayout>:
-    padding: 10
+    padding: 5
 
 <BoxLayout>:
-    padding: 10
+    padding: 5
+
+<Button>:
+
+<Label>:
 
 <Interface>:
     GridLayout:
         cols: 3
+        on_parent: root.variables()
 
         GridLayout:
-            rows: 5
-            id: r_elements
+            rows: 6
+            id: elements
+
+            Label:
+                text: "Elementos"
 
             ToggleButton:
                 id: trafo
                 text: "!"
                 group: "elements"
+                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: pv
                 text: "@"
                 group: "elements"
+                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: pq
                 text: "#"
                 group: "elements"
+                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: lt
                 text: "$"
                 group: "elements"
+                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: s
                 text: "%"
                 group: "elements"
+                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
         BoxLayout:
+            orientation: 'vertical'
+
+            Label:
+                text: "Grid"
 
             GridLayout:
-                cols: 2
-                rows: 2
+                id: grid
+                cols: 10
+                rows: 10
+                on_parent: root.add_grid(self)
 
-                Button:
-                    text: "b11"
-                    on_press: root.update_grid(self, r_elements)
-                Button:
-                    text: "b12"
-                Button:
-                    text: "b21"
-                Button:
-                    text: "b22"
+        BoxLayout:  # Inspector
+            Label:
+                text: "Inspector"
