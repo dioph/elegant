@@ -1,7 +1,8 @@
 #include <cstdio>
 using namespace std;
 
- gauss_seidel(Y, V0, S, tipos, eps)
+
+gauss_seidel(Y, V0, S, tipos, eps)
 {
     double delta;
     V;

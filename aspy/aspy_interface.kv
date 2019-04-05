@@ -1,0 +1,23 @@
+#kivy '1.0'
+#: import FadeTransition kivy.uix.screenmanager.FadeTransition
+
+ScreenManagement: # parent
+    transition: FadeTransition()
+    Core:
+    SimulationControl:
+
+<Core>:
+    name: 'Core'
+
+    Button:
+        on_release: app.root.current = 'Simulation'
+        text: 'Simulation Control'
+        font_size: 50
+
+<SimulationControl>:
+    name: 'Simulation'
+
+    Button:
+        on_release: app.root.current = 'Core'
+        text: 'Core'
+        font_size: 50
