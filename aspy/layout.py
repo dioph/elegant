@@ -7,46 +7,36 @@ presentation = Builder.load_file('./interface.kv')
 
 
 class Interface(FloatLayout):
-    def variables(self):
-        """
-        Called as a contructor but only for used variables
-        """
-        self.SYM = None
+    def add_grid(self, grid, elements):
+        """Initializes the grid
 
-    def add_grid(self, grid):
+        Parameters
+        ----------
+        grid: the grid to be initialized
+        elements: the grid of togglebuttons
         """
-        Initializes the grid
-        """
-        for i in range(0, grid.cols):
-            for j in range(0, grid.rows):
+        for i in range(grid.cols):
+            for j in range(grid.rows):
                 grid.add_widget(Button())
 
-        for child in grid.children:
-            child.bind(on_press=self.update_grid)  # passes child as an argument
+        for square in grid.children:
+            square.bind(on_press=lambda x: self.update_grid(x, elements))
 
-    def get_pressed_toggle_btn_symbol(self, elements):
+    def update_grid(self, square, elements):
+        """Updates the button icon in the grid
+
+        Parameters
+        ----------
+        square: the position in the grid to be updated
+        elements: the grid of togglebuttons
         """
-        Returns the text of the current (pressed) ToggleButton
-        """
-        for e in elements.children:
-            if isinstance(e, Button):
-                if e.state == 'down':
-                    self.SYM = e.text
+        for child in elements.children:
+            if isinstance(child, Button):
+                if child.state == 'down':
+                    square.text = child.text
                     break
                 else:
-                    self.SYM = ""
-
-    def update_grid(self, child):
-        print(self.SYM)
-        """
-        Updates the button icon in the grid
-        :param child: the button in the grid to be updated
-        """
-        try:
-            if self.SYM is not None:
-                child.text = self.SYM
-        except AttributeError:
-            pass
+                    square.text = ""
 
 
 class InterfaceApp(App):
