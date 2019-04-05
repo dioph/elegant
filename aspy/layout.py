@@ -1,20 +1,52 @@
-import kivy
-from kivy.uix import *
 from kivy.app import App
 from kivy.lang import Builder
-from kivy.uix.widget import Widget
 from kivy.uix.floatlayout import FloatLayout
-
+from kivy.uix.button import Button
 
 presentation = Builder.load_file('./interface.kv')
 
 
 class Interface(FloatLayout):
-    def update_grid(self, b11, r_elements):
-        # if elements[0].state == 'down':
-        #     b11.text = elements[0].text
-        # pass
-        print(r_elements.children.state)
+    def variables(self):
+        """
+        Called as a contructor but only for used variables
+        """
+        self.SYM = None
+
+    def add_grid(self, grid):
+        """
+        Initializes the grid
+        """
+        for i in range(0, grid.cols):
+            for j in range(0, grid.rows):
+                grid.add_widget(Button())
+
+        for child in grid.children:
+            child.bind(on_press=self.update_grid)  # passes child as an argument
+
+    def get_pressed_toggle_btn_symbol(self, elements):
+        """
+        Returns the text of the current (pressed) ToggleButton
+        """
+        for e in elements.children:
+            if isinstance(e, Button):
+                if e.state == 'down':
+                    self.SYM = e.text
+                    break
+                else:
+                    self.SYM = ""
+
+    def update_grid(self, child):
+        print(self.SYM)
+        """
+        Updates the button icon in the grid
+        :param child: the button in the grid to be updated
+        """
+        try:
+            if self.SYM is not None:
+                child.text = self.SYM
+        except AttributeError:
+            pass
 
 
 class InterfaceApp(App):
