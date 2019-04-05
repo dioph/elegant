@@ -29,11 +29,12 @@ class Interface(FloatLayout):
         Returns the text of the current (pressed) ToggleButton
         """
         for e in elements.children:
-            if e.state == 'down':
-                self.SYM = e.text
-                break
-            else:
-                self.SYM = None
+            if isinstance(e, Button):
+                if e.state == 'down':
+                    self.SYM = e.text
+                    break
+                else:
+                    self.SYM = ""
 
     def update_grid(self, child):
         print(self.SYM)
