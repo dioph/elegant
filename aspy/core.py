@@ -21,7 +21,7 @@ class Barra(object):
 
 
 class LT(object):
-    def __init__(self, l, r, D, d, rho=1.78e-8,  n=3, m=1):
+    def __init__(self, l, r, D, d, rho=1.78e-8, n=3, m=1):
         self.rho = rho
         self.l = l
         self.r = r
@@ -74,3 +74,11 @@ class Trafo(object):
         self.Vnom1 = Vnom1
         self.Vnom2 = Vnom2
         self.X = X
+
+    @property
+    def Zbase1(self):
+        return self.Vnom1**2 / self.Snom
+
+    @property
+    def Zbase2(self):
+        return self.Vnom2**2 / self.Snom
