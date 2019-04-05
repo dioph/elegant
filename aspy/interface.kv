@@ -1,0 +1,54 @@
+<GridLayout>:
+    padding: 10
+
+<BoxLayout>:
+    padding: 10
+
+<Interface>:
+    GridLayout:
+        cols: 3
+
+        GridLayout:
+            rows: 5
+            id: r_elements
+
+            ToggleButton:
+                id: trafo
+                text: "!"
+                group: "elements"
+
+            ToggleButton:
+                id: pv
+                text: "@"
+                group: "elements"
+
+            ToggleButton:
+                id: pq
+                text: "#"
+                group: "elements"
+
+            ToggleButton:
+                id: lt
+                text: "$"
+                group: "elements"
+
+            ToggleButton:
+                id: s
+                text: "%"
+                group: "elements"
+
+        BoxLayout:
+
+            GridLayout:
+                cols: 2
+                rows: 2
+
+                Button:
+                    text: "b11"
+                    on_press: root.update_grid(self, r_elements)
+                Button:
+                    text: "b12"
+                Button:
+                    text: "b21"
+                Button:
+                    text: "b22"
