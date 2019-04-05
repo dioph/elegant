@@ -2,6 +2,20 @@ import numpy as np
 
 
 def gauss_seidel(Y, V0, S, eps=None, Niter=1):
+    """Gauss-Seidel Method
+
+    Parameters
+    ----------
+    Y: Matriz Ybarra (N,N)
+    V0: Chute inicial complexo (N,)
+    S: Potencias especificadas (N,2)
+    eps: tolerancia (optional)
+    Niter: Numero de iteracoes minimo (optional default=1)
+
+    Returns
+    -------
+    V: aproximacao para tensoes nos nos
+    """
     N = V0.size
     V = np.copy(V0)
     delta = np.inf
@@ -25,4 +39,8 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
         count += 1
     print('TOTAL: {} ITERACOES'.format(count))
     return V
+
+
+def newton_raphson(Y, X0, S0, eps=None, Niter=1):
+    pass
 
