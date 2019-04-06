@@ -11,7 +11,6 @@
 <Interface>:
     GridLayout:
         cols: 3
-        on_parent: root.variables()
 
         GridLayout:
             rows: 6
@@ -24,33 +23,29 @@
                 id: trafo
                 text: "!"
                 group: "elements"
-                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: pv
                 text: "@"
                 group: "elements"
-                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: pq
                 text: "#"
                 group: "elements"
-                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: lt
                 text: "$"
                 group: "elements"
-                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
             ToggleButton:
                 id: s
                 text: "%"
                 group: "elements"
-                on_press: root.get_pressed_toggle_btn_symbol(elements)
 
         BoxLayout:
+            on_parent: root.add_grid(grid, elements)
             orientation: 'vertical'
 
             Label:
@@ -60,7 +55,6 @@
                 id: grid
                 cols: 10
                 rows: 10
-                on_parent: root.add_grid(self)
 
         BoxLayout:  # Inspector
             Label:
