@@ -75,10 +75,10 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
         for n in range(N):
             if n != N:
                 _ += np.abs(V[i]*V[n]*Y[i][n])*np.sin(np.angle(Y[i][n])+np.angle(V[n])-np.angle(V[i]))
-        return -np.abs(V[i])^2*Bij(i, i)-_
+        return -np.abs(V[i])**2*Bij(i, i)-_
 
     def Mii(i):
-        return -Q[i]-np.abs(V[i])**2*Bij(i, i)
+        return -Qi[i]-np.abs(V[i])**2*Bij(i, i)
 
     def Nii(i):
         return Pi(i)-np.abs(V[i])**2*Gij(i, i)
@@ -89,7 +89,7 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
     def Nij(i, j):
         return -np.abs(V[i]*V[j]*Y[i][j]*np.cos(np.angle(Y[i][j]) + np.angle(V[j]) - np.angle(V[i])))
 
-    def J_inv(N):
+    def J(N):
         J11, J12, J21, J22 = np.zeros([N-1][N-1])
         for i in range(2, N):
             for j in range(2, N):
@@ -102,9 +102,12 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
                     J12[i][j] = -Nij(i, j)
                     J22[i][j] = Mij(i, j)
 
-        J_inv = np.linalg.inv(np.array([J11, J12], [J21, J22]))
+        J = np.array([J11, J12], [J21, J22])
 
-        return J_inv
+        return J
+
+    def DeltaP():
+        pass
 
     N = V0.size
     V = V0.copy()
@@ -113,5 +116,5 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
         eps = np.inf
     count = 0
     while delta < eps or count < Niter:
-        for i in range(N):
-            pass
+        J = J(N)
+        DeltaV = np.linalg.solve(J, DeltaP)
