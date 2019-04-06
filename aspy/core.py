@@ -1,4 +1,3 @@
-from _methods import GaussSeidel
 import numpy as np
 from scipy.stats.mstats import gmean
 
@@ -11,13 +10,24 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+    def __init__(self, id=0, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+        self.id = id
         self.v = v
         self.delta = delta
         self.pg = pg
         self.qg = qg
         self.pl = pl
         self.ql = ql
+
+
+class BarraPQ(Barra):
+    def __init__(self, id=0, v=np.nan, delta=np.nan, pg=0., qg=0., pl=0., ql=0.):
+        super(BarraPQ, self).__init__(id=id, v=v, delta=delta, pg=pg, qg=qg, pl=pl, ql=ql)
+
+
+class BarraPV(Barra):
+    def __init__(self, id=0, v=0., delta=np.nan, pg=0., qg=np.nan, pl=0., ql=np.nan):
+        super(BarraPV, self).__init__(id=id, v=v, delta=delta, pg=pg, qg=qg, pl=pl, ql=ql)
 
 
 class LT(object):
@@ -58,7 +68,7 @@ class LT(object):
 
     @property
     def Z(self):
-        R = self.rho * self.l / (self.m * np.pi * self.r**2)
+        R = self.rho * self.l / (self.m * PI * self.r**2)
         L = 2e-7 * np.log(gmean(self.D) / self.Rm) * self.l
         return R + OMEGA * L * 1j
 
