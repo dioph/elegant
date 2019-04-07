@@ -1,12 +1,19 @@
+import numpy as np
 from kivy.app import App
 from kivy.lang import Builder
-from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
 
 presentation = Builder.load_file('./interface.kv')
 
 
 class Interface(FloatLayout):
+    def __init__(self):
+        super(Interface, self).__init__()
+        self.n = 0
+        self.Y = np.zeros((self.n, self.n))
+        self.grid = np.zeros((10, 10), dtype=object)
+
     def add_grid(self, grid, elements):
         """Initializes the grid
 
