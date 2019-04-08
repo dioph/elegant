@@ -2,26 +2,50 @@
     padding: 5
 
 <BoxLayout>:
+    visible: True
+    size_hint_x: 1 if self.visible else 0
+    size_hint_y: 1 if self.visible else 0
+    opacity: 1 if self.visible else 0
+    disabled: not self.visible
     padding: 5
 
 <Button>:
+    visible: True
+    size_hint_x: 1 if self.visible else 0
+    size_hint_y: 1 if self.visible else 0
+    opacity: 1 if self.visible else 0
+    disabled: not self.visible
+    coords: 0, 0
 
 <Label>:
+    visible: True
+    size_hint_x: 1 if self.visible else 0
+    size_hint_y: 1 if self.visible else 0
+    opacity: 1 if self.visible else 0
+    disabled: not self.visible
+
+<TextInput>:
+    visible: True
+    size_hint_x: 1 if self.visible else 0
+    size_hint_y: 1 if self.visible else 0
+    opacity: 1 if self.visible else 0
+    disabled: not self.visible
+    multiline: False
 
 <Interface>:
+
     GridLayout:
-        cols: 3
+        rows: 1
 
         GridLayout:
             rows: 6
             id: elements
-
-            Label:
-                text: "Elementos"
-
+            size_hint: 0.5, 1
             ToggleButton:
                 id: trafo
                 text: "!"
+                background_normal: "/home/alpaca/Pictures/germany.png"
+                background_down: "/home/alpaca/Pictures/germany.png"
                 group: "elements"
 
             ToggleButton:
@@ -46,16 +70,139 @@
 
         BoxLayout:
             orientation: 'vertical'
-
-            Label:
-                text: "Grid"
-
             GridLayout:
                 id: grid
                 cols: 10
                 rows: 10
                 on_parent: root.add_grid(self, elements)
 
-        BoxLayout:  # Inspector
+        BoxLayout:
+            ### LT ###
+            orientation: 'vertical'
+            size_hint: 0.5, 1
+            id: inspectLT
+            visible: False
+            size_hint_x: 0.5 if self.visible else 0
             Label:
-                text: "Inspector"
+                id: NomeLT
+                text: "Linha de Transmissao"
+                visible: inspectLT.visible
+            BoxLayout:
+                orientation: 'horizontal'
+                id: lLT
+                visible: inspectLT.visible
+                Label:
+                    visible: inspectLT.visible
+                    text: "l (km) ="
+                TextInput:
+                    visible: inspectLT.visible
+                    text: "80"
+            BoxLayout:
+                orientation: 'horizontal'
+                id: rLT
+                visible: inspectLT.visible
+                Label:
+                    visible: inspectLT.visible
+                    text: "r (cm) ="
+                TextInput:
+                    visible: inspectLT.visible
+                    text: "2.5"
+            BoxLayout:
+                orientation: 'horizontal'
+                id: DLT
+                visible: inspectLT.visible
+                Label:
+                    visible: inspectLT.visible
+                    text: "D12 (m) ="
+                TextInput:
+                    visible: inspectLT.visible
+                    text: "0.50"
+                Label:
+                    visible: inspectLT.visible
+                    text: "D23 (m) ="
+                TextInput:
+                    visible: inspectLT.visible
+                    text: "0.50"
+                Label:
+                    visible: inspectLT.visible
+                    text: "D31 (m) ="
+                TextInput:
+                    visible: inspectLT.visible
+                    text: "0.50"
+            BoxLayout:
+                orientation: 'horizontal'
+                id: mLT
+                visible: inspectLT.visible
+                Label:
+                    visible: inspectLT.visible
+                    text: "m ="
+                TextInput:
+                    visible: inspectLT.visible
+                    text: "1"
+            Button:
+                id: removeLT
+                visible: inspectLT.visible
+                text: "REMOVE"
+
+        BoxLayout:
+            ### PQ ###
+            orientation: 'vertical'
+            size_hint: 0.5, 1
+            id: inspectPQ
+            visible: False
+            size_hint_x: 0.5 if self.visible else 0
+            Label:
+                id: NomeBarra
+                text: "Barra "
+                visible: inspectPQ.visible
+            BoxLayout:
+                orientation: 'horizontal'
+                id: VBarra
+                visible: inspectPQ.visible
+                Label:
+                    visible: inspectPQ.visible
+                    text: "V ="
+                Label:
+                    visible: inspectPQ.visible
+                    text: ""
+            BoxLayout:
+                orientation: 'horizontal'
+                id: deltaBarra
+                visible: inspectPQ.visible
+                Label:
+                    visible: inspectPQ.visible
+                    text: "\u03B4 ="
+                Label:
+                    visible: inspectPQ.visible
+                    text: ""
+            BoxLayout:
+                orientation: 'horizontal'
+                id: PBarra
+                visible: inspectPQ.visible
+                Label:
+                    visible: inspectPQ.visible
+                    text: "P ="
+                Label:
+                    visible: inspectPQ.visible
+                    text: ""
+            BoxLayout:
+                orientation: 'horizontal'
+                id: QBarra
+                visible: inspectPQ.visible
+                Label:
+                    visible: inspectPQ.visible
+                    text: "Q ="
+                Label:
+                    visible: inspectPQ.visible
+                    text: ""
+            Button:
+                id: removeBarra
+                visible: inspectPQ.visible
+                text: "REMOVE"
+
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint: 0.5, 1
+            id: inspectDefault
+            visible: True
+            size_hint_x: 0.5 if self.visible else 0
