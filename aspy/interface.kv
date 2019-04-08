@@ -69,12 +69,12 @@
                 group: "elements"
 
         BoxLayout:
+            on_parent: root.add_grid(grid, elements)
             orientation: 'vertical'
             GridLayout:
                 id: grid
                 cols: 10
                 rows: 10
-                on_parent: root.add_grid(self, elements)
 
         BoxLayout:
             ### LT ###
