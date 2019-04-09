@@ -1,3 +1,5 @@
+#:import np numpy
+
 <GridLayout>:
     padding: 5
 
@@ -15,7 +17,8 @@
     size_hint_y: 1 if self.visible else 0
     opacity: 1 if self.visible else 0
     disabled: not self.visible
-    coords: 0, 0
+    coords: (0, 0)
+    info: None
 
 <Label>:
     visible: True
@@ -33,43 +36,50 @@
     multiline: False
 
 <Interface>:
-
     GridLayout:
         rows: 1
-
+        id: toplevel
         GridLayout:
             rows: 6
             id: elements
             size_hint: 0.5, 1
             ToggleButton:
-                id: trafo
-                text: "!"
-                background_normal: "/home/alpaca/Pictures/germany.png"
-                background_down: "/home/alpaca/Pictures/germany.png"
-                group: "elements"
-
-            ToggleButton:
-                id: pv
-                text: "@"
+                id: lt
+                info: 'lt'
+                background_normal: "./data/linha.jpg"
+                background_down: "./data/linha.jpg"
                 group: "elements"
 
             ToggleButton:
                 id: pq
-                text: "#"
+                info: 'pq'
+                background_normal: "./data/barra.jpg"
+                background_down: "./data/barra.jpg"
                 group: "elements"
 
             ToggleButton:
-                id: lt
-                text: "$"
+                id: pv
+                info: 'pv'
+                background_normal: "./data/gerador.jpg"
+                background_down: "./data/gerador.jpg"
+                group: "elements"
+
+            ToggleButton:
+                id: trafo
+                info: 'trafo'
+                background_normal: "./data/trafo.jpg"
+                background_down: "./data/trafo.jpg"
                 group: "elements"
 
             ToggleButton:
                 id: s
-                text: "%"
+                info: 's'
+                background_normal: "./data/seta.jpg"
+                background_down: "./data/seta.jpg"
                 group: "elements"
 
         BoxLayout:
-            on_parent: root.add_grid(grid, elements)
+            on_parent: root.add_grid(grid, elements, toplevel)
             orientation: 'vertical'
             GridLayout:
                 id: grid
@@ -109,7 +119,7 @@
                     text: "2.5"
             BoxLayout:
                 orientation: 'horizontal'
-                id: DLT
+                id: D12LT
                 visible: inspectLT.visible
                 Label:
                     visible: inspectLT.visible
@@ -117,12 +127,18 @@
                 TextInput:
                     visible: inspectLT.visible
                     text: "0.50"
+            BoxLayout:
+                orientation: 'horizontal'
+                id: D23LT
                 Label:
                     visible: inspectLT.visible
                     text: "D23 (m) ="
                 TextInput:
                     visible: inspectLT.visible
                     text: "0.50"
+            BoxLayout:
+                orientation: 'horizontal'
+                id: D31LT
                 Label:
                     visible: inspectLT.visible
                     text: "D31 (m) ="
@@ -139,6 +155,7 @@
                 TextInput:
                     visible: inspectLT.visible
                     text: "1"
+                    multiline: False
             Button:
                 id: removeLT
                 visible: inspectLT.visible
@@ -181,20 +198,20 @@
                 visible: inspectPQ.visible
                 Label:
                     visible: inspectPQ.visible
-                    text: "P ="
-                Label:
+                    text: "PL ="
+                TextInput:
                     visible: inspectPQ.visible
-                    text: ""
+                    text: "0.0"
             BoxLayout:
                 orientation: 'horizontal'
                 id: QBarra
                 visible: inspectPQ.visible
                 Label:
                     visible: inspectPQ.visible
-                    text: "Q ="
-                Label:
+                    text: "QL ="
+                TextInput:
                     visible: inspectPQ.visible
-                    text: ""
+                    text: "0.0"
             Button:
                 id: removeBarra
                 visible: inspectPQ.visible
