@@ -10,34 +10,47 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, id=0, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+    def __init__(self, id=0, V=None, delta=None, pg=None, qg=None, pl=None, ql=None):
         self.id = id
-        self.v = v
+        self.V = V
         self.delta = delta
         self.pg = pg
         self.qg = qg
         self.pl = pl
         self.ql = ql
+        self.Vbase = None
+
+    @property
+    def P(self):
+        return self.pg - self.pl
+
+    @property
+    def Q(self):
+        return self.qg - self.ql
 
 
 class BarraPQ(Barra):
-    def __init__(self, id=0, v=np.nan, delta=np.nan, pg=0., qg=0., pl=0., ql=0.):
-        super(BarraPQ, self).__init__(id=id, v=v, delta=delta, pg=pg, qg=qg, pl=pl, ql=ql)
+    def __init__(self, id=0, pg=0., qg=0., pl=0., ql=0.):
+        super(BarraPQ, self).__init__(id=id, V=np.nan, delta=np.nan, pg=pg, qg=qg, pl=pl, ql=ql)
 
 
 class BarraPV(Barra):
-    def __init__(self, id=0, v=0., delta=np.nan, pg=0., qg=np.nan, pl=0., ql=np.nan):
-        super(BarraPV, self).__init__(id=id, v=v, delta=delta, pg=pg, qg=qg, pl=pl, ql=ql)
+    def __init__(self, id=0, V=1., pg=0., pl=0.):
+        super(BarraPV, self).__init__(id=id, V=V, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=np.nan)
+
+
+class BarraSL(Barra):
+    def __init__(self, id=0, V=1., delta=0.):
+        super(BarraSL, self).__init__(id=id, V=V, delta=delta, pg=np.nan, qg=np.nan, pl=np.nan, ql=np.nan)
 
 
 class LT(object):
-    def __init__(self, l, r, D, d, rho=1.78e-8, n=3, m=1):
+    def __init__(self, l, r, D, d, rho=1.78e-8, m=1):
         self.rho = rho
         self.l = l
         self.r = r
         self.D = np.atleast_1d(D)
         self.d = d
-        self.n = n
         self.m = m
 
     @property
