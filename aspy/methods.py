@@ -17,6 +17,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     V: aproximacao para tensoes nos nos
     """
     N = V0.size
+    Vold = np.copy(V0)
     V = np.copy(V0)
     delta = np.inf
     if eps is None:
@@ -24,18 +25,18 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     count = 0
     while delta > eps or count < Niter:
         for i in range(N):
-            I = np.dot(Y[i], V0)
+            I = np.dot(Y[i], V)
             P, Q = S[i]
             if np.isnan(P):
                 continue
             if np.isnan(Q):
-                Q = -np.imag(np.conjugate(V0[i]) * I)
-                V0[i] = ((P - 1j * Q) / np.conjugate(V0[i]) - (I - Y[i, i] * V0[i])) / Y[i, i]
-                V0[i] = V0[i] * np.abs(V[i]) / np.abs(V0[i])
+                Q = -np.imag(np.conjugate(V[i]) * I)
+                V[i] = ((P - 1j * Q) / np.conjugate(V[i]) - (I - Y[i, i] * V[i])) / Y[i, i]
+                V[i] = V[i] * np.abs(Vold[i]) / np.abs(V[i])
             else:
-                V0[i] = ((P - 1j * Q) / np.conjugate(V0[i]) - (I - Y[i, i] * V0[i])) / Y[i, i]
-        delta = max(np.abs(V - V0))
-        V = np.copy(V0)
+                V[i] = ((P - 1j * Q) / np.conjugate(V[i]) - (I - Y[i, i] * V[i])) / Y[i, i]
+        delta = max(np.abs(V - Vold))
+        Vold = np.copy(V)
         count += 1
     print('TOTAL: {} ITERACOES'.format(count))
     return V
