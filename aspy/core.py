@@ -45,7 +45,9 @@ class BarraSL(Barra):
 
 
 class LT(object):
-    def __init__(self, l, r, D, d, rho=1.78e-8, m=1):
+    def __init__(self, l=80e3, r=2.5e-2, D=None, d=0.5, rho=1.78e-8, m=1):
+        if D is None:
+            D = [1.0, 1.0, 1.0]
         self.rho = rho
         self.l = l
         self.r = r
@@ -92,7 +94,7 @@ class LT(object):
 
 
 class Trafo(object):
-    def __init__(self, Snom, Vnom1, Vnom2, X):
+    def __init__(self, Snom=1e6, Vnom1=1e3, Vnom2=1e3, X=0.0):
         self.Snom = Snom
         self.Vnom1 = Vnom1
         self.Vnom2 = Vnom2
