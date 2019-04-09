@@ -25,7 +25,18 @@ def test_gauss_seidel_eps():
     assert 0.99668 < np.abs(V[2]) < 0.99669      # 0.9966868043172695
 
 
-def test_newton_raphson():
+def test_newton_raphson_p1():
+    lt = LT(l=32e3, r=2.5e-2, D=[4.5, 3.0, 7.5], d=0.4, m=2)
+    Y = np.array([[1/.12j, 0, -1/.12j], [0, 1/lt.Z, -1/lt.Z], [-1/.12j, -1/lt.Z, 1/.12j + 1/lt.Z]])
+    V0 = np.array([1.01, 1.02, 1.0], complex)
+    S = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
+    V = newton_raphson(Y, V0, S, Niter=1)
+    assert V[0] == 1.01
+    assert np.abs(np.abs(V[1]) - 1.02) < 1e-6
+    assert 1.00097 < np.real(V[2]) < 1.00098
+
+
+def test_newton_raphson_stevenson():
     Y = np.array([
         [8.985190 - 44.835953 * 1j, -3.815629 + 19.078144 * 1j, -5.169561 + 25.847809 * 1j, 0],
         [-3.815629 + 19.078144 * 1j, 8.985190 - 44.835953 * 1j, 0, -5.169561 + 25.847809 * 1j],
