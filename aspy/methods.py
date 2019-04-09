@@ -123,49 +123,49 @@ def jacobian(N, V0, Y):
     -------
     J: Jacobian matrix (N, N)
     """
-    JT = np.append(J11(N, V0, Y), J12(N, V0, Y), axis=1)
-    JB = np.append(J21(N, V0, Y), J22(N, V0, Y), axis=1)
-    J = np.append(JT, JB, axis=0)
+    j11_j12 = np.append(J11(N, V0, Y), J12(N, V0, Y), axis=1)
+    j21_j22 = np.append(J21(N, V0, Y), J22(N, V0, Y), axis=1)
+    J = np.append(j11_j12, j21_j22, axis=0)
     return J
 
 
-def delta_Vdelta(delta_PQ, N, V0, Y):
+def DeltaVdelta(deltaPQ, N, V0, Y):
     """
     Parameters
     ----------
-    delta_PQ: mismatches arrays (1, N)
+    deltaPQ: mismatches arrays (1, N)
     N: size of V0
     V0: array with initial estimates (1, N)
     Y: admittance matrix
 
     Returns
     -------
-    remove_from_j_adj: array with positions of to be removed from J
-    delta_Vdelta: array with the increase values to update V0
+    jacobiansDespises: array with positions to be removed from J
+    deltaVdelta: array with the increase values to update V0
     """
-    n = np.size(delta_PQ)
-    delta_PQ_adj = np.empty([0, 0])
-    remove_from_j_adj = np.empty([0, 0])
+    n = np.size(deltaPQ)
+    deltaPQ_adj = np.empty([0, 0])
+    jacobiansDespises = np.empty([0, 0])
     j_adj = jacobian(N, V0, Y)
     for i in range(n):
-        if delta_PQ[i] != 0.:
-            delta_PQ_adj = np.append(delta_PQ_adj, delta_PQ[i])
+        if deltaPQ[i] != 0.:
+            deltaPQ_adj = np.append(deltaPQ_adj, deltaPQ[i])
         else:
-            remove_from_j_adj = np.append(remove_from_j_adj, i)
-    remove_from_j_adj = remove_from_j_adj[-1::-1]
-    for lincol in remove_from_j_adj:
+            jacobiansDespises = np.append(jacobiansDespises, i)
+    jacobiansDespises = jacobiansDespises[-1::-1]
+    for lincol in jacobiansDespises:
         j_adj = np.delete(j_adj, int(lincol), 0)
         j_adj = np.delete(j_adj, int(lincol), 1)
-    remove_from_j_adj = set(remove_from_j_adj)
-    delta_Vdelta = np.linalg.solve(j_adj, delta_PQ_adj)
-    return delta_Vdelta, remove_from_j_adj
+    jacobiansDespises = set(jacobiansDespises)
+    deltaVdelta = np.linalg.solve(j_adj, deltaPQ_adj)
+    return deltaVdelta, jacobiansDespises
 
 
-def update_V(delta_PQ, N, V0, Y):
+def updateV(deltaPQ, N, V0, Y):
     """
     Parameters
     ----------
-    delta_PQ:
+    deltaPQ:
     N: size of V0
     V0: array with initial estimates (1, N)
     Y: admittance matrix
@@ -174,23 +174,23 @@ def update_V(delta_PQ, N, V0, Y):
     -------
     V0: updated array with new estimates to the node tensions
     """
-    Delta_Vdelta, Remove_from_j_adj = delta_Vdelta(delta_PQ, N, V0, Y)
-    v_adj = np.empty([0, 0])
-    v_adj_item = 0
+    deltaVdelta, jacobiansDespises = DeltaVdelta(deltaPQ, N, V0, Y)
+    Vadj = np.empty([0, 0])
+    VadjCounter = 0
     for v in V0:
-        v_adj = np.append(v_adj, np.angle(v))
+        Vadj = np.append(Vadj, np.angle(v))
     for v in V0:
-        v_adj = np.append(v_adj, np.abs(v))
-    for i in range(np.size(v_adj)):
-        if i in Remove_from_j_adj:
+        Vadj = np.append(Vadj, np.abs(v))
+    for i in range(np.size(Vadj)):
+        if i in jacobiansDespises:
             pass
         else:
-            v_adj[i] += Delta_Vdelta[v_adj_item]
-            v_adj_item += 1
-    v_adj_item = int(np.size(v_adj)/2)
+            Vadj[i] += deltaVdelta[VadjCounter]
+            VadjCounter += 1
+    VadjCounter = int(np.size(Vadj)/2)
     for i in range(N):
-        V0[i] = complex(v_adj[v_adj_item] * np.cos(v_adj[v_adj_item - N]), v_adj[v_adj_item] * np.sin(v_adj[v_adj_item - N]))
-        v_adj_item += 1
+        V0[i] = complex(Vadj[VadjCounter] * np.cos(Vadj[VadjCounter - N]), Vadj[VadjCounter] * np.sin(Vadj[VadjCounter - N]))
+        VadjCounter += 1
     return V0
 
 
@@ -215,21 +215,21 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
         eps = np.inf
     count = 0
     while delta > eps or count < Niter:
-        delta_PQ = np.zeros([2 * N, 1])
+        deltaPQ = np.zeros([2*N, 1])
         for i in range(N):
             P, Q = S[i]
             I = np.dot(V0, Y[i])
             if not (np.isnan(P)):
                 Pcalc = np.dot(V[i], I.conjugate()).real
-                delta_PQ[i] = P - Pcalc
+                deltaPQ[i] = P - Pcalc
                 if np.isnan(Q):
                     pass
                 else:
                     Qcalc = np.dot(V[i], I.conjugate()).imag
-                    delta_PQ[i + N] = Q - Qcalc
+                    deltaPQ[i + N] = Q - Qcalc
             else:
                 continue
-        V0 = update_V(delta_PQ, N, V0, Y)
+        V0 = updateV(deltaPQ, N, V0, Y)
         delta = max(np.abs(V - V0))
         V = np.copy(V0)
         count += 1
@@ -237,8 +237,7 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
     return V0
 
 
-"""
-# Stevenson test example: 
+# Stevenson test example:
 
 Y = np.array([
     [8.985190 - 44.835953 * 1j, -3.815629 + 19.078144 * 1j, -5.169561 + 25.847809 * 1j, 0],
@@ -251,4 +250,3 @@ V0 = np.array([1+0*1j, 1+0*1j, 1+0*1j, 1.02+0*1j])
 S = np.array([[np.nan, np.nan], [-1.7, -1.0535], [-2, -1.2394], [2.38, np.nan]])
 
 V0 = newton_raphson(Y, V0, S, eps=1e-12)
-"""
