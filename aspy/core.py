@@ -1,4 +1,3 @@
-from _methods import GaussSeidel
 import numpy as np
 from scipy.stats.mstats import gmean
 
@@ -11,23 +10,49 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
-        self.v = v
+    def __init__(self, id=0, V=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+        self.id = id
+        self.V = V
         self.delta = delta
         self.pg = pg
         self.qg = qg
         self.pl = pl
         self.ql = ql
+        self.Vbase = None
+
+    @property
+    def P(self):
+        return self.pg - self.pl
+
+    @property
+    def Q(self):
+        return self.qg - self.ql
+
+
+class BarraPQ(Barra):
+    def __init__(self, id=0, pg=0., qg=0., pl=0., ql=0.):
+        super(BarraPQ, self).__init__(id=id, V=np.nan, delta=np.nan, pg=pg, qg=qg, pl=pl, ql=ql)
+
+
+class BarraPV(Barra):
+    def __init__(self, id=0, V=1., pg=0., pl=0.):
+        super(BarraPV, self).__init__(id=id, V=V, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=np.nan)
+
+
+class BarraSL(Barra):
+    def __init__(self, id=0, V=1., delta=0.):
+        super(BarraSL, self).__init__(id=id, V=V, delta=delta, pg=np.nan, qg=np.nan, pl=np.nan, ql=np.nan)
 
 
 class LT(object):
-    def __init__(self, l, r, D, d, rho=1.78e-8, n=3, m=1):
+    def __init__(self, l=80e3, r=2.5e-2, D=None, d=0.5, rho=1.78e-8, m=1):
+        if D is None:
+            D = [1.0, 1.0, 1.0]
         self.rho = rho
         self.l = l
         self.r = r
         self.D = np.atleast_1d(D)
         self.d = d
-        self.n = n
         self.m = m
 
     @property
@@ -58,7 +83,7 @@ class LT(object):
 
     @property
     def Z(self):
-        R = self.rho * self.l / (self.m * np.pi * self.r**2)
+        R = self.rho * self.l / (self.m * PI * self.r**2)
         L = 2e-7 * np.log(gmean(self.D) / self.Rm) * self.l
         return R + OMEGA * L * 1j
 
@@ -69,7 +94,7 @@ class LT(object):
 
 
 class Trafo(object):
-    def __init__(self, Snom, Vnom1, Vnom2, X):
+    def __init__(self, Snom=1e6, Vnom1=1e3, Vnom2=1e3, X=0.0):
         self.Snom = Snom
         self.Vnom1 = Vnom1
         self.Vnom2 = Vnom2
