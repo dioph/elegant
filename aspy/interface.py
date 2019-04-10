@@ -1,33 +1,3 @@
-<<<<<<< HEAD
-from kivy.app import App
-#kivy.require("1.0")
-from kivy.uix.label import Label
-from kivy.uix.widget import Widget
-from kivy.uix.floatlayout import FloatLayout
-from kivy.graphics import Line
-from kivy.lang import Builder
-from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
-
-# Widgets é a classe pai. Referenciar a classe pai significa adicionar filhos, que é o que é feito no arquivo .kv
-
-class MainScreen(Screen):
-    pass
-
-class AnotherScreen(Screen):
-    pass
-
-class ScreenManagement(ScreenManager):
-    pass
-
-presentation = Builder.load_file("aspy2.kv")
-
-class aspy2(App):
-    def build(self):
-        return presentation
-
-if __name__ == '__main__':
-    aspy2().run()
-=======
 from kivy.uix.widget import Widget
 
 from .core import *
@@ -35,7 +5,7 @@ from .core import *
 
 class System(Widget):
     def __init__(self):
-        super(System, self).__init__()
+        super(System, self).__init__git ()
         self.n = 0
         self.Y = np.zeros((self.n, self.n))
         self.grid = np.zeros((10, 10), dtype=object)
@@ -70,4 +40,3 @@ class System(Widget):
             self.Y[node1][node1] += 1/lt.Z + lt.Y/2
         if node2 is not None:
             self.Y[node2][node2] += 1/lt.Z + lt.Y/2
->>>>>>> 1c4d25a83a1a38d72b3e4038f876d15e6cd3379f
