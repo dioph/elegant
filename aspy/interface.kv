@@ -36,6 +36,7 @@
     disabled: not self.visible
     coords: (0, 0)
     info: None
+    padding: 0.2, 0.2
 
 <Label>:
     visible: True
@@ -59,47 +60,59 @@
 
 <Interface>:
     GridLayout:
-        rows: 1
-        id: toplevel
+        rows: 2
         GridLayout:
-            rows: 6
-            id: elements
-            size_hint: 0.5, 1
-            ToggleButton:
-                id: slack
-                info: 'slack'
-                background_normal: "./data/barra.jpg"
-                background_down: "./data/barra.jpg"
-                group: "elements"
-                visible: False
-            ToggleButton:
-                id: lt
-                info: 'lt'
-                background_normal: "./data/linha.jpg"
-                background_down: "./data/linha.jpg"
-                group: "elements"
+            size_hint: 0.1, 0.1
+            pos: 1, 1
+            rows: 1
+            cols: 3
+            Button:
+                text: 'Save'
+                size_hint: None, 1
+                pos_hint: 0.5, 1
+            Button:
+                text: 'Load'
+                size_hint: None, 1
+                pos_hint: 1, 1
+            Button:
+                text: 'Report'
+                size_hint: None, 1
+                pos_hint: 1, 1
+                on_press: root.report()
+        GridLayout:
+            rows: 1
+            id: toplevel
+            GridLayout:
+                rows: 6
+                id: elements
+                size_hint: 0.5, 1
+                ToggleButton:
+                    id: slack
+                    info: 'slack'
+                    background_normal: "./data/barra.jpg"
+                    background_down: "./data/barra.jpg"
+                    group: "elements"
+                    visible: False
+                ToggleButton:
+                    id: lt
+                    info: 'lt'
+                    background_normal: "./data/linha.jpg"
+                    background_down: "./data/linha.jpg"
+                    group: "elements"
 
-            ToggleButton:
-                id: pq
-                info: 'pq'
-                background_normal: "./data/barra.jpg"
-                background_down: "./data/barra.jpg"
-                group: "elements"
+                ToggleButton:
+                    id: pq
+                    info: 'pq'
+                    background_normal: "./data/barra.jpg"
+                    background_down: "./data/barra.jpg"
+                    group: "elements"
 
-            ToggleButton:
-                id: pv
-                info: 'pv'
-                background_normal: "./data/gerador.jpg"
-                background_down: "./data/gerador.jpg"
-                group: "elements"
-
-            ToggleButton:
-                id: trafo
-                info: 'trafo'
-                background_normal: "./data/trafo.jpg"
-                background_down: "./data/trafo.jpg"
-                group: "elements"
-
+                ToggleButton:
+                    id: pv
+                    info: 'pv'
+                    background_normal: "./data/gerador.jpg"
+                    background_down: "./data/gerador.jpg"
+                    group: "elements"
         BoxLayout:
             on_parent: root.init_grid(grid, elements, toplevel)
             orientation: 'vertical'
@@ -158,7 +171,7 @@
                     text: "P[sub]G[/sub] (MW) ="
                 Label:
                     visible: inspectSL.visible
-                    text: str(inspectSL.pg)
+                    text: ""
             BoxLayout:
                 orientation: 'horizontal'
                 id: QgBarraSL
@@ -168,7 +181,7 @@
                     text: "Q[sub]G[/sub] (Mvar) ="
                 Label:
                     visible: inspectSL.visible
-                    text: str(inspectSL.qg)
+                    text: ""
             BoxLayout:
                 orientation: 'horizontal'
                 id: PlBarraSL
@@ -178,7 +191,7 @@
                     text: "P[sub]L[/sub] (MW) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: str(inspectSL.pl)
+                    text: "0.0"
             BoxLayout:
                 orientation: 'horizontal'
                 id: QlBarraSL
@@ -188,8 +201,7 @@
                     text: "Q[sub]L[/sub] (Mvar) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: str(inspectSL.ql)
-                    on_text_validate: root.edited()
+                    text: "0.0"
 
         BoxLayout:
             ### LT ###
@@ -212,7 +224,7 @@
                 TextInput:
                     visible: inspectLT.visible
                     text: "80"
-                    on_text_validate: root.update()
+                    # on_enter: root.update()
             BoxLayout:
                 orientation: 'horizontal'
                 id: rhoLT
@@ -285,7 +297,6 @@
                 id: removeLT
                 visible: inspectLT.visible
                 text: "REMOVE"
-
         BoxLayout:
             ### PQ ###
             orientation: 'vertical'

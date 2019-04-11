@@ -13,6 +13,7 @@ static PyTypeObject Cmplx_Type;
 #define CmplxObject_Check(v) (Py_TYPE(v) == &Cmplx_Type)
 
 static CmplxObject * newCmplxObject(PyObject *arg)
+
 {
     CmplxObject *self;
     self = PyObject_New(CmplxObject, &Cmplx_Type);
