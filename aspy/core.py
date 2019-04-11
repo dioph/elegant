@@ -54,6 +54,7 @@ class LT(object):
         self.D = np.atleast_1d(D)
         self.d = d
         self.m = m
+        self.Vbase = None
 
     @property
     def Rm(self):

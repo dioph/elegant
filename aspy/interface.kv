@@ -8,6 +8,25 @@
     opacity: 1 if self.visible else 0
     disabled: not self.visible
     padding: 5
+    v: 1.0
+    delta: 0.0
+    vbase: 1.0
+    vbase1: 1.0
+    vbase2: 1.0
+    snom: 1.0
+    x: 0.0
+    pg: 0.0
+    qg: 0.0
+    pl: 0.0
+    ql: 0.0
+    l: 80.0
+    rho: 17.8
+    r: 2.5
+    d12: 1.0
+    d23: 1.0
+    d31: 1.0
+    d: 50
+    coords: (0, 0)
 
 <Button>:
     visible: True
@@ -81,15 +100,8 @@
                 background_down: "./data/trafo.jpg"
                 group: "elements"
 
-            ToggleButton:
-                id: s
-                info: 's'
-                background_normal: "./data/seta.jpg"
-                background_down: "./data/seta.jpg"
-                group: "elements"
-
         BoxLayout:
-            on_parent: root.add_grid(grid, elements, toplevel)
+            on_parent: root.init_grid(grid, elements, toplevel)
             orientation: 'vertical'
             GridLayout:
                 id: grid
@@ -116,7 +128,7 @@
                     text: "V (kV) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: "1.0"
+                    text: str(inspectSL.v)
             BoxLayout:
                 orientation: 'horizontal'
                 id: VBaseSL
@@ -126,7 +138,7 @@
                     text: "V[sub]base[/sub] (kV) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: "1.0"
+                    text: str(inspectSL.vbase)
             BoxLayout:
                 orientation: 'horizontal'
                 id: deltaBarraSL
@@ -136,7 +148,7 @@
                     text: "\u03B4 (\u00B0) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: "0"
+                    text: str(inspectSL.delta)
             BoxLayout:
                 orientation: 'horizontal'
                 id: PgBarraSL
@@ -146,7 +158,7 @@
                     text: "P[sub]G[/sub] (MW) ="
                 Label:
                     visible: inspectSL.visible
-                    text: ""
+                    text: str(inspectSL.pg)
             BoxLayout:
                 orientation: 'horizontal'
                 id: QgBarraSL
@@ -156,7 +168,7 @@
                     text: "Q[sub]G[/sub] (Mvar) ="
                 Label:
                     visible: inspectSL.visible
-                    text: ""
+                    text: str(inspectSL.qg)
             BoxLayout:
                 orientation: 'horizontal'
                 id: PlBarraSL
@@ -166,7 +178,7 @@
                     text: "P[sub]L[/sub] (MW) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: "0.0"
+                    text: str(inspectSL.pl)
             BoxLayout:
                 orientation: 'horizontal'
                 id: QlBarraSL
@@ -176,7 +188,8 @@
                     text: "Q[sub]L[/sub] (Mvar) ="
                 TextInput:
                     visible: inspectSL.visible
-                    text: "0.0"
+                    text: str(inspectSL.ql)
+                    on_text_validate: root.edited()
 
         BoxLayout:
             ### LT ###
@@ -199,7 +212,7 @@
                 TextInput:
                     visible: inspectLT.visible
                     text: "80"
-                    # on_enter: root.update()
+                    on_text_validate: root.update()
             BoxLayout:
                 orientation: 'horizontal'
                 id: rhoLT
