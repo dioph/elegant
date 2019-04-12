@@ -29,7 +29,7 @@ def getBarsType(Sesp):
 def getBarMissingData():
     pass
 
-def log(doc, S, V):
+def log(doc, S, V, grid):
     """Add a section, a subsection and some text to the document.
     Parameters
     ----------

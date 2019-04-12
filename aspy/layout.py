@@ -6,21 +6,22 @@ from kivy.lang import Builder
 from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.textinput import TextInput
-
-
 from aspy.core import *
 from aspy.methods import *
 from aspy.log import log
 from pylatex import Document
 
-Config.set('graphics', 'width', '1500')
-Config.set('graphics', 'height', '750')
+# Config.set('graphics', 'width', '1500')
+# Config.set('graphics', 'height', '750')
+Config.set('graphics', 'width', '600')
+Config.set('graphics', 'height', '600')
 
 N = 0
 Y = np.zeros((N, N), complex)
 V0 = np.zeros(N, complex)
 BARRAS = np.zeros(N, object)
 GRID = np.zeros((10, 10), object)
+BAR_ID = 1
 SLACK = BarraSL()
 
 
@@ -98,7 +99,10 @@ class Interface(FloatLayout):
                             lt = LT()
                             self.add_line(lt, square.coords)
                         elif square.info == 'pq':
-                            b = BarraPQ()
+                            b = BarraPQ(id=BAR_ID)
+                            self.add_bus(b, square.coords)
+                        elif square.info == 'pv':
+                            b = BarraPV(id=BAR_ID)
                             self.add_bus(b, square.coords)
                         elif square.info == 'trafo':
                             pass
@@ -132,10 +136,21 @@ class Interface(FloatLayout):
             BARRAS[i].V = V[i]
 
     def add_bus(self, b, coords):
-        global N
-        GRID[coords[0], coords[1]] = b
-        N += 1
-        BARRAS[N] = b
+        global N, BARRAS, BAR_ID
+        if isinstance(GRID[coords[0], coords[1]], BarraPQ):
+            GRID[coords[0], coords[1]] = b
+            BARRAS[N-1] = b
+        elif isinstance(GRID[coords[0], coords[1]], BarraPV):
+            GRID[coords[0], coords[1]] = b
+            BARRAS[N-1] = b
+        elif isinstance(GRID[coords[0], coords[1]], BarraSL):
+            GRID[coords[0], coords[1]] = b
+            BARRAS[N-1] = b
+        else:
+            GRID[coords[0], coords[1]] = b
+            BARRAS = np.append(BARRAS, b)
+            BAR_ID += 1
+            N += 1
 
     def add_line(self, lt, coords):
         global N
@@ -154,8 +169,9 @@ class Interface(FloatLayout):
             Y[node1, node2] -= 1/lt.Z
             Y[node2, node1] -= 1/lt.Z
 
-    def report(self, S=None, V=None):
-        """Generates report when required in execution"""
+    def report(self, grid, S=None, V=None):
+        for element in grid.children:
+            pass
         doc = Document('log')
         log(doc, S, V)
         doc.generate_pdf(clean_tex=False, compiler='pdflatex')
