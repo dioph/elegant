@@ -8,25 +8,25 @@
     opacity: 1 if self.visible else 0
     disabled: not self.visible
     padding: 5
-    v: 1.0
+    v: 1.0e3
+    vbase: 1.0e3
+    vnom1: 1.0e3
+    vnom2: 1.0e3
+    snom: 1.0e6
     delta: 0.0
-    vbase: 1.0
-    vbase1: 1.0
-    vbase2: 1.0
-    snom: 1.0
-    x: 0.0
-    pg: 0.0
-    qg: 0.0
     pl: 0.0
     ql: 0.0
-    l: 80.0
-    rho: 17.8
-    r: 2.5
+    pg: 0.0
+    qg: 0.0
+    l: 80e3
+    rho: 17.8e-9
     d12: 1.0
     d23: 1.0
     d31: 1.0
-    d: 50
-    coords: (0, 0)
+    d: 50e-2
+    jx: 0.0
+    m: 1
+    r: 2.5e-2
 
 <Button>:
     visible: True
@@ -45,8 +45,8 @@
     opacity: 1 if self.visible else 0
     disabled: not self.visible
     markup: True
-    font_name: './data/Asana-Math.otf'
-    font_size: '20sp'
+    font_name: './data/cmuntt.ttf'
+    font_size: '18sp'
 
 <TextInput>:
     visible: True
@@ -55,8 +55,8 @@
     opacity: 1 if self.visible else 0
     disabled: not self.visible
     multiline: False
-    font_name: './data/Asana-Math.otf'
-    font_size: '20sp'
+    font_name: './data/cmuntt.ttf'
+    font_size: '18sp'
 
 <Interface>:
     GridLayout:
@@ -83,7 +83,7 @@
             rows: 1
             id: toplevel
             GridLayout:
-                rows: 6
+                rows: 5
                 id: elements
                 size_hint: 0.5, 1
                 ToggleButton:
@@ -113,382 +113,390 @@
                     background_normal: "./data/gerador.jpg"
                     background_down: "./data/gerador.jpg"
                     group: "elements"
-        BoxLayout:
-            on_parent: root.init_grid(grid, elements, toplevel)
-            orientation: 'vertical'
-            GridLayout:
-                id: grid
-                cols: 10
-                rows: 10
 
-        BoxLayout:
-            ### SLACK ###
-            orientation: 'vertical'
-            size_hint: 0.5, 1
-            id: inspectSL
-            visible: False
-            size_hint_x: 0.5 if self.visible else 0
-            Label:
-                id: NomeBarraSL
-                text: "Barra #0 (SLACK)"
-                visible: inspectSL.visible
-            BoxLayout:
-                orientation: 'horizontal'
-                id: VBarraSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "V (kV) ="
-                TextInput:
-                    visible: inspectSL.visible
-                    text: str(inspectSL.v)
-            BoxLayout:
-                orientation: 'horizontal'
-                id: VBaseSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "V[sub]base[/sub] (kV) ="
-                TextInput:
-                    visible: inspectSL.visible
-                    text: str(inspectSL.vbase)
-            BoxLayout:
-                orientation: 'horizontal'
-                id: deltaBarraSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "\u03B4 (\u00B0) ="
-                TextInput:
-                    visible: inspectSL.visible
-                    text: str(inspectSL.delta)
-            BoxLayout:
-                orientation: 'horizontal'
-                id: PgBarraSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "P[sub]G[/sub] (MW) ="
-                Label:
-                    visible: inspectSL.visible
-                    text: ""
-            BoxLayout:
-                orientation: 'horizontal'
-                id: QgBarraSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "Q[sub]G[/sub] (Mvar) ="
-                Label:
-                    visible: inspectSL.visible
-                    text: ""
-            BoxLayout:
-                orientation: 'horizontal'
-                id: PlBarraSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "P[sub]L[/sub] (MW) ="
-                TextInput:
-                    visible: inspectSL.visible
-                    text: "0.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: QlBarraSL
-                visible: inspectSL.visible
-                Label:
-                    visible: inspectSL.visible
-                    text: "Q[sub]L[/sub] (Mvar) ="
-                TextInput:
-                    visible: inspectSL.visible
-                    text: "0.0"
+                ToggleButton:
+                    id: trafo
+                    info: 'trafo'
+                    background_normal: "./data/trafo.jpg"
+                    background_down: "./data/trafo.jpg"
+                    group: "elements"
 
-        BoxLayout:
-            ### LT ###
-            orientation: 'vertical'
-            size_hint: 0.5, 1
-            id: inspectLT
-            visible: False
-            size_hint_x: 0.5 if self.visible else 0
-            Label:
-                id: NomeLT
-                text: "Linha de Transmissao"
-                visible: inspectLT.visible
             BoxLayout:
-                orientation: 'horizontal'
-                id: lLT
-                visible: inspectLT.visible
-                Label:
-                    visible: inspectLT.visible
-                    text: "\u2113 (km) ="
-                TextInput:
-                    visible: inspectLT.visible
-                    text: "80"
-                    # on_enter: root.update()
-            BoxLayout:
-                orientation: 'horizontal'
-                id: rhoLT
-                visible: inspectLT.visible
-                Label:
-                    visible: inspectLT.visible
-                    text: "\u03C1 (n\u03A9m) ="
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "17.8"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: rLT
-                visible: inspectLT.visible
-                Label:
-                    visible: inspectLT.visible
-                    text: "r (cm) ="
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "2.5"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: D12LT
-                visible: inspectLT.visible
-                Label:
-                    visible: inspectLT.visible
-                    text: "D[sub]12[/sub] (m) ="
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "1.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: D23LT
-                Label:
-                    visible: inspectLT.visible
-                    text: "D[sub]23[/sub] (m) ="
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "1.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: D31LT
-                Label:
-                    visible: inspectLT.visible
-                    text: "D[sub]31[/sub] (m) ="
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "1.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: dLT
-                Label:
-                    visible: inspectLT.visible
-                    text: "d (cm) ="
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "50"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: mLT
-                visible: inspectLT.visible
-                Label:
-                    visible: inspectLT.visible
-                    text: "condutores\npor fase"
-                FloatInput:
-                    visible: inspectLT.visible
-                    text: "1"
-                    multiline: False
-            Button:
-                id: removeLT
-                visible: inspectLT.visible
-                text: "REMOVE"
-        BoxLayout:
-            ### PQ ###
-            orientation: 'vertical'
-            size_hint: 0.5, 1
-            id: inspectPQ
-            visible: False
-            size_hint_x: 0.5 if self.visible else 0
-            Label:
-                id: NomeBarraPQ
-                text: "Barra "
-                visible: inspectPQ.visible
-            BoxLayout:
-                orientation: 'horizontal'
-                id: VBarraPQ
-                visible: inspectPQ.visible
-                Label:
-                    visible: inspectPQ.visible
-                    text: "V (kV) ="
-                Label:
-                    visible: inspectPQ.visible
-                    text: ""
-            BoxLayout:
-                orientation: 'horizontal'
-                id: deltaBarraPQ
-                visible: inspectPQ.visible
-                Label:
-                    visible: inspectPQ.visible
-                    text: "\u03B4 (\u00B0) ="
-                Label:
-                    visible: inspectPQ.visible
-                    text: ""
-            BoxLayout:
-                orientation: 'horizontal'
-                id: PBarraPQ
-                visible: inspectPQ.visible
-                Label:
-                    visible: inspectPQ.visible
-                    text: "P[sub]L[/sub] (MW) ="
-                FloatInput:
-                    visible: inspectPQ.visible
-                    text: "0.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: QBarraPQ
-                visible: inspectPQ.visible
-                Label:
-                    visible: inspectPQ.visible
-                    text: "Q[sub]L[/sub] (Mvar) ="
-                FloatInput:
-                    visible: inspectPQ.visible
-                    text: "0.0"
-            Button:
-                id: removeBarraPQ
-                visible: inspectPQ.visible
-                text: "REMOVE"
+                on_parent: root.init_grid(grid, elements, toplevel)
+                orientation: 'vertical'
+                GridLayout:
+                    id: grid
+                    cols: 10
+                    rows: 10
 
-        BoxLayout:
-            ### PV ###
-            orientation: 'vertical'
-            size_hint: 0.5, 1
-            id: inspectPV
-            visible: False
-            size_hint_x: 0.5 if self.visible else 0
-            Label:
-                id: NomeBarraPV
-                text: "Barra "
-                visible: inspectPV.visible
             BoxLayout:
-                orientation: 'horizontal'
-                id: VBarraPV
-                visible: inspectPV.visible
+                ### SLACK ###
+                orientation: 'vertical'
+                size_hint: 0.5, 1
+                id: inspectSL
+                visible: False
+                size_hint_x: 0.5 if self.visible else 0
                 Label:
-                    visible: inspectPV.visible
-                    text: "V (kV) ="
-                FloatInput:
-                    visible: inspectPV.visible
-                    text: "1.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: deltaBarraPV
-                visible: inspectPV.visible
-                Label:
-                    visible: inspectPV.visible
-                    text: "\u03B4 (\u00B0) ="
-                Label:
-                    visible: inspectPV.visible
-                    text: ""
-            BoxLayout:
-                orientation: 'horizontal'
-                id: PgBarraPV
-                visible: inspectPV.visible
-                Label:
-                    visible: inspectPV.visible
-                    text: "P[sub]G[/sub] (MW) ="
-                FloatInput:
-                    visible: inspectPV.visible
-                    text: "0.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: QgBarraPV
-                visible: inspectPV.visible
-                Label:
-                    visible: inspectPV.visible
-                    text: "Q[sub]G[/sub] (Mvar) ="
-                Label:
-                    visible: inspectPV.visible
-                    text: ""
-            BoxLayout:
-                orientation: 'horizontal'
-                id: PlBarraPV
-                visible: inspectPV.visible
-                Label:
-                    visible: inspectPV.visible
-                    text: "P[sub]L[/sub] (MW) ="
-                FloatInput:
-                    visible: inspectPV.visible
-                    text: "0.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: QlBarraPV
-                visible: inspectPV.visible
-                Label:
-                    visible: inspectPV.visible
-                    text: "Q[sub]L[/sub] (Mvar) ="
-                FloatInput:
-                    visible: inspectPV.visible
-                    text: ""
-            Button:
-                id: removeBarraPV
-                visible: inspectPV.visible
-                text: "REMOVE"
+                    id: NomeBarraSL
+                    text: "Barra #0 (SLACK)"
+                    visible: inspectSL.visible
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: VBarraSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "V (kV) ="
+                    TextInput:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.v/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: VBaseSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "V[sub]base[/sub] (kV) ="
+                    TextInput:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.vbase/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: deltaBarraSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "\u03B4 (\u00B0) ="
+                    TextInput:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.delta)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: PgBarraSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "P[sub]G[/sub] (MW) ="
+                    Label:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.pg/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: QgBarraSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "Q[sub]G[/sub] (Mvar) ="
+                    Label:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.qg/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: PlBarraSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "P[sub]L[/sub] (MW) ="
+                    TextInput:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.pl/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: QlBarraSL
+                    visible: inspectSL.visible
+                    Label:
+                        visible: inspectSL.visible
+                        text: "Q[sub]L[/sub] (Mvar) ="
+                    TextInput:
+                        visible: inspectSL.visible
+                        text: str(inspectSL.ql/1e6)
 
-        BoxLayout:
-            ### trafo ###
-            orientation: 'vertical'
-            size_hint: 0.5, 1
-            id: inspectTRAFO
-            visible: False
-            size_hint_x: 0.5 if self.visible else 0
-            Label:
-                id: NomeTrafo
-                text: "Trafo"
-                visible: inspectTRAFO.visible
             BoxLayout:
-                orientation: 'horizontal'
-                id: V1TRAFO
-                visible: inspectTRAFO.visible
+                ### LT ###
+                orientation: 'vertical'
+                size_hint: 0.5, 1
+                id: inspectLT
+                visible: False
+                size_hint_x: 0.5 if self.visible else 0
                 Label:
-                    visible: inspectTRAFO.visible
-                    text: "V[sub]base1[/sub] (kV) ="
-                FloatInput:
-                    visible: inspectTRAFO.visible
-                    text: "1.0"
+                    id: NomeLT
+                    text: "Linha de Transmissao"
+                    visible: inspectLT.visible
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: lLT
+                    visible: inspectLT.visible
+                    Label:
+                        visible: inspectLT.visible
+                        text: "l (km) ="
+                    TextInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.l/1e3)
+                        # on_enter: root.update()
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: rhoLT
+                    visible: inspectLT.visible
+                    Label:
+                        visible: inspectLT.visible
+                        text: "\u03C1 (n\u03A9m) ="
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.rho/1e-9)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: rLT
+                    visible: inspectLT.visible
+                    Label:
+                        visible: inspectLT.visible
+                        text: "r (cm) ="
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.r/1e-2)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: D12LT
+                    visible: inspectLT.visible
+                    Label:
+                        visible: inspectLT.visible
+                        text: "D[sub]12[/sub] (m) ="
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.d12)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: D23LT
+                    Label:
+                        visible: inspectLT.visible
+                        text: "D[sub]23[/sub] (m) ="
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.d23)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: D31LT
+                    Label:
+                        visible: inspectLT.visible
+                        text: "D[sub]31[/sub] (m) ="
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.d31)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: dLT
+                    Label:
+                        visible: inspectLT.visible
+                        text: "d (cm) ="
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.d/1e-2)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: mLT
+                    visible: inspectLT.visible
+                    Label:
+                        visible: inspectLT.visible
+                        text: "condutores\npor fase"
+                    FloatInput:
+                        visible: inspectLT.visible
+                        text: str(inspectLT.m)
+                        multiline: False
+                Button:
+                    id: removeLT
+                    visible: inspectLT.visible
+                    text: "REMOVE"
             BoxLayout:
-                orientation: 'horizontal'
-                id: V2TRAFO
-                visible: inspectTRAFO.visible
+                ### PQ ###
+                orientation: 'vertical'
+                size_hint: 0.5, 1
+                id: inspectPQ
+                visible: False
+                size_hint_x: 0.5 if self.visible else 0
                 Label:
-                    visible: inspectTRAFO.visible
-                    text: "V[sub]base2[/sub] (kV) ="
-                FloatInput:
-                    visible: inspectTRAFO.visible
-                    text: "1.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: STRAFO
-                visible: inspectTRAFO.visible
-                Label:
-                    visible: inspectTRAFO.visible
-                    text: "S[sub]nom[/sub] (MVA) ="
-                FloatInput:
-                    visible: inspectTRAFO.visible
-                    text: "1.0"
-            BoxLayout:
-                orientation: 'horizontal'
-                id: XTRAFO
-                visible: inspectTRAFO.visible
-                Label:
-                    visible: inspectTRAFO.visible
-                    text: "X (pu) ="
-                FloatInput:
-                    visible: inspectTRAFO.visible
-                    text: "0.0"
-            Button:
-                id: removeTRAFO
-                visible: inspectTRAFO.visible
-                text: "REMOVE"
+                    id: NomeBarraPQ
+                    text: "Barra "
+                    visible: inspectPQ.visible
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: VBarraPQ
+                    visible: inspectPQ.visible
+                    Label:
+                        visible: inspectPQ.visible
+                        text: "V (kV) ="
+                    Label:
+                        visible: inspectPQ.visible
+                        text: str(inspectPQ.v/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: deltaBarraPQ
+                    visible: inspectPQ.visible
+                    Label:
+                        visible: inspectPQ.visible
+                        text: "\u03B4 (\u00B0) ="
+                    Label:
+                        visible: inspectPQ.visible
+                        text: str(inspectPQ.delta)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: PBarraPQ
+                    visible: inspectPQ.visible
+                    Label:
+                        visible: inspectPQ.visible
+                        text: "P[sub]L[/sub] (MW) ="
+                    FloatInput:
+                        visible: inspectPQ.visible
+                        text: str(inspectPQ.pl/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: QBarraPQ
+                    visible: inspectPQ.visible
+                    Label:
+                        visible: inspectPQ.visible
+                        text: "Q[sub]L[/sub] (Mvar) ="
+                    FloatInput:
+                        visible: inspectPQ.visible
+                        text: str(inspectPQ.ql/1e3)
+                Button:
+                    id: removeBarraPQ
+                    visible: inspectPQ.visible
+                    text: "REMOVE"
 
-        BoxLayout:
-            ### default ###
-            orientation: 'vertical'
-            size_hint: 0.5, 1
-            id: inspectDefault
-            visible: True
-            size_hint_x: 0.5 if self.visible else 0
+            BoxLayout:
+                ### PV ###
+                orientation: 'vertical'
+                size_hint: 0.5, 1
+                id: inspectPV
+                visible: False
+                size_hint_x: 0.5 if self.visible else 0
+                Label:
+                    id: NomeBarraPV
+                    text: "Barra "
+                    visible: inspectPV.visible
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: VBarraPV
+                    visible: inspectPV.visible
+                    Label:
+                        visible: inspectPV.visible
+                        text: "V (kV) ="
+                    FloatInput:
+                        visible: inspectPV.visible
+                        text: str(inspectPV.v/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: deltaBarraPV
+                    visible: inspectPV.visible
+                    Label:
+                        visible: inspectPV.visible
+                        text: "\u03B4 (\u00B0) ="
+                    Label:
+                        visible: inspectPV.visible
+                        text: str(inspectPV.delta)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: PgBarraPV
+                    visible: inspectPV.visible
+                    Label:
+                        visible: inspectPV.visible
+                        text: "P[sub]G[/sub] (MW) ="
+                    FloatInput:
+                        visible: inspectPV.visible
+                        text: str(inspectPV.pg/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: QgBarraPV
+                    visible: inspectPV.visible
+                    Label:
+                        visible: inspectPV.visible
+                        text: "Q[sub]G[/sub] (Mvar) ="
+                    Label:
+                        visible: inspectPV.visible
+                        text: str(inspectPV.qg/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: PlBarraPV
+                    visible: inspectPV.visible
+                    Label:
+                        visible: inspectPV.visible
+                        text: "P[sub]L[/sub] (MW) ="
+                    FloatInput:
+                        visible: inspectPV.visible
+                        text: str(inspectPV.pl/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: QlBarraPV
+                    visible: inspectPV.visible
+                    Label:
+                        visible: inspectPV.visible
+                        text: "Q[sub]L[/sub] (Mvar) ="
+                    FloatInput:
+                        visible: inspectPV.visible
+                        text: str(inspectPV.ql/1e6)
+                Button:
+                    id: removeBarraPV
+                    visible: inspectPV.visible
+                    text: "REMOVE"
+
+            BoxLayout:
+                ### trafo ###
+                orientation: 'vertical'
+                size_hint: 0.5, 1
+                id: inspectTRAFO
+                visible: False
+                size_hint_x: 0.5 if self.visible else 0
+                Label:
+                    id: NomeTrafo
+                    text: "Trafo"
+                    visible: inspectTRAFO.visible
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: V1TRAFO
+                    visible: inspectTRAFO.visible
+                    Label:
+                        visible: inspectTRAFO.visible
+                        text: "V[sub]nom1[/sub] (kV) ="
+                    FloatInput:
+                        visible: inspectTRAFO.visible
+                        text: str(inspectTRAFO.vnom1/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: V2TRAFO
+                    visible: inspectTRAFO.visible
+                    Label:
+                        visible: inspectTRAFO.visible
+                        text: "V[sub]nom2[/sub] (kV) ="
+                    FloatInput:
+                        visible: inspectTRAFO.visible
+                        text: str(inspectTRAFO.vnom2/1e3)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: STRAFO
+                    visible: inspectTRAFO.visible
+                    Label:
+                        visible: inspectTRAFO.visible
+                        text: "S[sub]nom[/sub] (MVA) ="
+                    FloatInput:
+                        visible: inspectTRAFO.visible
+                        text: str(inspectTRAFO.snom/1e6)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: XTRAFO
+                    visible: inspectTRAFO.visible
+                    Label:
+                        visible: inspectTRAFO.visible
+                        text: "X (pu) ="
+                    FloatInput:
+                        visible: inspectTRAFO.visible
+                        text: str(inspectTRAFO.jx)
+                Button:
+                    id: removeTRAFO
+                    visible: inspectTRAFO.visible
+                    text: "REMOVE"
+
+            BoxLayout:
+                ### default ###
+                orientation: 'vertical'
+                size_hint: 0.5, 1
+                id: inspectDefault
+                visible: True
+                size_hint_x: 0.5 if self.visible else 0
