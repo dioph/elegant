@@ -29,7 +29,7 @@ def getBarsType(Sesp):
 def getBarMissingData():
     pass
 
-def log(doc, S, V, grid):
+def log(doc, BARRAS):
     """Add a section, a subsection and some text to the document.
     Parameters
     ----------
@@ -50,7 +50,7 @@ def log(doc, S, V, grid):
                 fluxTable.add_row((MultiColumn(8, align='|c|', data=MediumText(bold('Fluxo de carga'))),), color="lightgray")
                 fluxTable.add_hline()
                 fluxTable.add_hline()
-                fluxTable.add_row((MultiColumn(8, align='|c|', data='Não por unidade'),), color="lightgray")
+                fluxTable.add_row((MultiColumn(8, align='|c|', data='Bases reais'),), color="lightgray")
                 fluxTable.add_hline()
                 fluxTable.add_row(('Barra', 'Tipo',
                                    mathi([r'P_G', r'\textrm{ (MW)}']),

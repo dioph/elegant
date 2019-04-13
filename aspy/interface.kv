@@ -80,28 +80,24 @@
                     background_normal: "./data/linha.jpg"
                     background_down: "./data/linha.jpg"
                     group: "elements"
-
                 ToggleButton:
                     id: pq
                     info: 'pq'
                     background_normal: "./data/barra.jpg"
                     background_down: "./data/barra.jpg"
                     group: "elements"
-
                 ToggleButton:
                     id: pv
                     info: 'pv'
                     background_normal: "./data/gerador.jpg"
                     background_down: "./data/gerador.jpg"
                     group: "elements"
-
                 ToggleButton:
                     id: trafo
                     info: 'trafo'
                     background_normal: "./data/trafo.jpg"
                     background_down: "./data/trafo.jpg"
                     group: "elements"
-
                 ToggleButton:
                     id: s
                     info: 's'
@@ -111,7 +107,7 @@
 
             BoxLayout:
                 on_parent: root.add_grid(grid, elements, toplevel)
-                orientation: 'vertical'
+                orientation: 'vertical'''
                 GridLayout:
                     id: grid
                     cols: 10
@@ -137,6 +133,7 @@
                         text: "V (kV) ="
                     TextInput:
                         visible: inspectSL.visible
+                        on_text_validate: root.update_element([VBarraSL.children, VBaseSL.children, deltaBarraSL.children, PlBarraSL, QlBarraSL])
                         text: "1.0"
                 BoxLayout:
                     orientation: 'horizontal'
@@ -148,6 +145,7 @@
                     TextInput:
                         visible: inspectSL.visible
                         text: "1.0"
+                        on_text_validate: root.update_element([VBarraSL.children, VBaseSL.children, deltaBarraSL.children, PlBarraSL, QlBarraSL])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: deltaBarraSL
@@ -158,6 +156,7 @@
                     TextInput:
                         visible: inspectSL.visible
                         text: "0"
+                        on_text_validate: root.update_element([VBarraSL.children, VBaseSL.children, deltaBarraSL.children, PlBarraSL, QlBarraSL])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: PgBarraSL
@@ -188,6 +187,7 @@
                     TextInput:
                         visible: inspectSL.visible
                         text: "0.0"
+                        on_text_validate: root.update_element([VBarraSL.children, VBaseSL.children, deltaBarraSL.children, PlBarraSL, QlBarraSL])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QlBarraSL
@@ -198,7 +198,7 @@
                     TextInput:
                         visible: inspectSL.visible
                         text: "0.0"
-
+                        on_text_validate: root.update_element([VBarraSL.children, VBaseSL.children, deltaBarraSL.children, PlBarraSL, QlBarraSL])
             BoxLayout:
                 ### LT ###
                 orientation: 'vertical'
@@ -206,6 +206,7 @@
                 id: inspectLT
                 visible: False
                 size_hint_x: 0.5 if self.visible else 0
+#                inspLT: [lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children]
                 Label:
                     id: NomeLT
                     text: "Linha de Transmissao"
@@ -220,7 +221,7 @@
                     TextInput:
                         visible: inspectLT.visible
                         text: "80"
-                        # on_enter: root.update()
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: rhoLT
@@ -231,6 +232,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: "17.8"
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: rLT
@@ -241,6 +243,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: "2.5"
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: D12LT
@@ -251,6 +254,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: "1.0"
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: D23LT
@@ -260,6 +264,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: "1.0"
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: D31LT
@@ -269,6 +274,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: "1.0"
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: dLT
@@ -278,6 +284,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: "50"
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: mLT
@@ -289,6 +296,7 @@
                         visible: inspectLT.visible
                         text: "1"
                         multiline: False
+                        on_text_validate: root.update_element([lLT.children, rhoLT.children, rLT.children, D12LT.children, D23LT.children, D31LT.children, D31LT.children, dLT.children, mLT.children])
                 Button:
                     id: removeLT
                     visible: inspectLT.visible
@@ -334,6 +342,7 @@
                     FloatInput:
                         visible: inspectPQ.visible
                         text: "0.0"
+                        on_text_validate: root.update_element([PBarraPQ.children, QBarraPQ.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QBarraPQ
@@ -344,6 +353,7 @@
                     FloatInput:
                         visible: inspectPQ.visible
                         text: "0.0"
+                        on_text_validate: root.update_element([PBarraPQ.children, QBarraPQ.children])
                 Button:
                     id: removeBarraPQ
                     visible: inspectPQ.visible
@@ -370,6 +380,7 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: "1.0"
+                        on_text_validate: root.update_element([VBarraPV.children, PgBarraPV.children, PlBarraPV.children, QlBarraPV.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: deltaBarraPV
@@ -390,6 +401,7 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: "0.0"
+                        on_text_validate: root.update_element([VBarraPV.children, PgBarraPV.children, PlBarraPV.children, QlBarraPV.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QgBarraPV
@@ -399,7 +411,7 @@
                         text: "Q[sub]G[/sub] (Mvar) ="
                     Label:
                         visible: inspectPV.visible
-                        text: ""
+                        text: "0.0"
                 BoxLayout:
                     orientation: 'horizontal'
                     id: PlBarraPV
@@ -410,6 +422,7 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: "0.0"
+                        on_text_validate: root.update_element([VBarraPV.children, PgBarraPV.children, PlBarraPV.children, QlBarraPV.children])
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QlBarraPV
@@ -419,7 +432,8 @@
                         text: "Q[sub]L[/sub] (Mvar) ="
                     FloatInput:
                         visible: inspectPV.visible
-                        text: ""
+                        text: "0.0"
+                        on_text_validate: root.update_element([VBarraPV.children, PgBarraPV.children, PlBarraPV.children, QlBarraPV.children])
                 Button:
                     id: removeBarraPV
                     visible: inspectPV.visible
