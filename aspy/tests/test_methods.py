@@ -3,7 +3,7 @@ from ..methods import *
 
 
 def test_gauss_seidel():
-    lt = LT(l=32e3, r=2.5e-2, D=[4.5, 3.0, 7.5], d=0.4, m=2)
+    lt = LT(l=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
     Y = np.array([[1/.12j, 0, -1/.12j], [0, 1/lt.Z, -1/lt.Z], [-1/.12j, -1/lt.Z, 1/.12j + 1/lt.Z]])
     V0 = np.array([1.01, 1.02, 1.0], complex)
     S = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
@@ -16,7 +16,7 @@ def test_gauss_seidel():
 
 
 def test_gauss_seidel_eps():
-    lt = LT(l=32e3, r=2.5e-2, D=[4.5, 3.0, 7.5], d=0.4, m=2)
+    lt = LT(l=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
     Y = np.array([[1 / .12j, 0, -1 / .12j], [0, 1 / lt.Z, -1 / lt.Z], [-1 / .12j, -1 / lt.Z, 1 / .12j + 1 / lt.Z]])
     V0 = np.array([1.01, 1.02, 1.0], complex)
     S = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
@@ -26,7 +26,7 @@ def test_gauss_seidel_eps():
 
 
 def test_newton_raphson_p1():
-    lt = LT(l=32e3, r=2.5e-2, D=[4.5, 3.0, 7.5], d=0.4, m=2)
+    lt = LT(l=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
     Y = np.array([[1/.12j, 0, -1/.12j], [0, 1/lt.Z, -1/lt.Z], [-1/.12j, -1/lt.Z, 1/.12j + 1/lt.Z]])
     V0 = np.array([1.01, 1.02, 1.0], complex)
     S = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
