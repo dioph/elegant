@@ -94,7 +94,6 @@ def log(doc, S, V):
                 doc.append(fluxTable)
 
 
-
 if __name__ == '__main__':
 
     S = np.array([[np.nan, np.nan], [1, 2], [2, np.nan], [1, 3], [1, 3]])

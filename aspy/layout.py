@@ -5,14 +5,12 @@ from kivy.config import Config
 from kivy.lang import Builder
 from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.textinput import TextInput
-
+from pylatex import Document
 
 from aspy.core import *
-from aspy.methods import *
 from aspy.log import log
-from pylatex import Document
+from aspy.methods import *
 
 Config.set('graphics', 'width', '1500')
 Config.set('graphics', 'height', '750')
@@ -22,71 +20,12 @@ Config.set('graphics', 'height', '750')
 
 N = 1
 Y = np.zeros((N, N), complex)
-V0 = np.zeros(N, complex)
 BARRAS = np.zeros(N, object)
+LINHAS = np.zeros(0, object)
 GRID = np.zeros((10, 10), object)
 SLACK = BarraSL()
 GRID[4,0] = SLACK
 BARRAS[0] = SLACK
-
-
-class InspectSL(BoxLayout):
-    def __init__(self, V=1e3, Vbase=1e3, delta=0.0, pg=np.nan, qg=np.nan, pl=0.0, ql=0.0, coords=None):
-        super(InspectSL, self).__init__()
-        self.V = V
-        self.Vbase = Vbase
-        self.delta = delta
-        self.pg = pg
-        self.qg = qg
-        self.pl = pl
-        self.ql = ql
-        self.coords = coords
-
-
-class InspectLT(BoxLayout):
-    def __init__(self, l=80e3, rho=1.78e-8, r=2.5e-2, D12=1., D23=1., D31=1., d=0.5, m=1, coords=None):
-        super(InspectLT, self).__init__()
-        self.l = l
-        self.rho = rho
-        self.r = r
-        self.D12 = D12
-        self.D23 = D23
-        self.D31 = D31
-        self.d = d
-        self.m = m
-        self.coords = coords
-
-
-class InspectPQ(BoxLayout):
-    def __init__(self, V=np.nan, delta=np.nan, pl=0.0, ql=0.0, coords=None):
-        super(InspectPQ, self).__init__()
-        self.V = V
-        self.delta = delta
-        self.pl = pl
-        self.ql = ql
-        self.coords = coords
-
-
-class InspectPV(BoxLayout):
-    def __init__(self, V=1e3, delta=np.nan, pg=0.0, qg=np.nan, pl=0.0, ql=0.0, coords=None):
-        super(InspectPV, self).__init__()
-        self.V = V
-        self.delta = delta
-        self.pg = pg
-        self.qg = qg
-        self.pl = pl
-        self.ql = ql
-        self.coords = coords
-
-
-class InspectTRAFO(BoxLayout):
-    def __init__(self, Vbase1=1e3, Vbase2=1e3, Snom=1e6, X=0., coords=None):
-        super(InspectTRAFO, self).__init__()
-        self.Vbase1 = Vbase1
-        self.Vbase2 = Vbase2
-        self.Snom = Snom
-        self.X = X
-        self.coords = coords
 
 
 class FloatInput(TextInput):
@@ -136,26 +75,27 @@ class Interface(FloatLayout):
             if isinstance(child, Button):
                 if child.state == 'down':
                     # TODO: desenhos dos botões
-                    if square.coords != [4, 0]:
+                    if square.coords != [4, 0]:     # forbids removing slack bus
                         square.background_normal = child.background_normal
                         square.background_down = child.background_down
                         square.info = child.info
-                    else:
-                        pass
-                    if square.coords != [4, 0]:
+                        self.removed_element(square.coords)
                         if square.info == 'lt':
                             lt = LT()
-                            self.add_line(lt, square.coords)
+                            self.added_element(lt, square.coords)
                         elif square.info == 'pq':
                             b = BarraPQ()
-                            self.add_bus(b, square.coords)
+                            self.added_element(b, square.coords)
+                        elif square.info == 'pv':
+                            b = BarraPV()
+                            self.added_element(b, square.coords)
                         elif square.info == 'trafo':
-                            pass
+                            t = Trafo()
+                            self.added_element(t, square.coords)
+                        self.update()
                         break
-                    else:
-                        pass
-        else:
-            print(square.coords, square.info)
+
+        else:   # OPEN INSPECT ELEMENT
             mask = np.zeros(6, bool)
             if square.info == 'slack':      # SLACK
                 mask[-1] = True
@@ -175,37 +115,38 @@ class Interface(FloatLayout):
 
     def update(self):
         S = np.zeros((N, 2), float)
+        V0 = np.ones(N, complex)
+        # TODO: calculate Y
         for i in range(N):
             S[i, :] = BARRAS[i].P, BARRAS[i].Q
         V = gauss_seidel(Y, V0, S, eps=1e-12)
         for i in range(N):
-            BARRAS[i].V = V[i]
+            BARRAS[i].v = V[i]
 
-    def add_bus(self, b, coords):
-        global N
-        GRID[coords[0], coords[1]] = b
-        N += 1
-        BARRAS[N] = b
+    def edited_element(self, inspect):
+        i, j = inspect.coords
+        element = GRID[i, j]
+        for key in element.__dict__.keys():
+            setattr(element, key, getattr(inspect, key))
+        self.update()
 
-    def add_line(self, lt, coords):
-        global N
+    def removed_element(self, coords):
+        pass
+
+    def added_element(self, element, coords):
+        global BARRAS, N, LINHAS
         i, j = coords
-        node1 = None
-        node2 = None
-        if j > 0 and isinstance(GRID[i,j-1], Barra):
-            node1 = GRID[i, j-1].id
-        if j < 9 and isinstance(GRID[i,j+1], Barra):
-            node2 = GRID[i, j+1].id
-        if node1 is not None:
-            Y[node1, node1] += 1/lt.Z + lt.Y/2
-        if node2 is not None:
-            Y[node2, node2] += 1/lt.Z + lt.Y/2
-        if node1 is not None and node2 is not None:
-            Y[node1, node2] -= 1/lt.Z
-            Y[node2, node1] -= 1/lt.Z
+        GRID[i, j] = element
+        if isinstance(element, Barra):
+            BARRAS = np.append(BARRAS, [element])
+            N = N + 1
+            element.id = N
+        if isinstance(element, LT):
+            LINHAS = np.append(LINHAS, [element])
 
     def report(self, S=None, V=None):
         """Generates report when required in execution"""
+        # TODO: calculate S and V
         doc = Document('log')
         log(doc, S, V)
         doc.generate_pdf(clean_tex=False, compiler='pdflatex')
