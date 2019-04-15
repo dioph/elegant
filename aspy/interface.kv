@@ -147,9 +147,10 @@
                     Label:
                         visible: inspectSL.visible
                         text: "V (kV) ="
-                    TextInput:
+                    FloatInput:
                         visible: inspectSL.visible
                         text: str(inspectSL.v/1e3)
+                        on_text_validate: root.edited_element(inspectSL)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: VBaseSL
@@ -157,9 +158,10 @@
                     Label:
                         visible: inspectSL.visible
                         text: "V[sub]base[/sub] (kV) ="
-                    TextInput:
+                    FloatInput:
                         visible: inspectSL.visible
                         text: str(inspectSL.vbase/1e3)
+                        on_text_validate: root.edited_element(inspectSL)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: deltaBarraSL
@@ -167,9 +169,10 @@
                     Label:
                         visible: inspectSL.visible
                         text: "\u03B4 (\u00B0) ="
-                    TextInput:
+                    FloatInput:
                         visible: inspectSL.visible
                         text: str(inspectSL.delta)
+                        on_text_validate: root.edited_element(inspectSL)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: PgBarraSL
@@ -197,9 +200,10 @@
                     Label:
                         visible: inspectSL.visible
                         text: "P[sub]L[/sub] (MW) ="
-                    TextInput:
+                    FloatInput:
                         visible: inspectSL.visible
                         text: str(inspectSL.pl/1e6)
+                        on_text_validate: root.edited_element(inspectSL)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QlBarraSL
@@ -207,9 +211,10 @@
                     Label:
                         visible: inspectSL.visible
                         text: "Q[sub]L[/sub] (Mvar) ="
-                    TextInput:
+                    FloatInput:
                         visible: inspectSL.visible
                         text: str(inspectSL.ql/1e6)
+                        on_text_validate: root.edited_element(inspectSL)
 
             BoxLayout:
                 ### LT ###
@@ -229,10 +234,10 @@
                     Label:
                         visible: inspectLT.visible
                         text: "l (km) ="
-                    TextInput:
+                    FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.l/1e3)
-                        # on_enter: root.update()
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: rhoLT
@@ -243,6 +248,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.rho/1e-9)
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: rLT
@@ -253,6 +259,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.r/1e-2)
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: D12LT
@@ -263,6 +270,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.d12)
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: D23LT
@@ -272,6 +280,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.d23)
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: D31LT
@@ -281,6 +290,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.d31)
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: dLT
@@ -290,6 +300,7 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.d/1e-2)
+                        on_text_validate: root.edited_element(inspectLT)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: mLT
@@ -300,11 +311,12 @@
                     FloatInput:
                         visible: inspectLT.visible
                         text: str(inspectLT.m)
-                        multiline: False
+                        on_text_validate: root.edited_element(inspectLT)
                 Button:
                     id: removeLT
                     visible: inspectLT.visible
                     text: "REMOVE"
+                    root.removed_element(inspectLT.coords)
             BoxLayout:
                 ### PQ ###
                 orientation: 'vertical'
@@ -346,6 +358,7 @@
                     FloatInput:
                         visible: inspectPQ.visible
                         text: str(inspectPQ.pl/1e3)
+                        on_text_validate: root.edited_element(inspectPQ)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QBarraPQ
@@ -356,10 +369,20 @@
                     FloatInput:
                         visible: inspectPQ.visible
                         text: str(inspectPQ.ql/1e3)
+                        on_text_validate: root.edited_element(inspectPQ)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: ExtPQ
+                    visible: inspectPQ.visible
+                    Button:
+                        visible: inspectPQ.visible
+                    Button:
+                        visible: inspectPQ.visible
                 Button:
                     id: removeBarraPQ
                     visible: inspectPQ.visible
                     text: "REMOVE"
+                    root.removed_element(inspectPQ.coords)
 
             BoxLayout:
                 ### PV ###
@@ -382,6 +405,7 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: str(inspectPV.v/1e3)
+                        on_text_validate: root.edited_element(inspectPV)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: deltaBarraPV
@@ -402,6 +426,7 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: str(inspectPV.pg/1e6)
+                        on_text_validate: root.edited_element(inspectPV)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QgBarraPV
@@ -422,6 +447,7 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: str(inspectPV.pl/1e6)
+                        on_text_validate: root.edited_element(inspectPV)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: QlBarraPV
@@ -432,10 +458,20 @@
                     FloatInput:
                         visible: inspectPV.visible
                         text: str(inspectPV.ql/1e6)
+                        on_text_validate: root.edited_element(inspectPV)
+                BoxLayout:
+                    orientation: 'horizontal'
+                    id: ExtPV
+                    visible: inspectPV.visible
+                    Button:
+                        visible: inspectPV.visible
+                    Button:
+                        visible: inspectPV.visible
                 Button:
                     id: removeBarraPV
                     visible: inspectPV.visible
                     text: "REMOVE"
+                    root.removed_element(inspectPV.coords)
 
             BoxLayout:
                 ### trafo ###
@@ -458,6 +494,7 @@
                     FloatInput:
                         visible: inspectTRAFO.visible
                         text: str(inspectTRAFO.vnom1/1e3)
+                        on_text_validate: root.edited_element(inspectTRAFO)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: V2TRAFO
@@ -468,6 +505,7 @@
                     FloatInput:
                         visible: inspectTRAFO.visible
                         text: str(inspectTRAFO.vnom2/1e3)
+                        on_text_validate: root.edited_element(inspectTRAFO)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: STRAFO
@@ -478,6 +516,7 @@
                     FloatInput:
                         visible: inspectTRAFO.visible
                         text: str(inspectTRAFO.snom/1e6)
+                        on_text_validate: root.edited_element(inspectTRAFO)
                 BoxLayout:
                     orientation: 'horizontal'
                     id: XTRAFO
@@ -488,10 +527,12 @@
                     FloatInput:
                         visible: inspectTRAFO.visible
                         text: str(inspectTRAFO.jx)
+                        on_text_validate: root.edited_element(inspectTRAFO)
                 Button:
                     id: removeTRAFO
                     visible: inspectTRAFO.visible
                     text: "REMOVE"
+                    on_press: root.removed_element(inspectTRAFO.coords)
 
             BoxLayout:
                 ### default ###

@@ -21,7 +21,7 @@ Config.set('graphics', 'height', '750')
 N = 1
 Y = np.zeros((N, N), complex)
 BARRAS = np.zeros(N, object)
-LINHAS = np.zeros(0, object)
+LINHAS = []
 GRID = np.zeros((10, 10), object)
 SLACK = BarraSL()
 GRID[4,0] = SLACK
@@ -72,28 +72,25 @@ class Interface(FloatLayout):
         toplevel: main grid (root.children[0]; 3 cols)
         """
         for child in elements.children:
-            if isinstance(child, Button):
-                if child.state == 'down':
-                    # TODO: desenhos dos botões
-                    if square.coords != [4, 0]:     # forbids removing slack bus
-                        square.background_normal = child.background_normal
-                        square.background_down = child.background_down
-                        square.info = child.info
-                        self.removed_element(square.coords)
-                        if square.info == 'lt':
-                            lt = LT()
-                            self.added_element(lt, square.coords)
-                        elif square.info == 'pq':
-                            b = BarraPQ()
-                            self.added_element(b, square.coords)
-                        elif square.info == 'pv':
-                            b = BarraPV()
-                            self.added_element(b, square.coords)
-                        elif square.info == 'trafo':
-                            t = Trafo()
-                            self.added_element(t, square.coords)
-                        self.update()
-                        break
+            if isinstance(child, Button) and child.state == 'down' and square.coords != [4, 0]:
+                square.background_normal = child.background_normal
+                square.background_down = child.background_down
+                square.info = child.info
+                self.removed_element(square.coords)
+                if square.info == 'lt':
+                    lt = LT()
+                    self.added_element(lt, square.coords)
+                elif square.info == 'pq':
+                    b = BarraPQ()
+                    self.added_element(b, square.coords)
+                elif square.info == 'pv':
+                    b = BarraPV()
+                    self.added_element(b, square.coords)
+                elif square.info == 'trafo':
+                    t = Trafo()
+                    self.added_element(t, square.coords)
+                self.update()
+                break
 
         else:   # OPEN INSPECT ELEMENT
             mask = np.zeros(6, bool)
@@ -116,12 +113,32 @@ class Interface(FloatLayout):
     def update(self):
         S = np.zeros((N, 2), float)
         V0 = np.ones(N, complex)
-        # TODO: calculate Y
+        Y = np.zeros((N, N), complex)
+        for l in LINHAS:
+            lt, i, j = l
+            node1 = None
+            node2 = None
+            if j > 0 and isinstance(GRID[i, j - 1], Barra):
+                node1 = GRID[i, j - 1].id
+            if j < 9 and isinstance(GRID[i, j + 1], Barra):
+                node2 = GRID[i, j + 1].id
+            if node1 is not None:
+                Y[node1, node1] += 1/lt.Z + lt.Y/2
+            if node2 is not None:
+                Y[node2, node2] += 1/lt.Z + lt.Y/2
+            if node1 is not None and node2 is not None:
+                Y[node1, node2] -= 1/lt.Z
+                Y[node2, node1] -= 1/lt.Z
         for i in range(N):
             S[i, :] = BARRAS[i].P, BARRAS[i].Q
+            if isinstance(BARRAS[i], BarraPV):
+                V0[i] = BARRAS[i].v / BARRAS[i].vbase
+            if isinstance(BARRAS[i], BarraSL):
+                V0[i] = BARRAS[i].v * np.exp(1j * BARRAS[i].delta * np.pi/180) / BARRAS[i].vbase
         V = gauss_seidel(Y, V0, S, eps=1e-12)
         for i in range(N):
-            BARRAS[i].v = V[i]
+            BARRAS[i].v = V[i] * BARRAS[i].vbase
+        print(Y, V)
 
     def edited_element(self, inspect):
         i, j = inspect.coords
@@ -129,6 +146,7 @@ class Interface(FloatLayout):
         for key in element.__dict__.keys():
             setattr(element, key, getattr(inspect, key))
         self.update()
+        print('EDITED')
 
     def removed_element(self, coords):
         pass
@@ -142,7 +160,8 @@ class Interface(FloatLayout):
             N = N + 1
             element.id = N
         if isinstance(element, LT):
-            LINHAS = np.append(LINHAS, [element])
+            LINHAS.append([element, i, j])
+        print(BARRAS, LINHAS)
 
     def report(self, S=None, V=None):
         """Generates report when required in execution"""
