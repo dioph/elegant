@@ -8,6 +8,7 @@
     opacity: 1 if self.visible else 0
     disabled: not self.visible
     padding: 5
+    barra_id: 0
     v: 1.0e3
     vbase: 1.0e3
     vnom1: 1.0e3
@@ -316,7 +317,7 @@
                     id: removeLT
                     visible: inspectLT.visible
                     text: "REMOVE"
-                    root.removed_element(inspectLT.coords)
+                    on_press: root.removed_element(inspectLT.coords)
             BoxLayout:
                 ### PQ ###
                 orientation: 'vertical'
@@ -326,7 +327,7 @@
                 size_hint_x: 0.5 if self.visible else 0
                 Label:
                     id: NomeBarraPQ
-                    text: "Barra "
+                    text: "Barra #" + str(inspectPQ.barra_id)
                     visible: inspectPQ.visible
                 BoxLayout:
                     orientation: 'horizontal'
@@ -382,7 +383,7 @@
                     id: removeBarraPQ
                     visible: inspectPQ.visible
                     text: "REMOVE"
-                    root.removed_element(inspectPQ.coords)
+                    on_press: root.removed_element(inspectPQ.coords)
 
             BoxLayout:
                 ### PV ###
@@ -393,7 +394,7 @@
                 size_hint_x: 0.5 if self.visible else 0
                 Label:
                     id: NomeBarraPV
-                    text: "Barra "
+                    text: "Barra #" + str(inspectPV.barra_id)
                     visible: inspectPV.visible
                 BoxLayout:
                     orientation: 'horizontal'
@@ -471,7 +472,7 @@
                     id: removeBarraPV
                     visible: inspectPV.visible
                     text: "REMOVE"
-                    root.removed_element(inspectPV.coords)
+                    on_press: root.removed_element(inspectPV.coords)
 
             BoxLayout:
                 ### trafo ###
