@@ -5,6 +5,7 @@ import numpy as np
 
 mathi = lambda x : Math(escape=False, inline=True, data=x)
 
+
 def getBarsType(Sesp):
     """Returns array with bar types, based on specified power array
     Parameters
@@ -25,9 +26,6 @@ def getBarsType(Sesp):
             types = np.append(types, 'PQ')
     return types
 
-
-def getBarMissingData():
-    pass
 
 def log(doc, S, V):
     """Add a section, a subsection and some text to the document.

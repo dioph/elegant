@@ -18,14 +18,17 @@ Config.set('graphics', 'height', '750')
 # GLOBAL VARIABLES:
 # DETERMINE UNIVOCALLY THE CURRENT SYSTEM STATE
 
-N = 1
-Y = np.zeros((N, N), complex)
+N = 1   # NUMERO DE BARRAS
 BARRAS = np.zeros(N, object)
 LINHAS = []
 GRID = np.zeros((10, 10), object)
 SLACK = BarraSL()
-GRID[4,0] = SLACK
+GRID[4, 0] = SLACK
 BARRAS[0] = SLACK
+SECTORS = np.zeros((1, 1), bool)
+SECTOR_IDS = np.ones((10, 10), int) * -1
+SECTOR_IDS[4, 0] = 0
+TOTAL = 1
 
 
 class FloatInput(TextInput):
@@ -109,6 +112,9 @@ class Interface(FloatLayout):
             for i in range(6):
                 toplevel.children[i].visible = mask[i]
                 toplevel.children[i].coords = square.coords
+                i, j = square.coords
+                for key in GRID[i, j].__dict__.keys():  # UPDATE INSPECT LABELS
+                    setattr(toplevel.children[i], key, getattr(GRID[i, j], key))
 
     def update(self):
         S = np.zeros((N, 2), float)
@@ -119,9 +125,9 @@ class Interface(FloatLayout):
             node1 = None
             node2 = None
             if j > 0 and isinstance(GRID[i, j - 1], Barra):
-                node1 = GRID[i, j - 1].id
+                node1 = GRID[i, j - 1].barra_id
             if j < 9 and isinstance(GRID[i, j + 1], Barra):
-                node2 = GRID[i, j + 1].id
+                node2 = GRID[i, j + 1].barra_id
             if node1 is not None:
                 Y[node1, node1] += 1/lt.Z + lt.Y/2
             if node2 is not None:
@@ -138,7 +144,6 @@ class Interface(FloatLayout):
         V = gauss_seidel(Y, V0, S, eps=1e-12)
         for i in range(N):
             BARRAS[i].v = V[i] * BARRAS[i].vbase
-        print(Y, V)
 
     def edited_element(self, inspect):
         i, j = inspect.coords
@@ -152,22 +157,33 @@ class Interface(FloatLayout):
         pass
 
     def added_element(self, element, coords):
-        global BARRAS, N, LINHAS
+        global BARRAS, N, LINHAS, SECTORS, SECTOR_IDS, TOTAL
         i, j = coords
         GRID[i, j] = element
+
+        if not isinstance(element, Trafo):
+            SECTOR_IDS[i, j] = TOTAL
+            TOTAL = TOTAL + 1
+            SECTORS = np.zeros((TOTAL, TOTAL), bool)
+        for a in range(10):
+            for b in range(9):
+                if SECTOR_IDS[a, b] >= 0 and SECTOR_IDS[a, b + 1] >= 0:
+                    SECTORS[SECTOR_IDS[a, b], SECTOR_IDS[a, b + 1]] = True
+                    SECTORS[SECTOR_IDS[a, b + 1], SECTOR_IDS[a, b]] = True
+
         if isinstance(element, Barra):
             BARRAS = np.append(BARRAS, [element])
+            element.barra_id = N
             N = N + 1
-            element.id = N
+
         if isinstance(element, LT):
             LINHAS.append([element, i, j])
-        print(BARRAS, LINHAS)
+        print(BARRAS, LINHAS, SECTORS, SECTOR_IDS)
 
-    def report(self, S=None, V=None):
+    def report(self):
         """Generates report when required in execution"""
-        # TODO: calculate S and V
         doc = Document('log')
-        log(doc, S, V)
+        log(doc, BARRAS)
         doc.generate_pdf(clean_tex=False, compiler='pdflatex')
         print('Reporting...')
         doc.generate_tex()
