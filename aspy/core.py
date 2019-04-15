@@ -10,35 +10,52 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, id=0, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
-        self.id = id
+    def __init__(self, barra_id=0, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+        self.barra_id = barra_id
         self.v = v
         self.delta = delta
         self.pg = pg
         self.qg = qg
         self.pl = pl
         self.ql = ql
+        self.vbase = None
+
+    @property
+    def P(self):
+        return self.pg - self.pl
+
+    @property
+    def Q(self):
+        return self.qg - self.ql
 
 
 class BarraPQ(Barra):
-    def __init__(self, id=0, v=np.nan, delta=np.nan, pg=0., qg=0., pl=0., ql=0.):
-        super(BarraPQ, self).__init__(id=id, v=v, delta=delta, pg=pg, qg=qg, pl=pl, ql=ql)
+    def __init__(self, barra_id=0, pg=0., qg=0., pl=0., ql=0.):
+        super(BarraPQ, self).__init__(barra_id=barra_id, v=np.nan, delta=np.nan, pg=pg, qg=qg, pl=pl, ql=ql)
 
 
 class BarraPV(Barra):
-    def __init__(self, id=0, v=0., delta=np.nan, pg=0., qg=np.nan, pl=0., ql=np.nan):
-        super(BarraPV, self).__init__(id=id, v=v, delta=delta, pg=pg, qg=qg, pl=pl, ql=ql)
+    def __init__(self, barra_id=0, v=1., pg=0., pl=0.):
+        super(BarraPV, self).__init__(barra_id=barra_id, v=v, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=np.nan)
+
+
+class BarraSL(Barra):
+    def __init__(self, barra_id=0, v=1., delta=0.):
+        super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=np.nan, ql=np.nan)
+        self.vbase = 1e3
 
 
 class LT(object):
-    def __init__(self, l, r, D, d, rho=1.78e-8, n=3, m=1):
+    def __init__(self, l=80e3, r=2.5e-2, d12=1.0, d23=1.0, d31=1.0, d=0.5, rho=1.78e-8, m=1):
         self.rho = rho
         self.l = l
         self.r = r
-        self.D = np.atleast_1d(D)
+        self.d12 = d12
+        self.d23 = d23
+        self.d31 = d31
         self.d = d
-        self.n = n
         self.m = m
+        self.vbase = None
 
     @property
     def Rm(self):
@@ -69,26 +86,26 @@ class LT(object):
     @property
     def Z(self):
         R = self.rho * self.l / (self.m * PI * self.r**2)
-        L = 2e-7 * np.log(gmean(self.D) / self.Rm) * self.l
+        L = 2e-7 * np.log(gmean([self.d12, self.d23, self.d31]) / self.Rm) * self.l
         return R + OMEGA * L * 1j
 
     @property
     def Y(self):
-        C = 2 * PI * EPS / np.log(gmean(self.D) / self.Rb) * self.l
+        C = 2 * PI * EPS / np.log(gmean([self.d12, self.d23, self.d31]) / self.Rb) * self.l
         return OMEGA * C * 1j
 
 
 class Trafo(object):
-    def __init__(self, Snom, Vnom1, Vnom2, X):
-        self.Snom = Snom
-        self.Vnom1 = Vnom1
-        self.Vnom2 = Vnom2
-        self.X = X
+    def __init__(self, snom=1e6, vnom1=1e3, vnom2=1e3, jx=0.0):
+        self.snom = snom
+        self.vnom1 = vnom1
+        self.vnom2 = vnom2
+        self.jx = jx
 
     @property
     def Zbase1(self):
-        return self.Vnom1**2 / self.Snom
+        return self.vnom1**2 / self.snom
 
     @property
     def Zbase2(self):
-        return self.Vnom2**2 / self.Snom
+        return self.vnom2**2 / self.snom
