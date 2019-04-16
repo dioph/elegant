@@ -11,9 +11,8 @@ from pylatex import Document
 from aspy.core import *
 from aspy.log import log
 from aspy.methods import *
-
-Config.set('graphics', 'width', '1500')
-Config.set('graphics', 'height', '750')
+Config.set('graphics', 'width', '500')
+Config.set('graphics', 'height', '500')
 
 # GLOBAL VARIABLES:
 # DETERMINE UNIVOCALLY THE CURRENT SYSTEM STATE
@@ -29,7 +28,7 @@ SECTORS = np.zeros((1, 1), bool)
 SECTOR_IDS = np.ones((10, 10), int) * -1
 SECTOR_IDS[4, 0] = 0
 TOTAL = 1
-
+Y = np.zeros((1, 1), complex)
 
 class FloatInput(TextInput):
     pat = re.compile('[^0-9]')
@@ -117,6 +116,7 @@ class Interface(FloatLayout):
                     setattr(toplevel.children[i], key, getattr(GRID[i, j], key))
 
     def update(self):
+        global Y
         S = np.zeros((N, 2), float)
         V0 = np.ones(N, complex)
         Y = np.zeros((N, N), complex)
@@ -178,12 +178,13 @@ class Interface(FloatLayout):
 
         if isinstance(element, LT):
             LINHAS.append([element, i, j])
+
         print(BARRAS, LINHAS, SECTORS, SECTOR_IDS)
 
     def report(self):
         """Generates report when required in execution"""
         doc = Document('log')
-        log(doc, BARRAS)
+        log(doc, [BARRAS, GRID, Y])
         doc.generate_pdf(clean_tex=False, compiler='pdflatex')
         print('Reporting...')
         doc.generate_tex()
