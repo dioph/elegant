@@ -141,25 +141,25 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
 
     Returns
     -------
-    jacobianDespisals: array with positions of to be removed from J
+    jacobianDisregard: array with positions of to be removed from J
     deltaVdelta: array with the increase values to update V0
     """
     n = np.size(deltaPQ)
     deltaPQAdj = np.empty([0, 0])
-    jacobianDespisals = np.empty([0, 0])
+    jacobianDisregard = np.empty([0, 0])
     jAdj = jacobian(N, V0, Y)
     for i in range(n):
         if deltaPQ[i] != 0.:
             deltaPQAdj = np.append(deltaPQAdj, deltaPQ[i])
         else:
-            jacobianDespisals = np.append(jacobianDespisals, i)
-    jacobianDespisals = jacobianDespisals[-1::-1]
-    for lincol in jacobianDespisals:
+            jacobianDisregard = np.append(jacobianDisregard, i)
+    jacobianDisregard = jacobianDisregard[-1::-1]
+    for lincol in jacobianDisregard:
         jAdj = np.delete(jAdj, int(lincol), 0)
         jAdj = np.delete(jAdj, int(lincol), 1)
-    jacobianDespisals = set(jacobianDespisals)
+    jacobianDisregard = set(jacobianDisregard)
     deltaVdelta = np.linalg.solve(jAdj, deltaPQAdj)
-    return deltaVdelta, jacobianDespisals
+    return deltaVdelta, jacobianDisregard
 
 
 def update_V(deltaPQ, N, V0, Y):
