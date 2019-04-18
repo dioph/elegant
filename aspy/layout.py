@@ -9,7 +9,7 @@ from kivy.uix.textinput import TextInput
 from pylatex import Document
 
 from aspy.core import *
-from aspy.log import log
+from aspy.log import report
 from aspy.methods import *
 Config.set('graphics', 'width', '500')
 Config.set('graphics', 'height', '500')
@@ -20,10 +20,11 @@ Config.set('graphics', 'height', '500')
 N = 1   # NUMERO DE BARRAS
 BARRAS = np.zeros(N, object)
 LINHAS = []
-GRID = np.zeros((10, 10), object)
-SLACK = BarraSL()
-GRID[4, 0] = SLACK
-BARRAS[0] = SLACK
+TRAFOS = []
+GRID = np.zeros((10, 10), object)  # OBJECTS THAT RECEIVES THE ELEMENTS PUT INTO THE INTERFACE GRID
+SLACK = BarraSL()  # DEFAULT SLACK BAR
+GRID[4, 0] = SLACK  # DEFAULT SLACK BAR PUT INTO THE GRID
+BARRAS[0] = SLACK  # DEFAULT SLACK BAR PUT INTO THE 'BARRAS' ARRAY
 SECTORS = np.zeros((1, 1), bool)
 SECTOR_IDS = np.ones((10, 10), int) * -1
 SECTOR_IDS[4, 0] = 0
@@ -119,7 +120,7 @@ class Interface(FloatLayout):
         global Y
         S = np.zeros((N, 2), float)
         V0 = np.ones(N, complex)
-        Y = np.zeros((N, N), complex)
+        Y = np.zeros((N, N), complex) * -1
         for l in LINHAS:
             lt, i, j = l
             node1 = None
@@ -136,14 +137,14 @@ class Interface(FloatLayout):
                 Y[node1, node2] -= 1/lt.Z
                 Y[node2, node1] -= 1/lt.Z
         for i in range(N):
-            S[i, :] = BARRAS[i].P, BARRAS[i].Q
+            S[i, :] = BARRAS[i].P, BARRAS[i].Q  # USER-SPECIFIED POWERS ARRAY COMPLETION
             if isinstance(BARRAS[i], BarraPV):
                 V0[i] = BARRAS[i].v / BARRAS[i].vbase
             if isinstance(BARRAS[i], BarraSL):
                 V0[i] = BARRAS[i].v * np.exp(1j * BARRAS[i].delta * np.pi/180) / BARRAS[i].vbase
         V = gauss_seidel(Y, V0, S, eps=1e-12)
         for i in range(N):
-            BARRAS[i].v = V[i] * BARRAS[i].vbase
+            BARRAS[i].v = V[i] * BARRAS[i].vbase  # PUT VOLTAGES ENCOUNTERED ON METHOD RUN IN EACH BAR IN 'BARRAS', REAL BASIS
 
     def edited_element(self, inspect):
         i, j = inspect.coords
@@ -157,7 +158,7 @@ class Interface(FloatLayout):
         pass
 
     def added_element(self, element, coords):
-        global BARRAS, N, LINHAS, SECTORS, SECTOR_IDS, TOTAL
+        global BARRAS, N, LINHAS, SECTORS, SECTOR_IDS, TOTAL, TRAFOS
         i, j = coords
         GRID[i, j] = element
 
@@ -171,20 +172,24 @@ class Interface(FloatLayout):
                     SECTORS[SECTOR_IDS[a, b], SECTOR_IDS[a, b + 1]] = True
                     SECTORS[SECTOR_IDS[a, b + 1], SECTOR_IDS[a, b]] = True
 
-        if isinstance(element, Barra):
+        if isinstance(element, Trafo):  # ADDS TRAFO TO TRAFOS (WILL BE USED IN CALCULATIONS INSIDE REPORT)
+            TRAFOS.append([element, coords])
+
+        if isinstance(element, Barra):  # ADDS BARRA TO BARRAS (WILL BE USED IN CALCULATIONS INSIDE REPORT)
             BARRAS = np.append(BARRAS, [element])
             element.barra_id = N
             N = N + 1
 
         if isinstance(element, LT):
-            LINHAS.append([element, i, j])
+            LINHAS.append([element, coords])
 
         print(BARRAS, LINHAS, SECTORS, SECTOR_IDS)
 
     def report(self):
         """Generates report when required in execution"""
-        doc = Document('log')
-        log(doc, [BARRAS, GRID, Y])
+        doc = Document('report')
+        data = [Y, BARRAS, LINHAS, TRAFOS, GRID]
+        report(doc, data)
         doc.generate_pdf(clean_tex=False, compiler='pdflatex')
         print('Reporting...')
         doc.generate_tex()
