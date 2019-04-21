@@ -71,55 +71,66 @@
                 text: 'Save'
                 size_hint: None, 1
                 pos_hint: 0.5, 1
+                on_release: root.show_save()
             Button:
                 text: 'Load'
                 size_hint: None, 1
                 pos_hint: 1, 1
+                on_release: root.show_load()
             Button:
                 text: 'Report'
                 size_hint: None, 1
                 pos_hint: 1, 1
-                on_press: root.report()
+                on_press: root.report(grid, [grid.rows, grid.cols])  # Todo: Check this line!
         GridLayout:
             rows: 1
             id: toplevel
             GridLayout:
-                rows: 5
+                rows: 4
                 id: elements
                 size_hint: 0.5, 1
+                padding: (0, 12)
+                ### TOGGLEBUTTONS ###
+                ## LT ##
                 ToggleButton:
-                    id: slack
-                    info: 'slack'
-                    background_normal: "./data/barra.jpg"
-                    background_down: "./data/barra.jpg"
-                    group: "elements"
-                    visible: False
-                ToggleButton:
+                    canvas:
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                            source: './data/buttons/TOGGLE_lt.jpg' if self.state != 'down' else './data/buttons/TOGGLE_lt_down.jpg'
                     id: lt
                     info: 'lt'
-                    background_normal: "./data/linha.jpg"
-                    background_down: "./data/linha.jpg"
                     group: "elements"
-
+                ## PQ ##
                 ToggleButton:
+                    canvas:
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                            source: './data/buttons/TOGGLE_pq.jpg' if self.state != 'down' else './data/buttons/TOGGLE_pq_down.jpg'
                     id: pq
                     info: 'pq'
-                    background_normal: "./data/barra.jpg"
-                    background_down: "./data/barra.jpg"
                     group: "elements"
-
+                ## PV ##
                 ToggleButton:
+                    canvas:
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                            source: './data/buttons/TOGGLE_pv.jpg' if self.state != 'down' else './data/buttons/TOGGLE_pv_down.jpg'
                     id: pv
                     info: 'pv'
-                    background_normal: "./data/gerador.jpg"
-                    background_down: "./data/gerador.jpg"
                     group: "elements"
-
+                ## TRAFO ##
                 ToggleButton:
+                    canvas:
+                        Rectangle:
+                            pos: self.pos
+                            size: self.size
+                            source: './data/buttons/TOGGLE_trafo.jpg' if self.state != 'down' else './data/buttons/TOGGLE_trafo_down.jpg'
                     id: trafo
                     info: 'trafo'
-                    background_normal: "./data/trafo.jpg"
-                    background_down: "./data/trafo.jpg"
+                    background_width: self.size
                     group: "elements"
 
             BoxLayout:
@@ -542,3 +553,49 @@
                 id: inspectDefault
                 visible: True
                 size_hint_x: 0.5 if self.visible else 0
+
+<LoadDialog>:
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Load"
+                on_release: root.load(filechooser.path, filechooser.selection)
+
+<SaveDialog>:
+    text_input: text_input
+    BoxLayout:
+        size: root.size
+        pos: root.pos
+        orientation: "vertical"
+        FileChooserListView:
+            id: filechooser
+            on_selection: text_input.text = self.selection and self.selection[0] or ''
+
+        TextInput:
+            id: text_input
+            size_hint_y: None
+            height: 30
+            multiline: False
+
+        BoxLayout:
+            size_hint_y: None
+            height: 30
+            Button:
+                text: "Cancel"
+                on_release: root.cancel()
+
+            Button:
+                text: "Save"
+                on_release: root.save(filechooser.path, text_input.text)

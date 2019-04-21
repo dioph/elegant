@@ -145,8 +145,8 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
     deltaVdelta: array with the increase values to update V0
     """
     n = np.size(deltaPQ)
-    deltaPQAdj = np.empty([0, 0])
-    jacobianDisregard = np.empty([0, 0])
+    deltaPQAdj = np.empty((0, 0))
+    jacobianDisregard = np.empty((0, 0))
     jAdj = jacobian(N, V0, Y)
     for i in range(n):
         if deltaPQ[i] != 0.:
@@ -158,6 +158,7 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
         jAdj = np.delete(jAdj, int(lincol), 0)
         jAdj = np.delete(jAdj, int(lincol), 1)
     jacobianDisregard = set(jacobianDisregard)
+    # assert np.rank(jAdj) == np.shape(jAdj)[0]  # checks if jAdj is inversible
     deltaVdelta = np.linalg.solve(jAdj, deltaPQAdj)
     return deltaVdelta, jacobianDisregard
 
@@ -176,22 +177,23 @@ def update_V(deltaPQ, N, V0, Y):
     V0: updated array with new estimates to the node tensions
     """
     deltaVdelta, RemoveFromJAdj = DeltaVdelta(deltaPQ, N, V0, Y)
-    v_adj = np.empty([0, 0])
-    v_adj_item = 0
-    for v in V0:
-        v_adj = np.append(v_adj, np.angle(v))
-    for v in V0:
-        v_adj = np.append(v_adj, np.abs(v))
-    for i in range(np.size(v_adj)):
+    vAdj = np.empty((0, 0))
+    for v in V0:  # First the angles of voltages
+        vAdj = np.append(vAdj, np.angle(v))
+    for v in V0:  # Lastly, the absolute vaues of voltages
+        vAdj = np.append(vAdj, np.abs(v))
+    vAdj_counter = 0
+    for i in range(np.size(vAdj)):
         if i in RemoveFromJAdj:
             pass
         else:
-            v_adj[i] += deltaVdelta[v_adj_item]
-            v_adj_item += 1
-    v_adj_item = int(np.size(v_adj)/2)
+            vAdj[i] += deltaVdelta[vAdj_counter]
+            vAdj_counter += 1
+    vAdj_counter = int(np.size(vAdj)/2)
     for i in range(N):
-        V0[i] = complex(v_adj[v_adj_item] * np.cos(v_adj[v_adj_item - N]), v_adj[v_adj_item] * np.sin(v_adj[v_adj_item - N]))
-        v_adj_item += 1
+        # V0[i] = complex(vAdj[vAdj_counter] * np.cos(vAdj[vAdj_counter - N]), vAdj[vAdj_counter] * np.sin(vAdj[vAdj_counter - N]))
+        V0[i] = vAdj[vAdj_counter]*np.exp(1j*vAdj[vAdj_counter - N])
+        vAdj_counter += 1
     return V0
 
 

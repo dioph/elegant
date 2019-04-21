@@ -21,6 +21,10 @@
 *.zip
 *.idea/
 *__pycache__/
+*.dwl
+*.dwl2
+*.bak
+*.dwg
 
 # Logs and databases #
 ######################
