@@ -10,9 +10,10 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, barra_id=0, v=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+    def __init__(self, barra_id=0, v=None, i=None, delta=None, pg=None, qg=None, pl=None, ql=None):
         self.barra_id = barra_id
         self.v = v
+        self.i = i
         self.delta = delta
         self.pg = pg
         self.qg = qg
@@ -43,7 +44,7 @@ class BarraSL(Barra):
     def __init__(self, barra_id=0, v=1e3, delta=0., pl=0., ql=0.):
         super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=pl, ql=ql)
         self.vbase = 1e3
-
+        
 
 class LT(object):
     def __init__(self, l=80e3, r=2.5e-2, d12=1.0, d23=1.0, d31=1.0, d=0.5, rho=1.78e-8, m=1):
