@@ -1,12 +1,9 @@
-import re
 import os
-
 from kivy.app import App
 from kivy.config import Config
 from kivy.lang import Builder
 from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.textinput import TextInput
 from kivy.factory import Factory
 from kivy.properties import ObjectProperty
 from kivy.uix.popup import Popup
@@ -23,12 +20,6 @@ from kivy.graphics import Rectangle
 
 Config.set('graphics', 'width', '500')
 Config.set('graphics', 'height', '500')
-
-# TODO: start save and load feature!!!
-    # TODO: how to update grid?
-    # TODO: reset the current system state
-    # TODO: save position of each bar in BARRAS
-    # TODO: actually, save everything in ONE file, which name and path the user can choose
 
 # GLOBAL VARIABLES:
 # DETERMINE UNIVOCALLY THE CURRENT SYSTEM STATE
@@ -47,16 +38,17 @@ SECTOR_IDS[4, 0] = 0
 TOTAL = 1
 Y = np.zeros((1, 1), complex)
 
-class FloatInput(TextInput):
-    pat = re.compile('[^0-9]')
-
-    def insert_text(self, substring, from_undo=False):
-        pat = self.pat
-        if '.' in self.text:
-            s = re.sub(pat, '', substring)
-        else:
-            s = '.'.join([re.sub(pat, '', s) for s in substring.split('.', 1)])
-        return super(FloatInput, self).insert_text(s, from_undo=from_undo)
+def BFS(source):
+    visitados = []
+    q = [source]
+    while len(q) > 0:
+        current = q.pop()
+        vizinhos = np.arange(TOTAL, dtype=int)[SECTORS[current]]
+        vizinhos = np.array([v for v in vizinhos if v not in visitados])
+        for v in vizinhos:
+            q.append(v)
+        visitados.append(current)
+    return visitados
 
 platform = core_platform
 _have_win32file = False
@@ -168,7 +160,8 @@ class Interface(FloatLayout):
                     self.added_element(t, square.coords)
                 self.update()
                 break
-        else:   # OPEN INSPECT ELEMENT
+        else:
+            # OPEN INSPECT ELEMENT
             mask = np.zeros(6, bool)
             if square.info == 'slack':      # SLACK
                 mask[-1] = True
@@ -182,18 +175,25 @@ class Interface(FloatLayout):
                 mask[-5] = True
             else:                           # DEFAULT
                 mask[-6] = True
-            for i in range(6):
-                toplevel.children[i].visible = mask[i]
-                toplevel.children[i].coords = square.coords
+            for k in range(6):
+                toplevel.children[k].visible = mask[k]
+                toplevel.children[k].coords = square.coords
                 i, j = square.coords
-                for key in GRID[i, j].__dict__.keys():  # UPDATE INSPECT LABELS
-                    setattr(toplevel.children[i], key, getattr(GRID[i, j], key))
+                # UPDATE INSPECT LABELS
+                if mask[k] and k > 0:
+                    for key in GRID[i, j].__dict__.keys():
+                        if key is 'm' or key is 'barra_id':
+                            setattr(toplevel.children[k], key, getattr(GRID[i, j], key))
+                        else:
+                            setattr(toplevel.children[k], key, float('{:.6g}'.format(getattr(GRID[i, j], key))))
 
     def update(self):
         global Y
         S = np.zeros((N, 2), float)
         V0 = np.ones(N, complex)
-        Y = np.zeros((N, N), complex) * -1
+        Y = np.zeros((N, N), complex)
+        print('visitados =', BFS(0))
+        # Calcula Ybarra:
         for l in LINHAS:
             lt, [i, j] = l
             node1 = None
@@ -203,36 +203,71 @@ class Interface(FloatLayout):
             if j < 9 and isinstance(GRID[i, j + 1], Barra):
                 node2 = GRID[i, j + 1].barra_id
             if node1 is not None:
-                Y[node1, node1] += 1/lt.Z + lt.Y/2
+                Y[node1, node1] += lt.vbase**2/(lt.Z * 1e8) + (lt.Y * lt.vbase**2)/2e8
             if node2 is not None:
-                Y[node2, node2] += 1/lt.Z + lt.Y/2
+                Y[node2, node2] += lt.vbase**2/(lt.Z * 1e8) + (lt.Y * lt.vbase**2)/2e8
             if node1 is not None and node2 is not None:
-                Y[node1, node2] -= 1/lt.Z
-                Y[node2, node1] -= 1/lt.Z
+                Y[node1, node2] -= lt.vbase**2/(lt.Z * 1e8)
+                Y[node2, node1] -= lt.vbase**2/(lt.Z * 1e8)
+        print('Ybarra =', Y)
+        # Caclula S e V0:
         for i in range(N):
-            S[i, :] = BARRAS[i].P, BARRAS[i].Q  # USER-SPECIFIED POWERS ARRAY COMPLETION
+            S[i, :] = BARRAS[i].P/1e8, BARRAS[i].Q/1e8
             if isinstance(BARRAS[i], BarraPV):
                 V0[i] = BARRAS[i].v / BARRAS[i].vbase
+                S[i, 1] = np.nan
             if isinstance(BARRAS[i], BarraSL):
                 V0[i] = BARRAS[i].v * np.exp(1j * BARRAS[i].delta * np.pi/180) / BARRAS[i].vbase
-        V = gauss_seidel(Y, V0, S, eps=1e-12)
+                S[i, :] = np.nan, np.nan
+        print('S0 =', S)
+        print('V0 =', V0)
+        # Calcula V e atualiza:
+        V = gauss_seidel(Y, V0, S, eps=1e-3, nmax=1000)
+        Scalc = V * np.conjugate(np.dot(Y, V))
+        print('Scalc =', Scalc)
         for i in range(N):
-            BARRAS[i].v = V[i] * BARRAS[i].vbase  # PUT VOLTAGES ENCOUNTERED ON METHOD RUN IN EACH BAR IN 'BARRAS', REAL BASIS
-
-    def edited_element(self, inspect):
+            BARRAS[i].v = np.abs(V[i]) * BARRAS[i].vbase
+            BARRAS[i].delta = np.angle(V[i]) * 180/np.pi
+            if isinstance(BARRAS[i], BarraPV):
+                BARRAS[i].qg = np.imag(Scalc[i] * 1e8) + BARRAS[i].ql
+            if isinstance(BARRAS[i], BarraSL):
+                BARRAS[i].pg = np.real(Scalc[i] * 1e8) + BARRAS[i].pl
+                BARRAS[i].qg = np.imag(Scalc[i] * 1e8) + BARRAS[i].ql
+        # UPDATE INSPECT LABELS
+        toplevel = self.children[0].children[0]
+        for k in range(6):
+            if toplevel.children[k].visible and k > 0:
+                i, j = toplevel.children[k].coords
+                for key in GRID[i, j].__dict__.keys():
+                    if key is 'm' or key is 'barra_id':
+                        setattr(toplevel.children[k], key, getattr(GRID[i, j], key))
+                    else:
+                        setattr(toplevel.children[k], key, float('{:.6g}'.format(getattr(GRID[i, j], key))))
+        print('UPDATED')
+        
+    def edited_element(self, inspect, key, value):
+        setattr(inspect, key, value)
         i, j = inspect.coords
         element = GRID[i, j]
         for key in element.__dict__.keys():
             setattr(element, key, getattr(inspect, key))
         self.update()
-        print('EDITED')
+        print('EDITED {0},{1}'.format(i, j))
 
     def removed_element(self, coords):
-        pass
+        i, j = coords
+        element = GRID[i, j]
+        if isinstance(element, Barra):
+            pass
+        if isinstance(element, LT):
+            pass
+        GRID[i, j] = 0
+        SECTOR_IDS[i, j] = -1
 
     def added_element(self, element, coords):
         global BARRAS, N, LINHAS, SECTORS, SECTOR_IDS, TOTAL, TRAFOS
         i, j = coords  # coords is a array [i, j]
+
         GRID[i, j] = element
 
         if not isinstance(element, Trafo):
@@ -255,8 +290,26 @@ class Interface(FloatLayout):
 
         if isinstance(element, LT):
             LINHAS.append([element, coords])
+        print('Barras:', BARRAS)
+        print('Linhas:', LINHAS)
+        print('Sectors:', SECTORS)
+        print('IDs:', SECTOR_IDS)
+        print('ADDED')
 
-        print(BARRAS, LINHAS, SECTORS, SECTOR_IDS)
+    def extend(self, inspect, grid, add):
+        i, j = inspect.coords
+        element = GRID[i, j]
+        sector_id = SECTOR_IDS[i, j]
+        GRID[i + add, j] = element
+        SECTOR_IDS[i + add, j] = sector_id
+        k = (9 - i) * 10 + (9 - j)
+        bkg_normal = grid[k].background_normal
+        bkg_down = grid[k].background_down
+        info = grid[k].info
+        k = (9 - (i+add)) * 10 + (9 - j)
+        grid[k].background_normal = bkg_normal
+        grid[k].background_down = bkg_down
+        grid[k].info = info
 
     def report(self, grid):
         """Generates report when required in execution"""
