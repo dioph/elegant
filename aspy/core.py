@@ -18,7 +18,7 @@ class Barra(object):
         self.qg = qg
         self.pl = pl
         self.ql = ql
-        self.vbase = None
+        self.vbase = 1e3
 
     @property
     def P(self):
@@ -35,13 +35,13 @@ class BarraPQ(Barra):
 
 
 class BarraPV(Barra):
-    def __init__(self, barra_id=0, v=1., pg=0., pl=0.):
-        super(BarraPV, self).__init__(barra_id=barra_id, v=v, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=np.nan)
+    def __init__(self, barra_id=0, v=1e3, pg=0., pl=0., ql=0.):
+        super(BarraPV, self).__init__(barra_id=barra_id, v=v, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=ql)
 
 
 class BarraSL(Barra):
-    def __init__(self, barra_id=0, v=1., delta=0.):
-        super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=np.nan, ql=np.nan)
+    def __init__(self, barra_id=0, v=1e3, delta=0., pl=0., ql=0.):
+        super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=pl, ql=ql)
         self.vbase = 1e3
 
 
@@ -55,7 +55,7 @@ class LT(object):
         self.d31 = d31
         self.d = d
         self.m = m
-        self.vbase = None
+        self.vbase = 1e3
 
     @property
     def Rm(self):

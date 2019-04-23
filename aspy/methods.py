@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def gauss_seidel(Y, V0, S, eps=None, Niter=1):
+def gauss_seidel(Y, V0, S, eps=None, Niter=1, nmax=1000):
     """Gauss-Seidel Method
 
     Parameters
@@ -23,7 +23,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     if eps is None:
         eps = np.inf
     count = 0
-    while delta > eps or count < Niter:
+    while (delta > eps or count < Niter) and count < nmax:
         for i in range(N):
             I = np.dot(Y[i], V)
             P, Q = S[i]
@@ -39,6 +39,9 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
         Vold = np.copy(V)
         count += 1
     print('TOTAL: {} ITERACOES'.format(count))
+    print('delta = ', delta)
+    if count == nmax:
+        return V0
     return V
 
 
@@ -215,7 +218,7 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
     if eps is None:
         eps = np.inf
     count = 0
-    while delta > eps or count < Niter:
+    while delta > eps and count < Niter:
         deltaPQ = np.zeros([2 * N, 1])
         for i in range(N):
             P, Q = S[i]
