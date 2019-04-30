@@ -60,6 +60,8 @@
     font_size: '18sp'
 
 <Interface>:
+    grid: grid
+    fullscreen: True
     GridLayout:
         rows: 2
         GridLayout:
@@ -81,7 +83,7 @@
                 text: 'Report'
                 size_hint: None, 1
                 pos_hint: 1, 1
-                on_press: root.report(grid, [grid.rows, grid.cols])  # Todo: Check this line!
+                on_release: root.report(grid, [grid.rows, grid.cols])  # Todo: Check this line!
         GridLayout:
             rows: 1
             id: toplevel
@@ -328,7 +330,7 @@
                     id: removeLT
                     visible: inspectLT.visible
                     text: "REMOVE"
-                    on_press: root.removed_element(inspectLT.coords)
+                    on_release: root.removed_element(inspectLT.coords)
             BoxLayout:
                 ### PQ ###
                 orientation: 'vertical'
@@ -394,7 +396,7 @@
                     id: removeBarraPQ
                     visible: inspectPQ.visible
                     text: "REMOVE"
-                    on_press: root.removed_element(inspectPQ.coords)
+                    on_release: root.removed_element(inspectPQ.coords)
 
             BoxLayout:
                 ### PV ###
@@ -483,7 +485,7 @@
                     id: removeBarraPV
                     visible: inspectPV.visible
                     text: "REMOVE"
-                    on_press: root.removed_element(inspectPV.coords)
+                    on_release: root.removed_element(inspectPV.coords)
 
             BoxLayout:
                 ### trafo ###
@@ -544,7 +546,7 @@
                     id: removeTRAFO
                     visible: inspectTRAFO.visible
                     text: "REMOVE"
-                    on_press: root.removed_element(inspectTRAFO.coords)
+                    on_release: root.removed_element(inspectTRAFO.coords)
 
             BoxLayout:
                 ### default ###
@@ -561,6 +563,7 @@
         orientation: "vertical"
         FileChooserListView:
             id: filechooser
+            path: './data/sessions/'
 
         BoxLayout:
             size_hint_y: None
@@ -581,6 +584,7 @@
         orientation: "vertical"
         FileChooserListView:
             id: filechooser
+            path: './data/sessions/'
             on_selection: text_input.text = self.selection and self.selection[0] or ''
 
         TextInput:
