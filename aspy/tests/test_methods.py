@@ -51,3 +51,9 @@ def test_newton_raphson_stevenson():
     assert V[0] == 1.0
     assert np.abs(np.abs(V[3])-1.02) < 1e-6
     assert 0.98227 < np.real(V[1]) < 0.98228
+
+"""
+lt = LT(l=85.24e3, d12=0.47, d23=0.47, d31=0.47, r=0.95e-2)
+lt = LT(l=54.50e3, d12=0.83, d23=0.83, d31=0.83, r=0.88e-2)
+lt = LT(l=87.39e3, d12=1.10, d23=1.10, d31=1.10, r=0.86e-2) 
+"""
