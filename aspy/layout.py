@@ -17,9 +17,11 @@ from aspy.core import *
 from aspy.log import report
 from aspy.methods import *
 from kivy.graphics import Rectangle
+from kivy.core.window import Window
 
 Config.set('graphics', 'width', '500')
 Config.set('graphics', 'height', '500')
+
 
 # GLOBAL VARIABLES:
 # DETERMINE UNIVOCALLY THE CURRENT SYSTEM STATE
@@ -74,10 +76,10 @@ class SaveDialog(FloatLayout):
 
 
 class Interface(FloatLayout):
-    loadfile = ObjectProperty(None)
-    savefile = ObjectProperty(None)
-    text_input = ObjectProperty(None)
-
+    grid = ObjectProperty(None)
+    images_path = './data/buttons/'
+    grid_buttons_imgs = {'lt': 'GRID_lt.jpg', 'pq': 'GRID_barraPQ.jpg', 'pv': 'GRID_barraPV.jpg',
+                         'trafo': 'GRID_trafo.jpg'}
 
     def dismiss_popup(self):
         self._popup.dismiss()
@@ -98,11 +100,77 @@ class Interface(FloatLayout):
 
 
     def load(self, path, filename):
-        pass
+        """Loads session and proceeds with updates"""
+        try:
+            session = str(filename).split(os.sep)[-3]  # grabs only 'session' text
+            filename = session+'.npy'
+            file = np.load(os.path.join(path, session, filename).replace("\\", "/"))[0]
+        except FileNotFoundError:
+            print('The file is missing')
+        except AssertionError:
+            print('Wrong filetype indentified')
+        else:
+            print('Load was sucessful')
+        # Loads from file
+            LOADED_GRID = file['GRID']
+            images_path = './data/buttons/'
+            grid_buttons_imgs = {'lt': 'GRID_lt.jpg', 'pq': 'GRID_barraPQ.jpg', 'pv': 'GRID_barraPV.jpg',
+                                 'trafo': 'GRID_trafo.jpg'}
+            for square in self.grid.children:
+                i, j = square.coords
+                child = LOADED_GRID[i, j]
+                if isinstance(child, BarraSL):  # BarraSL
+                    pass
+                if isinstance(child, LT):  # LT
+                    square.info = "lt"
+                    with square.canvas:
+                        Rectangle(source=images_path+grid_buttons_imgs['lt'], size=square.size, pos=square.pos)
+                    lt = LT()
+                    self.added_element(lt, square.coords)
+                if isinstance(child, BarraPQ):  # BarraPQ
+                    square.info = "pq"
+                    with square.canvas:
+                        Rectangle(source=images_path+grid_buttons_imgs['pq'], size=square.size, pos=square.pos)
+                    b = BarraPQ()
+                    self.added_element(b, square.coords)
+                if isinstance(child, BarraPV):  # BarraPV
+                    square.info = "pv"
+                    with square.canvas:
+                        Rectangle(source=images_path+grid_buttons_imgs['pv'], size=square.size, pos=square.pos)
+                    b = BarraPV()
+                    self.added_element(b, square.coords)
+                if isinstance(child, Trafo):  # Trafo
+                    square.info = "trafo"
+                    with square.canvas:
+                        Rectangle(source=images_path+grid_buttons_imgs['trafo'], size=square.size, pos=square.pos)
+                    b = Trafo()
+                    self.added_element(b, square.coords)
+                self.update()
 
 
     def save(self, path, filename):
-        pass
+        """Creates folder with files inside or overwrite existent files without user confirmation (for while)
+        """
+        try:
+            os.mkdir(path+os.sep+filename)
+        except FileExistsError:  # Overwriting
+            print('Overwriting...')  # TODO: popup window asking about overwriting?
+            path = os.path.join(path, filename)
+            np.save(os.path.join(path, filename), [{'GRID': GRID}])
+        else:  # Saving for the first time
+            path = os.path.join(path, filename)
+            np.save(os.path.join(path, filename), [{'GRID': GRID}])
+
+
+    def resize(self, *args, **kwargs):
+        for square in self.grid.children:
+            square.canvas.clear()
+            with square.canvas:
+                pass
+                if square.info is not None and square.info != 'slack':
+                    Rectangle(source=self.images_path+self.grid_buttons_imgs[square.info], pos=square.pos, size=square.size)
+                else:
+                    pass
 
 
     def init_grid(self, grid, elements, toplevel):
@@ -113,6 +181,7 @@ class Interface(FloatLayout):
         elements: the grid of togglebuttons
         toplevel: main grid (3 cols)
         """
+        Window.bind(on_resize=self.resize)
         for i in range(grid.cols):
             for j in range(grid.rows):
                 grid.add_widget(Button())
@@ -136,8 +205,8 @@ class Interface(FloatLayout):
         elements: GridLayout that holds ToggleButtons
         toplevel: main grid (root.children[0]; 3 cols)
         """
-        images_path = './data/buttons/'
-        grid_buttons_imgs = {'lt': 'GRID_lt.jpg', 'pq': 'GRID_barraPQ.jpg', 'pv':'GRID_barraPV.jpg', 'trafo': 'GRID_trafo.jpg'}
+        # images_path = './data/buttons/'
+        # grid_buttons_imgs = {'lt': 'GRID_lt.jpg', 'pq': 'GRID_barraPQ.jpg', 'pv':'GRID_barraPV.jpg', 'trafo': 'GRID_trafo.jpg'}
         for child in elements.children:
             if isinstance(child, Button) and child.state == 'down' and square.coords != [4, 0]:
                 square.info = child.info

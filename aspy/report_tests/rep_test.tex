@@ -1,0 +1,70 @@
+\documentclass{article}%
+\usepackage[T1]{fontenc}%
+\usepackage[utf8]{inputenc}%
+\usepackage{lmodern}%
+\usepackage{textcomp}%
+\usepackage{lastpage}%
+\usepackage[tmargin=2cm,lmargin=2cm,rmargin=2cm,bmargin=2cm]{geometry}%
+\usepackage{color}%
+\usepackage{ragged2e}%
+\usepackage[table]{xcolor}%
+\usepackage{amsmath}%
+%
+\definecolor{lightgray}{gray}{0.80}%
+%
+\begin{document}%
+\normalsize%
+\section{Relatório de fluxo de carga}%
+\label{sec:Relatrio de fluxo de carga}%
+Criado em 04/16/19 usando Aspy%
+\subsection{Tensões nas barras}%
+\label{subsec:Tenses nas barras}%
+\begin{center}%
+\begin{tabular}{|cccccccc|}%
+\hline%
+\rowcolor{lightgray}%
+\multicolumn{8}{|c|}{\begin{large}%
+\textbf{Tensões nas barras}%
+\end{large}}\\%
+\hline%
+\hline%
+\rowcolor{lightgray}%
+\multicolumn{8}{|c|}{Base reais}\\%
+\hline%
+Barra&Tipo&$P_G \textrm{ (MW)}$&$Q_G \textrm{ (MVar)}$&$P_L \textrm{ (MW)}$&$Q_L \textrm{ (MVar)}$&V (kV)&$\delta \textrm{ (deg)}$\\%
+\hline%
+1&Slack&nan&nan&nan&nan&10.0&0.0\\%
+\hline%
+\hline%
+\rowcolor{lightgray}%
+\multicolumn{8}{|c|}{Por unidade}\\%
+\hline%
+Barra&Tipo&$P_G$&$Q_G$&$P_L$&$Q_L$&V&$\delta \textrm{ (deg)}$\\%
+\hline%
+1&Slack&nan&nan&nan&nan&10.0&0.0\\%
+\hline%
+\end{tabular}%
+\end{center}
+
+%
+\subsection{Tabela de fluxos de carga}%
+\label{subsec:Tabela de fluxos de carga}%
+\begin{center}%
+\begin{tabular}{|cccc|}%
+\hline%
+\rowcolor{lightgray}%
+\multicolumn{4}{|c|}{\begin{large}%
+\textbf{Fluxo de carga}%
+\end{large}}\\%
+\hline%
+\hline%
+\rowcolor{lightgray}%
+\multicolumn{4}{|c|}{Bases reais}\\%
+\hline%
+Linha&V (kV)&I (A)&$S_{p} (kVA)$\\%
+\hline%
+\end{tabular}%
+\end{center}
+
+%
+\end{document}
