@@ -10,7 +10,7 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, barra_id=0, v=None, i=None, delta=None, pg=None, qg=None, pl=None, ql=None):
+    def __init__(self, barra_id=0, posicao=None, v=None, i=None, delta=None, pg=None, qg=None, pl=None, ql=None):
         self.barra_id = barra_id
         self.v = v
         self.i = i
@@ -20,6 +20,7 @@ class Barra(object):
         self.pl = pl
         self.ql = ql
         self.vbase = 1e3
+        self.posicao = posicao
 
     @property
     def P(self):
@@ -57,6 +58,7 @@ class LT(object):
         self.d = d
         self.m = m
         self.vbase = 1e3
+        self.interface = np.zeros((0,), object)
 
     @property
     def Rm(self):
