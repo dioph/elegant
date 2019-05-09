@@ -63,6 +63,7 @@ class SchemeInputer(QGraphicsScene):
 
     def mouseReleaseEvent(self, event):
         self._moveHistory[:, :] = -1
+        print('>>> lastRetainer ', self._lastRetainer)
         self._lastRetainer = False
         self._firstRetainer = True
 
@@ -131,6 +132,7 @@ class SchemeInputer(QGraphicsScene):
                         self._selectorHistory[2] = central_point.y() - self._oneUnityLength/2
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
                         self._pointerSignal.emit_sig((i, j))
+                        self._methodSignal.emit_sig('showBarInspector')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -165,8 +167,6 @@ class SchemeInputer(QGraphicsScene):
                             if not isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
                                 self.drawLine(self._moveHistory)  # Draw the line
                                 self._moveHistory[:, :] = -1  # Reset _moveHistory
-                            else:
-                                pass
                     else:  # No bar case
                         pass
                 except Exception:
@@ -207,17 +207,16 @@ class SchemeInputer(QGraphicsScene):
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
         super(CircuitInputer, self).__init__(parent)
-        self.scene = SchemeInputer()
-        self.view = QGraphicsView(self.scene)
+        ### General initializations ###
+        self.Scene = SchemeInputer()
+        self.View = QGraphicsView(self.Scene)
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
-        self.SchemeInputLayout.addWidget(self.view)
+        self.SchemeInputLayout.addWidget(self.View)
         self._currentObject = None  # coordinates to current object being manipuled
-
-        try:
-            self.scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
-            self.scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
-        except Exception:
-            print(logging.error(traceback.format_exc()))
+        self.__calls = {'addBus': self.add_bus,
+                        'showBarInspector': self.showBarInspector}
+        self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
+        self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
 
         ### Inspector ###
         self.InspectorLayout = QVBoxLayout()  # Inspector
@@ -232,14 +231,14 @@ class CircuitInputer(QWidget):
         self.BarTitle = QLabel('Bar title')
         self.BarTitle.setAlignment(Qt.AlignCenter)
 
-        self.v = QLineEdit('0.0')
-        self.v.setEnabled(False)
+        self.BarV_Value = QLineEdit('0.0')
+        self.BarV_Value.setEnabled(False)
 
         self.BarAngle_Value = QLineEdit('0.0º')
         self.BarAngle_Value.setEnabled(False)
 
         self.BarDataFormLayout = QFormLayout()
-        self.BarDataFormLayout.addRow('|V|', self.v)
+        self.BarDataFormLayout.addRow('|V|', self.BarV_Value)
         self.BarDataFormLayout.addRow('\u03b4', self.BarAngle_Value)
 
         self.AddGenerationLabel = QLabel('Geração')
@@ -305,16 +304,15 @@ class CircuitInputer(QWidget):
 
 
     def methodsCaller(self, args):
-        call = {'addBus': self.add_bus()}
-        call[args]
-
+        self.__calls[args]()
 
     def setCurrentObject(self, args):
         self._currentObject = args
 
 
-    def showBarInspector(self, args):
+    def showBarInspector(self):
         print('showBarInspector')
+        print(BUSES)
         if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
             try:
                 self.BarTitle.setText('Barra {}'. format(GRID_ELEMENTS[self._currentObject].barra_id))
@@ -336,6 +334,8 @@ class CircuitInputer(QWidget):
             GRID_ELEMENTS[coords] = BUS
             BUSES = np.append(BUSES, BUS)
             ID += 1
+        print('>>> ', end='')
+        print(BUSES)
 
 
     def remove_bus(self):
@@ -356,14 +356,16 @@ class CircuitInputer(QWidget):
                             BUSES = np.delete(BUSES, POS)
                         else:
                             pass
-                self.scene.removeItem(BUSES_PIXMAP[self._currentObject])
+                self.Scene.removeItem(BUSES_PIXMAP[self._currentObject])
+            print('>>> ', end='')
+            print(BUSES)
         except Exception:
             logging.error(traceback.format_exc())
 
 
     def add_gen(self):
         print('add_gen')
-        self.v.setEnabled(True)
+        self.BarV_Value.setEnabled(True)
         self.PgInput.setEnabled(True)
         self.AddGenerationButton.setText('OK')
         self.AddGenerationButton.disconnect()
@@ -371,10 +373,14 @@ class CircuitInputer(QWidget):
 
 
     def submit_gen(self):
-        print('submit_gen')
-        self.AddGenerationButton.setText('-')
-        self.AddGenerationButton.disconnect()
-        self.AddGenerationButton.pressed.connect(self.remove_gen)
+        global GRID_ELEMENTS, BUSES
+        print('>>> submit_gen')
+        if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
+            GRID_ELEMENTS[self._currentObject].v = complex(self.BarV_Value.text())
+            GRID_ELEMENTS[self._currentObject].pg = float(self.PgInput.text())
+            self.AddGenerationButton.setText('-')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.remove_gen)
 
 
     def remove_gen(self):
