@@ -10,25 +10,44 @@ from aspy.core import *
 
 
 # TODO: first bar is always a slack bar
+# TODO: in remove of slack bar, the next bar to be put is a slack
 # TODO: Define store method for data in graph
-# TODO: On scrolling, delete only the yellow squares
+# TODO: Interaction between outside and inside widget
+
+
+N = 10  # grid size in schemeinputer
+ID = 1  # bus id
+GRID_ELEMENTS = np.zeros((N, N), object)  # hold the aspy.core elements
+BUSES = np.zeros((0,), object)  # hold the buses
+TL = np.zeros((0,), object)  # hold the transmission lines
+TRANSFORMERS = np.zeros((0,), object)  # hold the transformers
+
+
+class GenericSignal(QObject):
+    signal = pyqtSignal(object)
+
+    def __init__(self, *args):
+        super(GenericSignal, self).__init__()
+        self.emit_sig(args)
+
+    def emit_sig(self, args):
+        self.signal.emit(args)
 
 
 class SchemeInputer(QGraphicsScene):
-    def __init__(self, n=10, length=50, *args, **kwargs):
+    def __init__(self, n=N, length=50, *args, **kwargs):
         super(SchemeInputer, self).__init__(*args, **kwargs)
         self.n = n
         self._oneUnityLength = length
-        # self._moveHistory = np.ones((2, 2)) * -1
         self._moveHistory = np.ones((2, 2))*-1
-        # self._moveHistory[:-1, :] = -1; self._moveHistory[-1, :] = None
         self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
         self._lastRetainer, self._firstRetainer = False, True
-        self.SceneView = self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
+        self._mousePressSig = GenericSignal()
+        self._mouseDoubleClickSig = GenericSignal()
         self.selector_radius = length/2
+        self.SceneView = self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
         self.quantizedInterface = self.getQuantizedInterface()
-        self.gridElements = np.zeros_like(self.quantizedInterface, object)
-        print(self.quantizedInterface)
+        # GRID_ELEMENTS = np.zeros_like(self.quantizedInterface, object)
         self.showQuantizedInterface()
 
 
@@ -47,12 +66,6 @@ class SchemeInputer(QGraphicsScene):
         self._moveHistory[:, :] = -1
         self._lastRetainer = False
         self._firstRetainer = True
-        # self._released = True
-        # for i in range(np.shape(self._moveHistory)[0]):
-        #     for j in range(np.shape(self._moveHistory)[1]):
-        #         self._moveHistory[i, j] = -1
-
-        # self._moveHistory[:-1, :] = -1; self._moveHistory[-1, :] = None
 
 
     def drawLine(self, coordinates):
@@ -87,41 +100,49 @@ class SchemeInputer(QGraphicsScene):
 
 
     def mouseDoubleClickEvent(self, event):
+        global BUSES, GRID_ELEMENTS, ID
         try:
             double_pressed = event.scenePos().x(), event.scenePos().y()
             for central_point in self.quantizedInterface.flatten():
                 if self.distance(double_pressed, central_point) <= self.selector_radius:
                     i, j = self.Point_pos(central_point)
-                    print(i, j)
-                    self.gridElements[i, j] = Barra()
+                    if not np.any(isinstance(BUSES, BarraSL)):
+                        GRID_ELEMENTS[i, j] = BarraSL(barra_id=ID)
+                        BUSES = np.append(BUSES, GRID_ELEMENTS[i, j])
+                        print(GRID_ELEMENTS, BUSES)
+                    else:
+                        GRID_ELEMENTS[i, j] = Barra(barra_id=ID)
                     pixmap = QPixmap('./data/buttons/DOT.jpg')
                     pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
                     sceneItem = self.addPixmap(pixmap)
                     pixmap_coords = central_point.x()-self._oneUnityLength/2, central_point.y()-self._oneUnityLength/2
                     sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
+                    ID += 1
+                    self._mouseDoubleClickSig.emit_sig((i, j))
         except Exception:
             logging.error(traceback.format_exc())
 
 
     def mousePressEvent(self, event):
         # L button: 1; R button: 2
-        print('mouse button: ', event.button())
-        if event.button() in (1, 2):
-            pressed = event.scenePos().x(), event.scenePos().y()
-            for central_point in self.quantizedInterface.flatten():
-                if self.distance(pressed, central_point) <= self.selector_radius:
-                    i, j = self.Point_pos(central_point)
-                    self.clearSquare(self._selectorHistory[0])
-                    #  catches up right corner
-                    self._selectorHistory[1] = central_point.x() - self._oneUnityLength/2
-                    self._selectorHistory[2] = central_point.y() - self._oneUnityLength/2
-                    self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
-                    # print('currentRect: ', self._selectorHistory[0])
-
+        try:
+            print('mouse button: ', event.button())
+            if event.button() in (1, 2):
+                pressed = event.scenePos().x(), event.scenePos().y()
+                for central_point in self.quantizedInterface.flatten():
+                    if self.distance(pressed, central_point) <= self.selector_radius:
+                        i, j = self.Point_pos(central_point)
+                        self.clearSquare(self._selectorHistory[0])
+                        #  catches up right corner
+                        self._selectorHistory[1] = central_point.x() - self._oneUnityLength/2
+                        self._selectorHistory[2] = central_point.y() - self._oneUnityLength/2
+                        self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
+                        self._mousePressSig.emit_sig((i, j))
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def sceneRectChanged(self, QRectF):
         pass
-
 
     def mouseMoveEvent(self, event):
         """This method gives behavior to wire tool"""
@@ -134,7 +155,7 @@ class SchemeInputer(QGraphicsScene):
                         if np.all(self._moveHistory[0] < 0):  # Set source
                             self._moveHistory[0, 0] = central_point.x()
                             self._moveHistory[0, 1] = central_point.y()
-                            if isinstance(self.gridElements[i, j], Barra):
+                            if isinstance(GRID_ELEMENTS[i, j], Barra):
                                 self._firstRetainer = False
                         if central_point.x() != self._moveHistory[0, 0] \
                                 or central_point.y() != self._moveHistory[0, 1]:  # Set destiny
@@ -143,13 +164,13 @@ class SchemeInputer(QGraphicsScene):
                         if (np.all(self._moveHistory > 0)) and \
                                 (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
                             ### DRAW LINE ###
-                            if isinstance(self.gridElements[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
-                                print('break on next move')
+                            if isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
+                                # print('break on next move')
                                 self.drawLine(self._moveHistory)  # Draw the line
                                 self._moveHistory[:, :] = -1  # Reset _moveHistory
                                 self._lastRetainer = True  # Prevent the user for put line outside last bus
-                            if not isinstance(self.gridElements[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
-                                print('do anything')
+                            if not isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
+                                # print('do anything')
                                 self.drawLine(self._moveHistory)  # Draw the line
                                 self._moveHistory[:, :] = -1  # Reset _moveHistory
                             else:
@@ -200,6 +221,13 @@ class CircuitInputer(QWidget):
         self.view = QGraphicsView(self.scene)
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.view)
+        self._currentObject = []  # coordinates to current object being manipuled
+
+        try:
+            self.scene._mousePressSig.signal.connect(lambda args: self.showBarInspector(args))
+            self.scene._mouseDoubleClickSig.signal.connect(lambda args: self.showBarInspector(args))
+        except Exception:
+            print(logging.error(traceback.format_exc()))
 
         ### Inspector ###
         self.InspectorLayout = QVBoxLayout()  # Inspector
@@ -208,21 +236,20 @@ class CircuitInputer(QWidget):
         self.TypeLayout.addStretch()
         self.InspectorLayout.addLayout(self.TypeLayout)
 
-        ### General Layout for general bar case ###
+        ### Layout for general bar case ###
         self.BarLayout = QVBoxLayout()
 
         self.BarTitle = QLabel('Bar title')
-        # self.BarTitle.setStyleSheet("QLabel {font_size: 20}")
         self.BarTitle.setAlignment(Qt.AlignCenter)
 
-        self.BarV_Value = QLineEdit('0.0')
-        self.BarV_Value.setEnabled(False)
+        self.v = QLineEdit('0.0')
+        self.v.setEnabled(False)
 
         self.BarAngle_Value = QLineEdit('0.0º')
         self.BarAngle_Value.setEnabled(False)
 
         self.BarDataFormLayout = QFormLayout()
-        self.BarDataFormLayout.addRow('|V|', self.BarV_Value)
+        self.BarDataFormLayout.addRow('|V|', self.v)
         self.BarDataFormLayout.addRow('\u03b4', self.BarAngle_Value)
 
         self.AddGenerationLabel = QLabel('Geração')
@@ -246,7 +273,6 @@ class CircuitInputer(QWidget):
         self.PlInput.setEnabled(False); self.QlInput.setEnabled(False)
         self.AddLoadFormLayout.addRow('Ql ', self.QlInput)
         self.AddLoadFormLayout.addRow('Pl ', self.PlInput)
-        # self.AddLoadFormLayout.setGeometry(0)
 
         self.BarLayout.addWidget(self.BarTitle)
         self.BarLayout.addLayout(self.BarDataFormLayout)
@@ -258,15 +284,21 @@ class CircuitInputer(QWidget):
         self.BarLayout.addLayout(self.AddLoadFormLayout)
         self.BarLayout.addWidget(self.AddLoadLabel)
         self.BarLayout.addWidget(self.AddLoadButton)
+        print(self.BarDataFormLayout.itemAt(1).widget())
+        # TODO: bug here in ordering of widgets
+        # self.BarLayoutFrame = QFrame()  # mask
+        # self.BarLayoutFrame.setLayout(self.BarLayout)
+        # self.BarLayoutFrame.hide()
 
         ### General Layout for LT case ###
         self.LtLayout = QVBoxLayout()
 
-        ### Layout that holds Inspector and Stretches ###
+        ### Layout that holds bus inspector and Stretches ###
         self.InspectorAreaLayout = QVBoxLayout()
         self.InspectorAreaLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
         self.InspectorAreaLayout.addLayout(self.BarLayout)
+        # self.InspectorAreaLayout.addWidget(self.BarLayoutFrame)
         self.InspectorAreaLayout.addLayout(self.LtLayout)
         self.InspectorAreaLayout.addStretch()
 
@@ -276,10 +308,18 @@ class CircuitInputer(QWidget):
         self.TopLayout.addLayout(self.SchemeInputLayout)
         self.setLayout(self.TopLayout)
 
+    def showBarInspector(self, args):
+        print('showBarInspector')
+        if isinstance(GRID_ELEMENTS[args], Barra):
+            self._currentObject = args  # coordinates that point to the element in ELEMENT_GRID
+            try:
+                self.BarTitle.setText('Barra {}'. format(GRID_ELEMENTS[self._currentObject].barra_id))
+            except Exception:
+                logging.error(traceback.format_exc())
 
     def add_gen(self):
         print('add_gen')
-        self.BarV_Value.setEnabled(True)
+        self.v.setEnabled(True)
         self.PgInput.setEnabled(True)
         self.AddGenerationButton.setText('OK')
         self.AddGenerationButton.disconnect()
