@@ -9,18 +9,18 @@ from PyQt5.QtWidgets import *
 from aspy.core import *
 
 
-# TODO: first bar is always a slack bar
-# TODO: in remove of slack bar, the next bar to be put is a slack
 # TODO: Define store method for data in graph
 # TODO: Interaction between outside and inside widget
 
 
 N = 10  # grid size in schemeinputer
-ID = 1  # bus id
+ID = 1  # 0 for slack bus
 GRID_ELEMENTS = np.zeros((N, N), object)  # hold the aspy.core elements
+BUSES_PIXMAP = np.zeros((N, N), object)  # hold the buses drawings
+TL_PIXMAP = np.zeros((N, N), object)  # hold the transmission line drawing
 BUSES = np.zeros((0,), object)  # hold the buses
-TL = np.zeros((0,), object)  # hold the transmission lines
-TRANSFORMERS = np.zeros((0,), object)  # hold the transformers
+TL = []  # hold the transmission lines
+TRANSFORMERS = []  # hold the transformers
 
 
 class GenericSignal(QObject):
@@ -42,12 +42,11 @@ class SchemeInputer(QGraphicsScene):
         self._moveHistory = np.ones((2, 2))*-1
         self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
         self._lastRetainer, self._firstRetainer = False, True
-        self._mousePressSig = GenericSignal()
-        self._mouseDoubleClickSig = GenericSignal()
+        self._pointerSignal = GenericSignal()
+        self._methodSignal = GenericSignal()
         self.selector_radius = length/2
         self.SceneView = self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
         self.quantizedInterface = self.getQuantizedInterface()
-        # GRID_ELEMENTS = np.zeros_like(self.quantizedInterface, object)
         self.showQuantizedInterface()
 
 
@@ -100,25 +99,20 @@ class SchemeInputer(QGraphicsScene):
 
 
     def mouseDoubleClickEvent(self, event):
-        global BUSES, GRID_ELEMENTS, ID
+        global BUSES_PIXMAP
         try:
             double_pressed = event.scenePos().x(), event.scenePos().y()
             for central_point in self.quantizedInterface.flatten():
                 if self.distance(double_pressed, central_point) <= self.selector_radius:
                     i, j = self.Point_pos(central_point)
-                    if not np.any(isinstance(BUSES, BarraSL)):
-                        GRID_ELEMENTS[i, j] = BarraSL(barra_id=ID)
-                        BUSES = np.append(BUSES, GRID_ELEMENTS[i, j])
-                        print(GRID_ELEMENTS, BUSES)
-                    else:
-                        GRID_ELEMENTS[i, j] = Barra(barra_id=ID)
+                    self._pointerSignal.emit_sig((i, j))
+                    self._methodSignal.emit_sig('addBus')
                     pixmap = QPixmap('./data/buttons/DOT.jpg')
                     pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
                     sceneItem = self.addPixmap(pixmap)
                     pixmap_coords = central_point.x()-self._oneUnityLength/2, central_point.y()-self._oneUnityLength/2
                     sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
-                    ID += 1
-                    self._mouseDoubleClickSig.emit_sig((i, j))
+                    BUSES_PIXMAP[(i, j)] = sceneItem
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -126,20 +120,20 @@ class SchemeInputer(QGraphicsScene):
     def mousePressEvent(self, event):
         # L button: 1; R button: 2
         try:
-            print('mouse button: ', event.button())
             if event.button() in (1, 2):
                 pressed = event.scenePos().x(), event.scenePos().y()
                 for central_point in self.quantizedInterface.flatten():
                     if self.distance(pressed, central_point) <= self.selector_radius:
                         i, j = self.Point_pos(central_point)
                         self.clearSquare(self._selectorHistory[0])
-                        #  catches up right corner
+                        #  up-right corner is (0, 0)
                         self._selectorHistory[1] = central_point.x() - self._oneUnityLength/2
                         self._selectorHistory[2] = central_point.y() - self._oneUnityLength/2
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
-                        self._mousePressSig.emit_sig((i, j))
+                        self._pointerSignal.emit_sig((i, j))
         except Exception:
             logging.error(traceback.format_exc())
+
 
     def sceneRectChanged(self, QRectF):
         pass
@@ -165,22 +159,18 @@ class SchemeInputer(QGraphicsScene):
                                 (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
                             ### DRAW LINE ###
                             if isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
-                                # print('break on next move')
                                 self.drawLine(self._moveHistory)  # Draw the line
                                 self._moveHistory[:, :] = -1  # Reset _moveHistory
                                 self._lastRetainer = True  # Prevent the user for put line outside last bus
                             if not isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
-                                # print('do anything')
                                 self.drawLine(self._moveHistory)  # Draw the line
                                 self._moveHistory[:, :] = -1  # Reset _moveHistory
                             else:
                                 pass
                     else:  # No bar case
                         pass
-                    print(self._moveHistory)
                 except Exception:
                     logging.error(traceback.format_exc())
-
 
 
     def getQuantizedInterface(self):
@@ -221,11 +211,11 @@ class CircuitInputer(QWidget):
         self.view = QGraphicsView(self.scene)
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.view)
-        self._currentObject = []  # coordinates to current object being manipuled
+        self._currentObject = None  # coordinates to current object being manipuled
 
         try:
-            self.scene._mousePressSig.signal.connect(lambda args: self.showBarInspector(args))
-            self.scene._mouseDoubleClickSig.signal.connect(lambda args: self.showBarInspector(args))
+            self.scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
+            self.scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
         except Exception:
             print(logging.error(traceback.format_exc()))
 
@@ -274,6 +264,9 @@ class CircuitInputer(QWidget):
         self.AddLoadFormLayout.addRow('Ql ', self.QlInput)
         self.AddLoadFormLayout.addRow('Pl ', self.PlInput)
 
+        self.RemoveBus = QPushButton('Remove')
+        self.RemoveBus.pressed.connect(self.remove_bus)
+
         self.BarLayout.addWidget(self.BarTitle)
         self.BarLayout.addLayout(self.BarDataFormLayout)
         self.BarLayout.addWidget(self.AddGenerationLabel)
@@ -284,7 +277,9 @@ class CircuitInputer(QWidget):
         self.BarLayout.addLayout(self.AddLoadFormLayout)
         self.BarLayout.addWidget(self.AddLoadLabel)
         self.BarLayout.addWidget(self.AddLoadButton)
-        print(self.BarDataFormLayout.itemAt(1).widget())
+        self.BarLayout.addWidget(self.RemoveBus)
+
+        # print(self.BarDataFormLayout.itemAt(1).widget())
         # TODO: bug here in ordering of widgets
         # self.BarLayoutFrame = QFrame()  # mask
         # self.BarLayoutFrame.setLayout(self.BarLayout)
@@ -308,14 +303,63 @@ class CircuitInputer(QWidget):
         self.TopLayout.addLayout(self.SchemeInputLayout)
         self.setLayout(self.TopLayout)
 
+
+    def methodsCaller(self, args):
+        call = {'addBus': self.add_bus()}
+        call[args]
+
+
+    def setCurrentObject(self, args):
+        self._currentObject = args
+
+
     def showBarInspector(self, args):
         print('showBarInspector')
-        if isinstance(GRID_ELEMENTS[args], Barra):
-            self._currentObject = args  # coordinates that point to the element in ELEMENT_GRID
+        if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
             try:
                 self.BarTitle.setText('Barra {}'. format(GRID_ELEMENTS[self._currentObject].barra_id))
             except Exception:
                 logging.error(traceback.format_exc())
+
+
+    def add_bus(self):
+        global GRID_ELEMENTS, ID, BUSES
+        coords = self._currentObject
+        if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
+            # first add, or add after bus' exclusion
+            SLACK = Barra(barra_id=0, posicao=coords)
+            BUSES = np.insert(BUSES, 0, SLACK)
+            GRID_ELEMENTS[coords] = SLACK
+        elif any([BUS.barra_id == 0 for BUS in BUSES]) and np.size(BUSES) > 0:
+            # sequenced bus insert
+            BUS = Barra(barra_id=ID, posicao=coords)
+            GRID_ELEMENTS[coords] = BUS
+            BUSES = np.append(BUSES, BUS)
+            ID += 1
+
+
+    def remove_bus(self):
+        global ID, BUSES, GRID_ELEMENTS, BUSES_PIXMAP
+        try:
+            if GRID_ELEMENTS[self._currentObject]:
+                removePos = GRID_ELEMENTS[self._currentObject].posicao
+                GRID_ELEMENTS[self._currentObject] = 0
+                for POS, BUS in enumerate(BUSES):
+                    if BUS.posicao == removePos:
+                        if BUS.barra_id != 0:  # no slack
+                            ID -= 1
+                            BUSES = np.delete(BUSES, POS)
+                            for i in range(1, ID):
+                                BUSES[i].barra_id = i
+                            break
+                        elif BUS.barra_id == 0:  # slack
+                            BUSES = np.delete(BUSES, POS)
+                        else:
+                            pass
+                self.scene.removeItem(BUSES_PIXMAP[self._currentObject])
+        except Exception:
+            logging.error(traceback.format_exc())
+
 
     def add_gen(self):
         print('add_gen')
