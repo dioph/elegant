@@ -108,6 +108,7 @@ class SchemeInputer(QGraphicsScene):
                     i, j = self.Point_pos(central_point)
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
+                    # self._methodSignal.emit_sig('showBarInspector')
                     pixmap = QPixmap('./data/buttons/DOT.jpg')
                     pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
                     sceneItem = self.addPixmap(pixmap)
@@ -306,19 +307,37 @@ class CircuitInputer(QWidget):
     def methodsCaller(self, args):
         self.__calls[args]()
 
+
     def setCurrentObject(self, args):
         self._currentObject = args
 
 
+    def updateBarInspector(self, BUS=0.0):
+        if BUS:
+            self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
+            self.BarV_Value.setText('{:.1f}'.format(np.abs(BUS.v)))
+            self.BarAngle_Value.setText('{:.1f}º'.format(np.angle(BUS.v)))
+            self.QgInput.setText('{:.1f}'.format(BUS.qg))
+            self.PgInput.setText('{:.1f}'.format(BUS.pg))
+            self.QlInput.setText('{:.1f}'.format(BUS.ql))
+            self.PlInput.setText('{:.1f}'.format(BUS.pl))
+        else:
+            self.BarTitle.setText('No bar')
+            self.BarV_Value.setText('{:.1f}'.format(0.0))
+            self.BarAngle_Value.setText('{:.1f}º'.format(0.0))
+            self.QgInput.setText('{:.1f}'.format(0.0))
+            self.PgInput.setText('{:.1f}'.format(0.0))
+            self.QlInput.setText('{:.1f}'.format(0.0))
+            self.PlInput.setText('{:.1f}'.format(0.0))
+
+
     def showBarInspector(self):
         print('showBarInspector')
-        print(BUSES)
-        if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
-            try:
-                self.BarTitle.setText('Barra {}'. format(GRID_ELEMENTS[self._currentObject].barra_id))
-            except Exception:
-                logging.error(traceback.format_exc())
-
+        BUS = GRID_ELEMENTS[self._currentObject]
+        try:
+            self.updateBarInspector(BUS)
+        except Exception:
+            print(logging.error(traceback.format_exc()))
 
     def add_bus(self):
         global GRID_ELEMENTS, ID, BUSES
@@ -334,33 +353,27 @@ class CircuitInputer(QWidget):
             GRID_ELEMENTS[coords] = BUS
             BUSES = np.append(BUSES, BUS)
             ID += 1
+        self.showBarInspector()
         print('>>> ', end='')
         print(BUSES)
 
 
     def remove_bus(self):
         global ID, BUSES, GRID_ELEMENTS, BUSES_PIXMAP
-        try:
-            if GRID_ELEMENTS[self._currentObject]:
-                removePos = GRID_ELEMENTS[self._currentObject].posicao
-                GRID_ELEMENTS[self._currentObject] = 0
-                for POS, BUS in enumerate(BUSES):
-                    if BUS.posicao == removePos:
-                        if BUS.barra_id != 0:  # no slack
-                            ID -= 1
-                            BUSES = np.delete(BUSES, POS)
-                            for i in range(1, ID):
-                                BUSES[i].barra_id = i
-                            break
-                        elif BUS.barra_id == 0:  # slack
-                            BUSES = np.delete(BUSES, POS)
-                        else:
-                            pass
-                self.Scene.removeItem(BUSES_PIXMAP[self._currentObject])
+        if GRID_ELEMENTS[self._currentObject]:
+            POS, BUS = self.busFromGridEl(GRID_ELEMENTS[self._currentObject])
+            if BUS.barra_id != 0:
+                ID -= 1
+                BUSES = np.delete(BUSES, POS)
+                for i in range(1, ID):
+                    BUSES[i].barra_id = i
+            elif BUS.barra_id == 0:
+                BUSES = np.delete(BUSES, POS)
+            self.Scene.removeItem(BUSES_PIXMAP[self._currentObject])
+            BUSES_PIXMAP[self._currentObject] = 0
+            self.showBarInspector()
             print('>>> ', end='')
             print(BUSES)
-        except Exception:
-            logging.error(traceback.format_exc())
 
 
     def add_gen(self):
@@ -372,22 +385,43 @@ class CircuitInputer(QWidget):
         self.AddGenerationButton.pressed.connect(self.submit_gen)
 
 
+    @staticmethod
+    def busFromGridEl(GRID_ELEMENT):
+        for POS, BUS in enumerate(BUSES):
+            if BUS.posicao == GRID_ELEMENT.posicao:
+                return POS, BUS
+
+
     def submit_gen(self):
         global GRID_ELEMENTS, BUSES
         print('>>> submit_gen')
         if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
             GRID_ELEMENTS[self._currentObject].v = complex(self.BarV_Value.text())
             GRID_ELEMENTS[self._currentObject].pg = float(self.PgInput.text())
+            POS, _ = self.busFromGridEl(GRID_ELEMENTS[self._currentObject])
+            BUSES[POS].v = complex(self.BarV_Value.text())
+            BUSES[POS].pg = float(self.PgInput.text())
             self.AddGenerationButton.setText('-')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.remove_gen)
 
 
     def remove_gen(self):
+        global GRID_ELEMENTS, BUSES
         print('remove_gen')
-        self.AddGenerationButton.setText('+')
-        self.AddGenerationButton.disconnect()
-        self.AddGenerationButton.pressed.connect(self.add_gen)
+        if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
+            GRID_ELEMENTS[self._currentObject].v = complex(0)
+            GRID_ELEMENTS[self._currentObject].pg = 0.0
+            POS, _ = self.busFromGridEl(GRID_ELEMENTS[self._currentObject])
+            BUSES[POS].v = complex(0)
+            BUSES[POS].pg = 0.0
+            self.BarV_Value.setEnabled(False)
+            self.PgInput.setEnabled(False)
+            self.BarV_Value.setText(str(GRID_ELEMENTS[self._currentObject].v))
+            self.PgInput.setText(str(GRID_ELEMENTS[self._currentObject].pg))
+            self.AddGenerationButton.setText('+')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.add_gen)
 
 
     def add_load(self):
