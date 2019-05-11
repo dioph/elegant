@@ -4,7 +4,7 @@ import traceback
 from time import sleep
 
 from PyQt5.QtCore import *
-from PyQt5.QtGui import QPen, QPixmap, QBrush
+from PyQt5.QtGui import QPen, QPixmap, QBrush, QIcon
 from PyQt5.QtWidgets import *
 
 from aspy.core import *
@@ -113,8 +113,8 @@ class SchemeInputer(QGraphicsScene):
                     pixmap = QPixmap('./data/buttons/DOT.jpg')
                     pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
                     sceneItem = self.addPixmap(pixmap)
-                    pixmap_coords = central_point.x()-self._oneUnityLength/2, central_point.y()-self._oneUnityLength/2
-                    sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
+                    pixmap_COORDS = central_point.x()-self._oneUnityLength/2, central_point.y()-self._oneUnityLength/2
+                    sceneItem.setPos(pixmap_COORDS[0], pixmap_COORDS[1])
                     BUSES_PIXMAP[(i, j)] = sceneItem
         except Exception:
             logging.error(traceback.format_exc())
@@ -166,7 +166,7 @@ class SchemeInputer(QGraphicsScene):
                                 if isinstance(GRID_ELEMENTS[i, j], Barra) and not self._firstRetainer:
                                     # when a bus is achieved
                                     line = self.drawLine(self._moveHistory)
-                                    TL_PIXMAP[i, j] = line
+                                    # TL_PIXMAP[i, j] = line
                                     self._moveHistory[:, :] = -1
                                     self._lastRetainer = True  # Prevent the user for put line outside last bus
                                     self._pointerSignal.emit_sig((i, j))
@@ -175,7 +175,7 @@ class SchemeInputer(QGraphicsScene):
                                 elif not isinstance(GRID_ELEMENTS[i, j], Barra) and not (self._lastRetainer or self._firstRetainer):
                                     # started from a bus
                                     line = self.drawLine(self._moveHistory)
-                                    TL_PIXMAP[i, j] = line
+                                    # TL_PIXMAP[i, j] = line
                                     self._moveHistory[:, :] = -1
                                     self._pointerSignal.emit_sig((i, j))
                                     self._dataSignal.emit_sig(line)
@@ -339,6 +339,7 @@ class CircuitInputer(QWidget):
         self.InspectorAreaLayout.addLayout(self.LtLayout)
         self.InspectorAreaLayout.addStretch()
 
+        ### All layouts hidden in first moment ###
         self.setLayoutHidden(self.BarLayout, True)
 
         ### Toplayout ###
@@ -367,7 +368,7 @@ class CircuitInputer(QWidget):
 
 
     def add_line(self):
-        global TL, TL_PIXMAP
+        global TL
         # args = [(i, j), line]
         # TL = [[TL, line, coordinates], ]
         try:
@@ -431,28 +432,29 @@ class CircuitInputer(QWidget):
 
 
     def showBarInspector(self):
-        BUS = GRID_ELEMENTS[self._currentObject]
+        ELEMENT = GRID_ELEMENTS[self._currentObject]
         try:
-            if isinstance(BUS, Barra):
+            if isinstance(ELEMENT, Barra):
                 self.setLayoutHidden(self.BarLayout, False)
-                self.updateBarInspector(BUS)
+                self.updateBarInspector(ELEMENT)
             else:
                 self.setLayoutHidden(self.BarLayout, True)
         except Exception:
             print(logging.error(traceback.format_exc()))
 
+
     def add_bus(self):
         global GRID_ELEMENTS, ID, BUSES
-        coords = self._currentObject
+        COORDS = self._currentObject
         if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
             # first add, or add after bus' exclusion
-            SLACK = Barra(barra_id=0, posicao=coords)
+            SLACK = Barra(barra_id=0, posicao=COORDS)
             BUSES = np.insert(BUSES, 0, SLACK)
-            GRID_ELEMENTS[coords] = SLACK
+            GRID_ELEMENTS[COORDS] = SLACK
         elif any([BUS.barra_id == 0 for BUS in BUSES]) and np.size(BUSES) > 0:
             # sequenced bus insert
-            BUS = Barra(barra_id=ID, posicao=coords)
-            GRID_ELEMENTS[coords] = BUS
+            BUS = Barra(barra_id=ID, posicao=COORDS)
+            GRID_ELEMENTS[COORDS] = BUS
             BUSES = np.append(BUSES, BUS)
             ID += 1
         self.showBarInspector()
@@ -492,16 +494,16 @@ class CircuitInputer(QWidget):
 
 
     @staticmethod
-    def getLtPosFromGridPos(coords):
+    def getLtPosFromGridPos(COORDS):
         """Returns the position in TL array, given the coordinates"""
         for pos, tl in enumerate(TL):
-            if coords in tl[2]:
+            if COORDS in tl[2]:
                 return pos, tl
 
 
     def submit_gen(self):
         global GRID_ELEMENTS, BUSES
-        print('>>> submit_gen')
+        print('submit_gen')
         if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
             GRID_ELEMENTS[self._currentObject].v = complex(self.BarV_Value.text())
             GRID_ELEMENTS[self._currentObject].pg = float(self.PgInput.text())
@@ -560,10 +562,51 @@ class Aspy(QMainWindow):
 
     def initUI(self):
         self.statusBar().showMessage('Ready')
-        self.setWindowTitle('Aspy')
+
+        ### Actions ###
+        saveAct = QAction('Save current session', self)
+        saveAct.setShortcut('Ctrl+S')
+        saveAct.triggered.connect(self.saveCurrentSession)
+
+        loadAct = QAction('Load current session', self)
+        loadAct.setShortcut('Ctrl+O')
+        loadAct.triggered.connect(self.loadSession)
+
+        addLineAct = QAction('Add line type', self)
+        addLineAct.triggered.connect(self.addLineType)
+
+        editLineAct = QAction('Edit line type', self)
+        editLineAct.triggered.connect(self.editLineType)
+
+        ### ======== Central widget =========== ###
         self.CircuitInputer = CircuitInputer()
         self.setCentralWidget(self.CircuitInputer)
+
+        ### Menu bar ###
+        menubar = self.menuBar()
+
+        filemenu = menubar.addMenu('&Session')
+        filemenu.addAction(saveAct)
+        filemenu.addAction(loadAct)
+
+        linemenu = menubar.addMenu('&Lines')
+        linemenu.addAction(addLineAct)
+        linemenu.addAction(editLineAct)
+
+        self.setWindowTitle('Aspy')
         self.show()
+
+    def saveCurrentSession(self):
+        print('save current session')
+
+    def loadSession(self):
+        print('load session')
+
+    def addLineType(self):
+        print('add line type')
+
+    def editLineType(self):
+        print('edit line type')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
