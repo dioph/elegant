@@ -1,6 +1,7 @@
 import logging
 import sys
 import traceback
+from time import sleep
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QPen, QPixmap, QBrush
@@ -224,8 +225,8 @@ class SchemeInputer(QGraphicsScene):
 
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
+        ### ========================= General initializations ======================= ###
         super(CircuitInputer, self).__init__(parent)
-        ### General initializations ###
         self.Scene = SchemeInputer()
         self.View = QGraphicsView(self.Scene)
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
@@ -234,63 +235,84 @@ class CircuitInputer(QWidget):
         self._startNewLine = True
         self._ltorigin = None
         self._temp = None
-        try:
-            self.__calls = {'addBus': self.add_bus,
-                            'addLine': self.add_line,
-                            'showBarInspector': self.showBarInspector,
-                            'mouseReleased': self.startNewLine,
-                            'storeOriginAddLt': self.storeOriginAddLt}
-            self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
-            self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
-            self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
-        except Exception:
-            logging.error(traceback.format_exc())
+        self.__calls = {'addBus': self.add_bus,
+                        'addLine': self.add_line,
+                        'showBarInspector': self.showBarInspector,
+                        'mouseReleased': self.startNewLine,
+                        'storeOriginAddLt': self.storeOriginAddLt}
+        self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
+        self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
+        self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
 
-        ### Inspector ###
-        self.InspectorLayout = QVBoxLayout()  # Inspector
+        ### ========================= Inspectors ================================= ###
+        self.InspectorLayout = QVBoxLayout()
         self.TypeLayout = QHBoxLayout()
         self.TypeLayout.addStretch()
         self.TypeLayout.addStretch()
         self.InspectorLayout.addLayout(self.TypeLayout)
 
-        ### Layout for general bar case ###
+        ## Layout for general bar case ###
         self.BarLayout = QVBoxLayout()
 
+        ### Bus title ###
         self.BarTitle = QLabel('Bar title')
         self.BarTitle.setAlignment(Qt.AlignCenter)
 
+        ### Bus voltage ###
         self.BarV_Value = QLineEdit('0.0')
         self.BarV_Value.setEnabled(False)
 
+        ### Bus angle ###
         self.BarAngle_Value = QLineEdit('0.0º')
         self.BarAngle_Value.setEnabled(False)
 
+        ### FormLayout to hold bus data ###
         self.BarDataFormLayout = QFormLayout()
+
+        ### Adding bus voltage and bus angle to bus data FormLayout ###
         self.BarDataFormLayout.addRow('|V|', self.BarV_Value)
         self.BarDataFormLayout.addRow('\u03b4', self.BarAngle_Value)
 
+        ### Label with 'Geração' ###
         self.AddGenerationLabel = QLabel('Geração')
         self.AddGenerationLabel.setAlignment(Qt.AlignCenter)
+
+        ### Button to add generation ###
         self.AddGenerationButton = QPushButton('+')
         self.AddGenerationButton.pressed.connect(self.add_gen)  # Bind button to make input editable
-        self.AddGenerationFormLayout = QFormLayout()  # Layout add generation
+
+        ### FormLayout to add generation section ###
+        self.AddGenerationFormLayout = QFormLayout()
         self.AddLoadFormLayout = QFormLayout()
+
+        ### Line edit to input bus Pg ###
         self.PgInput = QLineEdit('0.0')
+        self.PgInput.setEnabled(False)
+
+        ### Line edit to input bus Qg ###
         self.QgInput = QLineEdit('0.0')
-        self.PgInput.setEnabled(False); self.QgInput.setEnabled(False)
+        self.QgInput.setEnabled(False)
+
+        ### Adding Pg, Qg to add generation FormLayout ###
         self.AddGenerationFormLayout.addRow('Qg', self.QgInput)
         self.AddGenerationFormLayout.addRow('Pg', self.PgInput)
 
+        ### Label with 'Carga' ###
         self.AddLoadLabel = QLabel('Carga')
         self.AddLoadLabel.setAlignment(Qt.AlignCenter)
+
+        ### PushButton that binds to three different methods ###
         self.AddLoadButton = QPushButton('+')
         self.AddLoadButton.pressed.connect(self.add_load)
+
+        ### LineEdit with Ql, Pl ###
         self.QlInput = QLineEdit('0.0')
         self.PlInput = QLineEdit('0.0')
         self.PlInput.setEnabled(False); self.QlInput.setEnabled(False)
+
+        ### Adding Pl and Ql to add load FormLayout ###
         self.AddLoadFormLayout.addRow('Ql ', self.QlInput)
         self.AddLoadFormLayout.addRow('Pl ', self.PlInput)
-
         self.RemoveBus = QPushButton('Remove')
         self.RemoveBus.pressed.connect(self.remove_bus)
 
@@ -310,12 +332,6 @@ class CircuitInputer(QWidget):
         self.BarLayout.addWidget(self.RemoveBus)
         self.BarLayout.addWidget(self.RemoveTL)
 
-        # print(self.BarDataFormLayout.itemAt(1).widget())
-        # TODO: bug here in ordering of widgets
-        # self.BarLayoutFrame = QFrame()  # mask
-        # self.BarLayoutFrame.setLayout(self.BarLayout)
-        # self.BarLayoutFrame.hide()
-
         ### General Layout for LT case ###
         self.LtLayout = QVBoxLayout()
 
@@ -324,9 +340,10 @@ class CircuitInputer(QWidget):
         self.InspectorAreaLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
         self.InspectorAreaLayout.addLayout(self.BarLayout)
-        # self.InspectorAreaLayout.addWidget(self.BarLayoutFrame)
         self.InspectorAreaLayout.addLayout(self.LtLayout)
         self.InspectorAreaLayout.addStretch()
+
+        self.setLayoutHidden(self.BarLayout, True)
 
         ### Toplayout ###
         self.TopLayout = QHBoxLayout()
@@ -335,9 +352,19 @@ class CircuitInputer(QWidget):
         self.setLayout(self.TopLayout)
 
 
+    def setLayoutHidden(self, layout, visible):
+        witems = list(layout.itemAt(i).widget() for i in range(layout.count()) \
+                      if not (isinstance(layout.itemAt(i), QLayout)))
+        for w in witems: w.setHidden(visible)
+        litems = list(layout.itemAt(i).layout() for i in range(layout.count()) if isinstance(layout.itemAt(i), QLayout))
+        for layout in litems:
+            self.setLayoutHidden(layout, visible)
+
+
     def settemp(self, args):
         self._temp = args
         print(self._temp)
+
 
     def storeOriginAddLt(self):
         if self._startNewLine:
@@ -409,10 +436,13 @@ class CircuitInputer(QWidget):
 
 
     def showBarInspector(self):
-        # print('showBarInspector')
         BUS = GRID_ELEMENTS[self._currentObject]
         try:
-            self.updateBarInspector(BUS)
+            if isinstance(BUS, Barra):
+                self.setLayoutHidden(self.BarLayout, False)
+                self.updateBarInspector(BUS)
+            else:
+                self.setLayoutHidden(self.BarLayout, True)
         except Exception:
             print(logging.error(traceback.format_exc()))
 

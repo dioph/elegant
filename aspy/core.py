@@ -58,7 +58,6 @@ class LT(object):
         self.d = d
         self.m = m
         self.vbase = 1e3
-        self.interface = np.zeros((0,), object)
         self.origin = origin
         self.destiny = destiny
 
