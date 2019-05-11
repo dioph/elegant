@@ -10,10 +10,6 @@ from PyQt5.QtWidgets import *
 from aspy.core import *
 
 
-# TODO: Define store method for data in graph
-# TODO: Interaction between outside and inside widget
-
-
 N = 10  # grid size in schemeinputer
 ID = 1  # 0 for slack bus
 GRID_ELEMENTS = np.zeros((N, N), object)  # hold the aspy.core elements
@@ -244,7 +240,7 @@ class CircuitInputer(QWidget):
         self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
         self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
 
-        ### ========================= Inspectors ================================= ###
+        ### ========================= Inspectors =================================== ###
         self.InspectorLayout = QVBoxLayout()
         self.TypeLayout = QHBoxLayout()
         self.TypeLayout.addStretch()
@@ -357,8 +353,7 @@ class CircuitInputer(QWidget):
                       if not (isinstance(layout.itemAt(i), QLayout)))
         for w in witems: w.setHidden(visible)
         litems = list(layout.itemAt(i).layout() for i in range(layout.count()) if isinstance(layout.itemAt(i), QLayout))
-        for layout in litems:
-            self.setLayoutHidden(layout, visible)
+        for layout in litems: self.setLayoutHidden(layout, visible)
 
 
     def settemp(self, args):
@@ -445,7 +440,6 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.BarLayout, True)
         except Exception:
             print(logging.error(traceback.format_exc()))
-
 
     def add_bus(self):
         global GRID_ELEMENTS, ID, BUSES
@@ -559,9 +553,19 @@ class CircuitInputer(QWidget):
         self.AddLoadButton.disconnect()
         self.AddLoadButton.pressed.connect(self.add_load)
 
+class Aspy(QMainWindow):
+    def __init__(self):
+        super(Aspy, self).__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.statusBar().showMessage('Ready')
+        self.setWindowTitle('Aspy')
+        self.CircuitInputer = CircuitInputer()
+        self.setCentralWidget(self.CircuitInputer)
+        self.show()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = CircuitInputer()
-    ex.show()
+    aspy = Aspy()
     sys.exit(app.exec_())
