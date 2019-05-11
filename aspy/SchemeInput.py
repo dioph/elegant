@@ -20,6 +20,7 @@ BUSES_PIXMAP = np.zeros((N, N), object)  # hold the buses drawings
 TL_PIXMAP = np.zeros((N, N), object)  # hold the transmission line drawing
 BUSES = np.zeros((0,), object)  # hold the buses
 TL = []  # hold the transmission lines
+# TL = [[TL, coordinates], ]
 TRANSFORMERS = []  # hold the transformers
 
 
@@ -56,6 +57,8 @@ class SchemeInputer(QGraphicsScene):
 
 
     def Point_pos(self, central_point):
+        """Returns point coordinates in grid
+        """
         i = int((central_point.y()-self._oneUnityLength/2)/self._oneUnityLength)
         j = int((central_point.x()-self._oneUnityLength/2)/self._oneUnityLength)
         return i, j
@@ -63,15 +66,16 @@ class SchemeInputer(QGraphicsScene):
 
     def mouseReleaseEvent(self, event):
         self._moveHistory[:, :] = -1
-        print('>>> lastRetainer ', self._lastRetainer)
         self._lastRetainer = False
         self._firstRetainer = True
+        self._methodSignal.emit_sig('mouseReleased')
 
 
     def drawLine(self, coordinates):
         pen = QPen()
         pen.setWidth(2.5)
-        self.addLine(coordinates[0, 0], coordinates[0, 1], coordinates[1, 0], coordinates[1, 1], pen)
+        line = self.addLine(coordinates[0, 0], coordinates[0, 1], coordinates[1, 0], coordinates[1, 1], pen)
+        return line
 
 
     def crossCursorPositioning(self):
@@ -108,7 +112,6 @@ class SchemeInputer(QGraphicsScene):
                     i, j = self.Point_pos(central_point)
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
-                    # self._methodSignal.emit_sig('showBarInspector')
                     pixmap = QPixmap('./data/buttons/DOT.jpg')
                     pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
                     sceneItem = self.addPixmap(pixmap)
@@ -133,6 +136,7 @@ class SchemeInputer(QGraphicsScene):
                         self._selectorHistory[2] = central_point.y() - self._oneUnityLength/2
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
                         self._pointerSignal.emit_sig((i, j))
+                        self._methodSignal.emit_sig('storeOriginAddLt')
                         self._methodSignal.emit_sig('showBarInspector')
         except Exception:
             logging.error(traceback.format_exc())
@@ -141,33 +145,44 @@ class SchemeInputer(QGraphicsScene):
     def sceneRectChanged(self, QRectF):
         pass
 
+
     def mouseMoveEvent(self, event):
         """This method gives behavior to wire tool"""
-        clicked = event.scenePos().x(), event.scenePos().y()
         if event.button() == 0:
+            clicked = event.scenePos().x(), event.scenePos().y()
             for central_point in self.quantizedInterface.flatten():
                 i, j = self.Point_pos(central_point)
                 try:
                     if self.distance(clicked, central_point) <= self.selector_radius:
                         if np.all(self._moveHistory[0] < 0):  # Set source
-                            self._moveHistory[0, 0] = central_point.x()
-                            self._moveHistory[0, 1] = central_point.y()
-                            if isinstance(GRID_ELEMENTS[i, j], Barra):
+                            self._moveHistory[0, 0] = central_point.x(); self._moveHistory[0, 1] = central_point.y()
+                            if isinstance(GRID_ELEMENTS[i, j], Barra):  # Asserts the start was from a bus
                                 self._firstRetainer = False
                         if central_point.x() != self._moveHistory[0, 0] \
                                 or central_point.y() != self._moveHistory[0, 1]:  # Set destiny
-                            self._moveHistory[1, 0] = central_point.x()
-                            self._moveHistory[1, 1] = central_point.y()
+                            self._moveHistory[1, 0] = central_point.x(); self._moveHistory[1, 1] = central_point.y()
                         if (np.all(self._moveHistory > 0)) and \
                                 (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
                             ### DRAW LINE ###
-                            if isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
-                                self.drawLine(self._moveHistory)  # Draw the line
-                                self._moveHistory[:, :] = -1  # Reset _moveHistory
-                                self._lastRetainer = True  # Prevent the user for put line outside last bus
-                            if not isinstance(GRID_ELEMENTS[i, j], Barra) and (not self._lastRetainer and not self._firstRetainer):
-                                self.drawLine(self._moveHistory)  # Draw the line
-                                self._moveHistory[:, :] = -1  # Reset _moveHistory
+                            try:
+                                if isinstance(GRID_ELEMENTS[i, j], Barra) and not self._firstRetainer:
+                                    # when a bus is achieved
+                                    line = self.drawLine(self._moveHistory)
+                                    TL_PIXMAP[i, j] = line
+                                    self._moveHistory[:, :] = -1
+                                    self._lastRetainer = True  # Prevent the user for put line outside last bus
+                                    self._pointerSignal.emit_sig((i, j))
+                                    self._methodSignal.emit_sig('addLine')
+                                elif not isinstance(GRID_ELEMENTS[i, j], Barra) and not (self._lastRetainer or self._firstRetainer):
+                                    # started from a bus
+                                    line = self.drawLine(self._moveHistory)
+                                    TL_PIXMAP[i, j] = line
+                                    self._moveHistory[:, :] = -1
+                                    self._pointerSignal.emit_sig((i, j))
+                                    self._methodSignal.emit_sig('addLine')
+                            except Exception:
+                                logging.error(traceback.format_exc())
+                            # print(TL_PIXMAP)
                     else:  # No bar case
                         pass
                 except Exception:
@@ -214,10 +229,18 @@ class CircuitInputer(QWidget):
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.View)
         self._currentObject = None  # coordinates to current object being manipuled
-        self.__calls = {'addBus': self.add_bus,
-                        'showBarInspector': self.showBarInspector}
-        self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
-        self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
+        self._startNewLine = True
+        self._ltorigin = None
+        try:
+            self.__calls = {'addBus': self.add_bus,
+                            'addLine': self.add_line,
+                            'showBarInspector': self.showBarInspector,
+                            'mouseReleased': self.startNewLine,
+                            'storeOriginAddLt': self.storeOriginAddLt}
+            self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
+            self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
+        except Exception:
+            logging.error(traceback.format_exc())
 
         ### Inspector ###
         self.InspectorLayout = QVBoxLayout()  # Inspector
@@ -267,6 +290,9 @@ class CircuitInputer(QWidget):
         self.RemoveBus = QPushButton('Remove')
         self.RemoveBus.pressed.connect(self.remove_bus)
 
+        self.RemoveTL = QPushButton('tirar tl')
+        self.RemoveTL.pressed.connect(self.remove_line)
+
         self.BarLayout.addWidget(self.BarTitle)
         self.BarLayout.addLayout(self.BarDataFormLayout)
         self.BarLayout.addWidget(self.AddGenerationLabel)
@@ -278,6 +304,7 @@ class CircuitInputer(QWidget):
         self.BarLayout.addWidget(self.AddLoadLabel)
         self.BarLayout.addWidget(self.AddLoadButton)
         self.BarLayout.addWidget(self.RemoveBus)
+        self.BarLayout.addWidget(self.RemoveTL)
 
         # print(self.BarDataFormLayout.itemAt(1).widget())
         # TODO: bug here in ordering of widgets
@@ -302,6 +329,55 @@ class CircuitInputer(QWidget):
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
         self.setLayout(self.TopLayout)
+
+
+    def storeOriginAddLt(self):
+        if self._startNewLine:
+            self._ltorigin = self._currentObject
+
+
+    def add_line(self):
+        global TL, TL_PIXMAP
+        # args = [(i, j), line]
+        # TL = [[TL, coordinates], ]
+        try:
+            if self._startNewLine:
+                print('STARTING NEW LINE')
+                NEW_TL = LT(origin=self._ltorigin)
+                TL.append([NEW_TL, []])
+                # print(TL[-1])
+                TL[-1][1].append(self._ltorigin)
+                TL[-1][1].append(self._currentObject)
+            else:
+                print('CONTINUING NEW LINE')
+                CONTINUED_TL = TL[-1][0]
+                CONTINUED_LT_COORDS = TL[-1][1]
+                CONTINUED_LT_COORDS.append(self._currentObject)
+                if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
+                    if CONTINUED_TL.destiny is None:
+                        CONTINUED_TL.destiny = self._currentObject
+            self._startNewLine = False
+            print(TL[-1][0].origin, TL[-1][0].destiny)
+            print(TL[-1][1])
+        except Exception:
+            logging.error(traceback.format_exc())
+
+
+    def remove_line(self):
+        try:
+            RemovingTlPosition, RemovingTl = self.getLtPosFromGridPos(self._currentObject)
+            print(RemovingTlPosition)
+            for coord in RemovingTl[1][1:]:
+                print('TL element >>> ', TL_PIXMAP[coord])
+                self.Scene.removeItem(TL_PIXMAP[coord])
+                # TL_PIXMAP[coord] = 0
+            TL.remove(RemovingTl)
+        except Exception:
+            logging.error(traceback.format_exc())
+
+
+    def startNewLine(self):
+        self._startNewLine = True
 
 
     def methodsCaller(self, args):
@@ -332,12 +408,13 @@ class CircuitInputer(QWidget):
 
 
     def showBarInspector(self):
-        print('showBarInspector')
+        # print('showBarInspector')
         BUS = GRID_ELEMENTS[self._currentObject]
         try:
             self.updateBarInspector(BUS)
         except Exception:
             print(logging.error(traceback.format_exc()))
+
 
     def add_bus(self):
         global GRID_ELEMENTS, ID, BUSES
@@ -354,14 +431,12 @@ class CircuitInputer(QWidget):
             BUSES = np.append(BUSES, BUS)
             ID += 1
         self.showBarInspector()
-        print('>>> ', end='')
-        print(BUSES)
 
 
     def remove_bus(self):
         global ID, BUSES, GRID_ELEMENTS, BUSES_PIXMAP
         if GRID_ELEMENTS[self._currentObject]:
-            POS, BUS = self.busFromGridEl(GRID_ELEMENTS[self._currentObject])
+            POS, BUS = self.getBusFromGridEl(GRID_ELEMENTS[self._currentObject])
             if BUS.barra_id != 0:
                 ID -= 1
                 BUSES = np.delete(BUSES, POS)
@@ -372,8 +447,6 @@ class CircuitInputer(QWidget):
             self.Scene.removeItem(BUSES_PIXMAP[self._currentObject])
             BUSES_PIXMAP[self._currentObject] = 0
             self.showBarInspector()
-            print('>>> ', end='')
-            print(BUSES)
 
 
     def add_gen(self):
@@ -386,10 +459,18 @@ class CircuitInputer(QWidget):
 
 
     @staticmethod
-    def busFromGridEl(GRID_ELEMENT):
+    def getBusFromGridEl(GRID_ELEMENT):
+        """Returns the position in BUSES array and the BUS itself, given an element from GRID_ELEMENT"""
         for POS, BUS in enumerate(BUSES):
             if BUS.posicao == GRID_ELEMENT.posicao:
                 return POS, BUS
+
+    @staticmethod
+    def getLtPosFromGridPos(coords):
+        """Returns the position in TL array, given the coordinates"""
+        for pos, tl in enumerate(TL):
+            if coords in tl[1]:
+                return pos, tl
 
 
     def submit_gen(self):
@@ -398,7 +479,7 @@ class CircuitInputer(QWidget):
         if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
             GRID_ELEMENTS[self._currentObject].v = complex(self.BarV_Value.text())
             GRID_ELEMENTS[self._currentObject].pg = float(self.PgInput.text())
-            POS, _ = self.busFromGridEl(GRID_ELEMENTS[self._currentObject])
+            POS, _ = self.getBusFromGridEl(GRID_ELEMENTS[self._currentObject])
             BUSES[POS].v = complex(self.BarV_Value.text())
             BUSES[POS].pg = float(self.PgInput.text())
             self.AddGenerationButton.setText('-')
@@ -412,7 +493,7 @@ class CircuitInputer(QWidget):
         if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
             GRID_ELEMENTS[self._currentObject].v = complex(0)
             GRID_ELEMENTS[self._currentObject].pg = 0.0
-            POS, _ = self.busFromGridEl(GRID_ELEMENTS[self._currentObject])
+            POS, _ = self.getBusFromGridEl(GRID_ELEMENTS[self._currentObject])
             BUSES[POS].v = complex(0)
             BUSES[POS].pg = 0.0
             self.BarV_Value.setEnabled(False)
