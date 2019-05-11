@@ -412,7 +412,7 @@ class CircuitInputer(QWidget):
         self._currentObject = args
 
 
-    def updateBarInspector(self, BUS=0.0):
+    def updateBarInspector(self, BUS=0):
         if BUS:
             self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
             self.BarV_Value.setText('{:.1f}'.format(np.abs(BUS.v)))
@@ -437,8 +437,6 @@ class CircuitInputer(QWidget):
             if isinstance(ELEMENT, Barra):
                 self.setLayoutHidden(self.BarLayout, False)
                 self.updateBarInspector(ELEMENT)
-            else:
-                self.setLayoutHidden(self.BarLayout, True)
         except Exception:
             print(logging.error(traceback.format_exc()))
 
@@ -473,6 +471,8 @@ class CircuitInputer(QWidget):
                 BUSES = np.delete(BUSES, POS)
             self.Scene.removeItem(BUSES_PIXMAP[self._currentObject])
             BUSES_PIXMAP[self._currentObject] = 0
+            GRID_ELEMENTS[self._currentObject] = 0
+            self.updateBarInspector(GRID_ELEMENTS[self._currentObject])
             self.showBarInspector()
 
 
