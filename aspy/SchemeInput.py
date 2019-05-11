@@ -45,6 +45,7 @@ class SchemeInputer(QGraphicsScene):
         self._lastRetainer, self._firstRetainer = False, True
         self._pointerSignal = GenericSignal()
         self._methodSignal = GenericSignal()
+        self._dataSignal = GenericSignal()
         self.selector_radius = length/2
         self.SceneView = self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
         self.quantizedInterface = self.getQuantizedInterface()
@@ -172,6 +173,7 @@ class SchemeInputer(QGraphicsScene):
                                     self._moveHistory[:, :] = -1
                                     self._lastRetainer = True  # Prevent the user for put line outside last bus
                                     self._pointerSignal.emit_sig((i, j))
+                                    self._dataSignal.emit_sig(line)
                                     self._methodSignal.emit_sig('addLine')
                                 elif not isinstance(GRID_ELEMENTS[i, j], Barra) and not (self._lastRetainer or self._firstRetainer):
                                     # started from a bus
@@ -179,10 +181,10 @@ class SchemeInputer(QGraphicsScene):
                                     TL_PIXMAP[i, j] = line
                                     self._moveHistory[:, :] = -1
                                     self._pointerSignal.emit_sig((i, j))
+                                    self._dataSignal.emit_sig(line)
                                     self._methodSignal.emit_sig('addLine')
                             except Exception:
                                 logging.error(traceback.format_exc())
-                            # print(TL_PIXMAP)
                     else:  # No bar case
                         pass
                 except Exception:
@@ -231,6 +233,7 @@ class CircuitInputer(QWidget):
         self._currentObject = None  # coordinates to current object being manipuled
         self._startNewLine = True
         self._ltorigin = None
+        self._temp = None
         try:
             self.__calls = {'addBus': self.add_bus,
                             'addLine': self.add_line,
@@ -238,6 +241,7 @@ class CircuitInputer(QWidget):
                             'mouseReleased': self.startNewLine,
                             'storeOriginAddLt': self.storeOriginAddLt}
             self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
+            self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
             self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
         except Exception:
             logging.error(traceback.format_exc())
@@ -331,6 +335,10 @@ class CircuitInputer(QWidget):
         self.setLayout(self.TopLayout)
 
 
+    def settemp(self, args):
+        self._temp = args
+        print(self._temp)
+
     def storeOriginAddLt(self):
         if self._startNewLine:
             self._ltorigin = self._currentObject
@@ -339,26 +347,21 @@ class CircuitInputer(QWidget):
     def add_line(self):
         global TL, TL_PIXMAP
         # args = [(i, j), line]
-        # TL = [[TL, coordinates], ]
+        # TL = [[TL, line, coordinates], ]
         try:
             if self._startNewLine:
-                print('STARTING NEW LINE')
                 NEW_TL = LT(origin=self._ltorigin)
-                TL.append([NEW_TL, []])
-                # print(TL[-1])
-                TL[-1][1].append(self._ltorigin)
-                TL[-1][1].append(self._currentObject)
+                TL.append([NEW_TL, [], []])
+                TL[-1][1].append(self._temp)
+                TL[-1][2].append(self._ltorigin)
+                TL[-1][2].append(self._currentObject)
             else:
-                print('CONTINUING NEW LINE')
-                CONTINUED_TL = TL[-1][0]
-                CONTINUED_LT_COORDS = TL[-1][1]
-                CONTINUED_LT_COORDS.append(self._currentObject)
+                TL[-1][1].append(self._temp)
+                TL[-1][2].append(self._currentObject)
                 if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
-                    if CONTINUED_TL.destiny is None:
-                        CONTINUED_TL.destiny = self._currentObject
+                    if TL[-1][0].destiny is None:
+                        TL[-1][0].destiny = self._currentObject
             self._startNewLine = False
-            print(TL[-1][0].origin, TL[-1][0].destiny)
-            print(TL[-1][1])
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -367,10 +370,8 @@ class CircuitInputer(QWidget):
         try:
             RemovingTlPosition, RemovingTl = self.getLtPosFromGridPos(self._currentObject)
             print(RemovingTlPosition)
-            for coord in RemovingTl[1][1:]:
-                print('TL element >>> ', TL_PIXMAP[coord])
-                self.Scene.removeItem(TL_PIXMAP[coord])
-                # TL_PIXMAP[coord] = 0
+            for line in RemovingTl[1]:
+                self.Scene.removeItem(line)
             TL.remove(RemovingTl)
         except Exception:
             logging.error(traceback.format_exc())
@@ -465,11 +466,12 @@ class CircuitInputer(QWidget):
             if BUS.posicao == GRID_ELEMENT.posicao:
                 return POS, BUS
 
+
     @staticmethod
     def getLtPosFromGridPos(coords):
         """Returns the position in TL array, given the coordinates"""
         for pos, tl in enumerate(TL):
-            if coords in tl[1]:
+            if coords in tl[2]:
                 return pos, tl
 
 
