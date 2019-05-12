@@ -135,7 +135,7 @@ class SchemeInputer(QGraphicsScene):
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
                         self._pointerSignal.emit_sig((i, j))
                         self._methodSignal.emit_sig('storeOriginAddLt')
-                        self._methodSignal.emit_sig('showBarInspector')
+                        self._methodSignal.emit_sig('showInspector')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -225,26 +225,26 @@ class CircuitInputer(QWidget):
         self.View = QGraphicsView(self.Scene)
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.View)
-        self._currentObject = None  # coordinates to current object being manipuled
+        self._currentElement = None  # coordinates to current object being manipuled
         self._startNewLine = True
         self._ltorigin = None
         self._temp = None
         self._statusMsg = GenericSignal()
         self.__calls = {'addBus': self.add_bus,
                         'addLine': self.add_line,
-                        'showBarInspector': self.showBarInspector,
+                        'showInspector': self.showInspector,
                         'mouseReleased': self.startNewLine,
                         'storeOriginAddLt': self.storeOriginAddLt}
         self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
         self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
-        self.Scene._methodSignal.signal.connect(lambda args: self.methodsCaller(args))
+        self.Scene._methodSignal.signal.connect(lambda args: self.methodsTrigger(args))
 
         ### ========================= Inspectors =================================== ###
         self.InspectorLayout = QVBoxLayout()
         self.TypeLayout = QHBoxLayout()
         self.TypeLayout.addStretch()
-        self.TypeLayout.addStretch()
         self.InspectorLayout.addLayout(self.TypeLayout)
+        self.TypeLayout.addStretch()
 
         ## Layout for general bar case ###
         self.BarLayout = QVBoxLayout()
@@ -308,11 +308,8 @@ class CircuitInputer(QWidget):
         ### Adding Pl and Ql to add load FormLayout ###
         self.AddLoadFormLayout.addRow('Ql ', self.QlInput)
         self.AddLoadFormLayout.addRow('Pl ', self.PlInput)
-        self.RemoveBus = QPushButton('Remove')
+        self.RemoveBus = QPushButton('Remove bus')
         self.RemoveBus.pressed.connect(self.remove_bus)
-
-        self.RemoveTL = QPushButton('tirar tl')
-        self.RemoveTL.pressed.connect(self.remove_line)
 
         self.BarLayout.addWidget(self.BarTitle)
         self.BarLayout.addLayout(self.BarDataFormLayout)
@@ -325,16 +322,15 @@ class CircuitInputer(QWidget):
         self.BarLayout.addWidget(self.AddLoadLabel)
         self.BarLayout.addWidget(self.AddLoadButton)
         self.BarLayout.addWidget(self.RemoveBus)
-        self.BarLayout.addWidget(self.RemoveTL)
 
         ### Layout for input new type of line ###
         self.InputNewLineType = QVBoxLayout()
         self.InputNewLineTypeFormLayout = QFormLayout()
 
         self.chooseParameters = QRadioButton('Parameters')
-        self.chooseParameters.toggled.connect(self.chooseInputManner)
+        self.chooseParameters.toggled.connect(self.chooseNewLineTypeInputManner)
         self.chooseImpedance = QRadioButton('Impedance')
-        self.chooseImpedance.toggled.connect(self.chooseInputManner)
+        self.chooseImpedance.toggled.connect(self.chooseNewLineTypeInputManner)
         self.chooseLayout = QHBoxLayout()
         self.chooseLayout.addWidget(self.chooseParameters)
         self.chooseLayout.addWidget(self.chooseImpedance)
@@ -373,32 +369,81 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addStretch()
 
         ### General Layout for LT case ###
-        self.LtLayout = QVBoxLayout()
+        self.LtOrTrafoLayout = QVBoxLayout()
+
+        self.chooseLt = QRadioButton('LT')
+        self.chooseLt.toggled.connect(self.defineLtOrTrafoVisibility)
+        self.chooseTrafo = QRadioButton('Trafo')
+        self.chooseLtOrTrafo = QHBoxLayout()
+        self.chooseLtOrTrafo.addWidget(QLabel('LT/Trafo:'))
+        self.chooseLtOrTrafo.addWidget(self.chooseLt)
+        self.chooseLtOrTrafo.addWidget(self.chooseTrafo)
+
+        self.chooseLtFormLayout = QFormLayout()
+        self.chooseLtModel = QComboBox()
+        self.chooseLtModel.currentIndexChanged.connect(self.updateLtParameters)
+        self.removeLTPushButton = QPushButton('Remove LT')
+        self.removeLTPushButton.pressed.connect(self.remove_line)
+        self.chooseLtFormLayout.addRow('Model   ', self.chooseLtModel)
+        self.chooseLtFormLayout.addRow('', self.removeLTPushButton)
+
+        self.chooseTrafoFormLayout = QFormLayout()
+        self.XTrafoLineEdit = QLineEdit()
+        self.VNom1LineEdit = QLineEdit()
+        self.VNom2LineEdit = QLineEdit()
+        self.chooseTrafoSubmitButton = QPushButton('Submit')
+        self.chooseTrafoFormLayout.addRow('X', self.XTrafoLineEdit)
+        self.chooseTrafoFormLayout.addRow('VNom 1', self.VNom1LineEdit)
+        self.chooseTrafoFormLayout.addRow('VNom 2', self.VNom2LineEdit)
+        self.chooseTrafoFormLayout.addRow('', self.chooseTrafoSubmitButton)
+
+        self.LtOrTrafoLayout.addLayout(self.chooseLtOrTrafo)
+        self.LtOrTrafoLayout.addLayout(self.chooseLtFormLayout)
+        self.LtOrTrafoLayout.addLayout(self.chooseTrafoFormLayout)
 
         ### Layout that holds bus inspector and Stretches ###
         self.InspectorAreaLayout = QVBoxLayout()
-        self.InspectorAreaLayout.maximumSize()
-        self.InspectorAreaLayout.addStretch()
+        self.InspectorLayout.addLayout(self.BarLayout)
+        self.InspectorLayout.addLayout(self.LtOrTrafoLayout)
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
-        self.InspectorAreaLayout.addLayout(self.BarLayout)
-        self.InspectorAreaLayout.addLayout(self.LtLayout)
-        self.InspectorAreaLayout.addStretch()
 
         ### All layouts hidden at first moment ###
         self.setLayoutHidden(self.BarLayout, True)
         self.setLayoutHidden(self.InputNewLineType, True)
+        self.setLayoutHidden(self.LtOrTrafoLayout, True)
+        self.setLayoutHidden(self.chooseTrafoFormLayout, True)
 
         ### Toplayout ###
         self.TopLayout = QHBoxLayout()
-        # self.TopLayout.addStretch()
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
         self.TopLayout.addLayout(self.InputNewLineType)
-        # self.TopLayout.addStretch()
         self.setLayout(self.TopLayout)
 
 
-    def chooseInputManner(self):
+    def defineLtOrTrafoVisibility(self):
+        if self.chooseLt.isChecked():
+            self.setLayoutHidden(self.chooseLtFormLayout, False)
+            self.setLayoutHidden(self.chooseTrafoFormLayout, True)
+        else:
+            self.setLayoutHidden(self.chooseLtFormLayout, True)
+            self.setLayoutHidden(self.chooseTrafoFormLayout, False)
+
+
+    def updateLToptions(self):
+        for model in LINE_TYPES:
+            if self.chooseLtModel.findText(model[0]) == -1:
+                self.chooseLtModel.addItem(model[0])
+            else:
+                pass
+
+
+    def updateLtParameters(self):
+        print(self.chooseLtModel.currentText())
+        POS, ELEMENT = self.getLtPosFromGridPos(self._currentElement)
+
+
+    def chooseNewLineTypeInputManner(self):
         layout = self.InputNewLineTypeFormLayout
         linedits = list(layout.itemAt(i).widget() for i in range(layout.count()) \
                         if isinstance(layout.itemAt(i).widget(), QLineEdit))
@@ -426,33 +471,39 @@ class CircuitInputer(QWidget):
         name_values_par = new_values[6::2]; name_values_imp = new_values[2:6:2]
         number_values_imp = new_values[3:7:2]; number_values_par = new_values[7::2]
         try:
-            if all(map(lambda x: x != '', number_values_imp)):
-                if np.size(LINE_TYPES) == 0:
-                    LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
-                                                   for i in range(len(number_values_imp))}])
-                    self._statusMsg.emit_sig('Model recorded')
-                else:
-                    filtered = list(filter(lambda array: len(list(array[1].values())) == 2, LINE_TYPES))
-                    if all(list(map(lambda x: float(x), number_values_imp)) != list(type[1].values()) for type in filtered):
+            if all(map(lambda x: x[0] != name, LINE_TYPES)):
+                if all(map(lambda x: x != '', number_values_imp)):
+                    if np.size(LINE_TYPES) == 0:
                         LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
-                                                  for i in range(len(number_values_imp))}])
+                                                       for i in range(len(number_values_imp))}])
                         self._statusMsg.emit_sig('Model recorded')
                     else:
-                        self._statusMsg.emit_sig('This model has been already stored')
-            elif all(map(lambda x: x != '', number_values_par)):
-                if len(LINE_TYPES) == 0:
-                    LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
-                                              for i in range(len(number_values_par))}])
-                    self._statusMsg.emit_sig('Model recorded')
-                else:
-                    filtered = list(filter(lambda array: len(list(array[1].values())) == 8, LINE_TYPES))
-                    if all(list(map(lambda x: float(x), number_values_par)) != list(type[1].values()) for type in filtered):
+                        filtered = list(filter(lambda array: len(list(array[1].values())) == 2, LINE_TYPES))
+                        if all(list(map(lambda x: float(x), number_values_imp)) != list(type[1].values()) for type in filtered):
+                            LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
+                                                      for i in range(len(number_values_imp))}])
+                            self._statusMsg.emit_sig('Model recorded')
+                        else:
+                            self._statusMsg.emit_sig('This model has been already stored')
+                elif all(map(lambda x: x != '', number_values_par)):
+                    if len(LINE_TYPES) == 0:
                         LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
                                                   for i in range(len(number_values_par))}])
                         self._statusMsg.emit_sig('Model recorded')
                     else:
-                        self._statusMsg.emit_sig('This model has been already stored')
-            self.setLayoutHidden(self.InputNewLineType, True)
+                        filtered = list(filter(lambda array: len(list(array[1].values())) == 8, LINE_TYPES))
+                        if all(list(map(lambda x: float(x), number_values_par)) != list(type[1].values()) for type in filtered):
+                            LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
+                                                      for i in range(len(number_values_par))}])
+                            self._statusMsg.emit_sig('Model recorded')
+                        else:
+                            self._statusMsg.emit_sig('This model has been already stored')
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.updateLToptions()
+                self.updateLtParameters()
+                print(LINE_TYPES)
+            else:
+                self._statusMsg.emit_sig('The specified name already exists. Input another name for model')
         except TypeError:
             self._statusMsg.emit_sig('Invalid input catched: you must input only float numbers')
         except Exception:
@@ -475,7 +526,7 @@ class CircuitInputer(QWidget):
 
     def storeOriginAddLt(self):
         if self._startNewLine:
-            self._ltorigin = self._currentObject
+            self._ltorigin = self._currentElement
 
 
     def add_line(self):
@@ -488,13 +539,13 @@ class CircuitInputer(QWidget):
                 TL.append([NEW_TL, [], []])
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._ltorigin)
-                TL[-1][2].append(self._currentObject)
+                TL[-1][2].append(self._currentElement)
             else:
                 TL[-1][1].append(self._temp)
-                TL[-1][2].append(self._currentObject)
-                if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
+                TL[-1][2].append(self._currentElement)
+                if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
                     if TL[-1][0].destiny is None:
-                        TL[-1][0].destiny = self._currentObject
+                        TL[-1][0].destiny = self._currentElement
             self._startNewLine = False
         except Exception:
             logging.error(traceback.format_exc())
@@ -502,7 +553,7 @@ class CircuitInputer(QWidget):
 
     def remove_line(self):
         try:
-            RemovingTlPosition, RemovingTl = self.getLtPosFromGridPos(self._currentObject)
+            RemovingTlPosition, RemovingTl = self.getLtPosFromGridPos(self._currentElement)
             print(RemovingTlPosition)
             for line in RemovingTl[1]:
                 self.Scene.removeItem(line)
@@ -515,15 +566,15 @@ class CircuitInputer(QWidget):
         self._startNewLine = True
 
 
-    def methodsCaller(self, args):
+    def methodsTrigger(self, args):
         self.__calls[args]()
 
 
     def setCurrentObject(self, args):
-        self._currentObject = args
+        self._currentElement = args
 
 
-    def updateBarInspector(self, BUS=0):
+    def updateBusInspector(self, BUS=0):
         if BUS:
             self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
             self.BarV_Value.setText('{:.1f}'.format(np.abs(BUS.v)))
@@ -542,19 +593,34 @@ class CircuitInputer(QWidget):
             self.PlInput.setText('{:.1f}'.format(0.0))
 
 
-    def showBarInspector(self):
-        ELEMENT = GRID_ELEMENTS[self._currentObject]
+    def showInspector(self):
+        ELEMENT = GRID_ELEMENTS[self._currentElement]
         try:
             if isinstance(ELEMENT, Barra):
+                self.chooseLt.setChecked(False)
+                self.chooseTrafo.setChecked(False)
                 self.setLayoutHidden(self.BarLayout, False)
-                self.updateBarInspector(ELEMENT)
+                self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.updateBusInspector(ELEMENT)
+            else:
+                try:
+                    POS, ELEMENT = self.getLtPosFromGridPos(self._currentElement)
+                except TypeError:
+                    pass
+                else:
+                    self.chooseLt.setChecked(False)
+                    self.chooseTrafo.setChecked(False)
+                    self.setLayoutHidden(self.BarLayout, True)
+                    self.setLayoutHidden(self.LtOrTrafoLayout, False)
+                    self.setLayoutHidden(self.chooseLtFormLayout, True)
+                    self.setLayoutHidden(self.chooseTrafoFormLayout, True)
         except Exception:
             print(logging.error(traceback.format_exc()))
 
 
     def add_bus(self):
         global GRID_ELEMENTS, ID, BUSES
-        COORDS = self._currentObject
+        COORDS = self._currentElement
         if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
             # first add, or add after bus' exclusion
             SLACK = Barra(barra_id=0, posicao=COORDS)
@@ -566,13 +632,13 @@ class CircuitInputer(QWidget):
             GRID_ELEMENTS[COORDS] = BUS
             BUSES = np.append(BUSES, BUS)
             ID += 1
-        self.showBarInspector()
+        self.showInspector()
 
 
     def remove_bus(self):
         global ID, BUSES, GRID_ELEMENTS, BUSES_PIXMAP
-        if GRID_ELEMENTS[self._currentObject]:
-            POS, BUS = self.getBusFromGridEl(GRID_ELEMENTS[self._currentObject])
+        if GRID_ELEMENTS[self._currentElement]:
+            POS, BUS = self.getBusFromGridEl(GRID_ELEMENTS[self._currentElement])
             if BUS.barra_id != 0:
                 ID -= 1
                 BUSES = np.delete(BUSES, POS)
@@ -580,11 +646,11 @@ class CircuitInputer(QWidget):
                     BUSES[i].barra_id = i
             elif BUS.barra_id == 0:
                 BUSES = np.delete(BUSES, POS)
-            self.Scene.removeItem(BUSES_PIXMAP[self._currentObject])
-            BUSES_PIXMAP[self._currentObject] = 0
-            GRID_ELEMENTS[self._currentObject] = 0
-            self.updateBarInspector(GRID_ELEMENTS[self._currentObject])
-            self.showBarInspector()
+            self.Scene.removeItem(BUSES_PIXMAP[self._currentElement])
+            BUSES_PIXMAP[self._currentElement] = 0
+            GRID_ELEMENTS[self._currentElement] = 0
+            self.updateBusInspector(GRID_ELEMENTS[self._currentElement])
+            self.showInspector()
 
 
     def add_gen(self):
@@ -615,10 +681,10 @@ class CircuitInputer(QWidget):
     def submit_gen(self):
         global GRID_ELEMENTS, BUSES
         print('submit_gen')
-        if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
-            GRID_ELEMENTS[self._currentObject].v = complex(self.BarV_Value.text())
-            GRID_ELEMENTS[self._currentObject].pg = float(self.PgInput.text())
-            POS, _ = self.getBusFromGridEl(GRID_ELEMENTS[self._currentObject])
+        if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
+            GRID_ELEMENTS[self._currentElement].v = complex(self.BarV_Value.text())
+            GRID_ELEMENTS[self._currentElement].pg = float(self.PgInput.text())
+            POS, _ = self.getBusFromGridEl(GRID_ELEMENTS[self._currentElement])
             BUSES[POS].v = complex(self.BarV_Value.text())
             BUSES[POS].pg = float(self.PgInput.text())
             self.AddGenerationButton.setText('-')
@@ -629,16 +695,16 @@ class CircuitInputer(QWidget):
     def remove_gen(self):
         global GRID_ELEMENTS, BUSES
         print('remove_gen')
-        if isinstance(GRID_ELEMENTS[self._currentObject], Barra):
-            GRID_ELEMENTS[self._currentObject].v = complex(0)
-            GRID_ELEMENTS[self._currentObject].pg = 0.0
-            POS, _ = self.getBusFromGridEl(GRID_ELEMENTS[self._currentObject])
+        if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
+            GRID_ELEMENTS[self._currentElement].v = complex(0)
+            GRID_ELEMENTS[self._currentElement].pg = 0.0
+            POS, _ = self.getBusFromGridEl(GRID_ELEMENTS[self._currentElement])
             BUSES[POS].v = complex(0)
             BUSES[POS].pg = 0.0
             self.BarV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
-            self.BarV_Value.setText(str(GRID_ELEMENTS[self._currentObject].v))
-            self.PgInput.setText(str(GRID_ELEMENTS[self._currentObject].pg))
+            self.BarV_Value.setText(str(GRID_ELEMENTS[self._currentElement].v))
+            self.PgInput.setText(str(GRID_ELEMENTS[self._currentElement].pg))
             self.AddGenerationButton.setText('+')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.add_gen)
@@ -690,6 +756,9 @@ class Aspy(QMainWindow):
         editLineAct = QAction('Edit line type', self)
         editLineAct.triggered.connect(self.editLineType)
 
+        setDefaultLineAct = QAction('Set default line type', self)
+        setDefaultLineAct.triggered.connect(self.setDefaultLineType)
+
         ### ======== Central widget =========== ###
         self.CircuitInputer = CircuitInputer()
         self.CircuitInputer._statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
@@ -706,10 +775,17 @@ class Aspy(QMainWindow):
         linemenu.addAction(addLineAct)
         linemenu.addAction(editLineAct)
 
+        settings = menubar.addMenu('&Settings')
+        settings.addAction(setDefaultLineAct)
+
+
         self.setWindowTitle('Aspy')
         self.setGeometry(200, 200, 1000, 600)
         self.setMinimumWidth(1000)
         self.show()
+
+    def setDefaultLineType(self):
+        pass
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args)
