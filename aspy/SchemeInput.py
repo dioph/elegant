@@ -1,23 +1,21 @@
 import logging
 import sys
 import traceback
-from time import sleep
 
 from PyQt5.QtCore import *
-from PyQt5.QtGui import QPen, QPixmap, QBrush, QIcon
+from PyQt5.QtGui import QPen, QPixmap, QBrush
 from PyQt5.QtWidgets import *
 
 from aspy.core import *
 
-
-N = 10  # grid size in schemeinputer
+N = 20  # grid size in schemeinputer
 ID = 1  # 0 for slack bus
 GRID_ELEMENTS = np.zeros((N, N), object)  # hold the aspy.core elements
 BUSES_PIXMAP = np.zeros((N, N), object)  # hold the buses drawings
-TL_PIXMAP = np.zeros((N, N), object)  # hold the transmission line drawing
 BUSES = np.zeros((0,), object)  # hold the buses
 TL = []  # hold the transmission lines
 # TL = [[TL, coordinates], ]
+LINE_TYPES = []  # hold the types of transmission lines
 TRANSFORMERS = []  # hold the transformers
 
 
@@ -44,9 +42,11 @@ class SchemeInputer(QGraphicsScene):
         self._methodSignal = GenericSignal()
         self._dataSignal = GenericSignal()
         self.selector_radius = length/2
-        self.SceneView = self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
+        self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
         self.quantizedInterface = self.getQuantizedInterface()
         self.showQuantizedInterface()
+        self.setSceneRect(-2*self._oneUnityLength, -2*self._oneUnityLength, self._oneUnityLength*(self.n+4), self._oneUnityLength*(self.n+4))
+
 
 
     @staticmethod
@@ -166,7 +166,6 @@ class SchemeInputer(QGraphicsScene):
                                 if isinstance(GRID_ELEMENTS[i, j], Barra) and not self._firstRetainer:
                                     # when a bus is achieved
                                     line = self.drawLine(self._moveHistory)
-                                    # TL_PIXMAP[i, j] = line
                                     self._moveHistory[:, :] = -1
                                     self._lastRetainer = True  # Prevent the user for put line outside last bus
                                     self._pointerSignal.emit_sig((i, j))
@@ -175,7 +174,6 @@ class SchemeInputer(QGraphicsScene):
                                 elif not isinstance(GRID_ELEMENTS[i, j], Barra) and not (self._lastRetainer or self._firstRetainer):
                                     # started from a bus
                                     line = self.drawLine(self._moveHistory)
-                                    # TL_PIXMAP[i, j] = line
                                     self._moveHistory[:, :] = -1
                                     self._pointerSignal.emit_sig((i, j))
                                     self._dataSignal.emit_sig(line)
@@ -231,6 +229,7 @@ class CircuitInputer(QWidget):
         self._startNewLine = True
         self._ltorigin = None
         self._temp = None
+        self._statusMsg = GenericSignal()
         self.__calls = {'addBus': self.add_bus,
                         'addLine': self.add_line,
                         'showBarInspector': self.showBarInspector,
@@ -328,25 +327,134 @@ class CircuitInputer(QWidget):
         self.BarLayout.addWidget(self.RemoveBus)
         self.BarLayout.addWidget(self.RemoveTL)
 
+        ### Layout for input new type of line ###
+        self.InputNewLineType = QVBoxLayout()
+        self.InputNewLineTypeFormLayout = QFormLayout()
+
+        self.chooseParameters = QRadioButton('Parameters')
+        self.chooseParameters.toggled.connect(self.chooseInputManner)
+        self.chooseImpedance = QRadioButton('Impedance')
+        self.chooseImpedance.toggled.connect(self.chooseInputManner)
+        self.chooseLayout = QHBoxLayout()
+        self.chooseLayout.addWidget(self.chooseParameters)
+        self.chooseLayout.addWidget(self.chooseImpedance)
+
+        self.ModelName = QLineEdit()
+        self.YLineEdit = QLineEdit()
+        self.ZLineEdit = QLineEdit()
+
+        self.RhoLineEdit = QLineEdit()
+        self.EllLineEdit = QLineEdit()
+        self.rLineEdit = QLineEdit()
+        self.d12LineEdit = QLineEdit()
+        self.d23LineEdit = QLineEdit()
+        self.d31LineEdit = QLineEdit()
+        self.dLineEdit = QLineEdit()
+        self.mLineEdit = QLineEdit()
+
+        self.InputNewLineTypeFormLayout.addRow('Name', self.ModelName)
+        self.InputNewLineTypeFormLayout.addRow('Y', self.YLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('Z', self.ZLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('\u03c1', self.RhoLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('\u2113', self.EllLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('r', self.rLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('d12', self.d12LineEdit)
+        self.InputNewLineTypeFormLayout.addRow('d23', self.d23LineEdit)
+        self.InputNewLineTypeFormLayout.addRow('d31', self.d31LineEdit)
+        self.InputNewLineTypeFormLayout.addRow('d', self.dLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('m', self.mLineEdit)
+
+        self.InputNewLineType.addStretch()
+        self.InputNewLineType.addLayout(self.chooseLayout)
+        self.InputNewLineType.addLayout(self.InputNewLineTypeFormLayout)
+        self.SubmitNewLineTypePushButton = QPushButton('Submit')
+        self.SubmitNewLineTypePushButton.pressed.connect(self.addNewLineType)
+        self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
+        self.InputNewLineType.addStretch()
+
         ### General Layout for LT case ###
         self.LtLayout = QVBoxLayout()
 
         ### Layout that holds bus inspector and Stretches ###
         self.InspectorAreaLayout = QVBoxLayout()
+        self.InspectorAreaLayout.maximumSize()
         self.InspectorAreaLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
         self.InspectorAreaLayout.addLayout(self.BarLayout)
         self.InspectorAreaLayout.addLayout(self.LtLayout)
         self.InspectorAreaLayout.addStretch()
 
-        ### All layouts hidden in first moment ###
+        ### All layouts hidden at first moment ###
         self.setLayoutHidden(self.BarLayout, True)
 
         ### Toplayout ###
         self.TopLayout = QHBoxLayout()
+        # self.TopLayout.addStretch()
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
+        self.TopLayout.addLayout(self.InputNewLineType)
+        # self.TopLayout.addStretch()
         self.setLayout(self.TopLayout)
+
+
+    def chooseInputManner(self):
+        layout = self.InputNewLineTypeFormLayout
+        linedits = list(layout.itemAt(i).widget() for i in range(layout.count()) \
+                        if isinstance(layout.itemAt(i).widget(), QLineEdit))
+        if self.chooseImpedance.isChecked():
+            for linedit in linedits[3:]:
+                linedit.setEnabled(False)
+                linedit.setText('')
+            for linedit in linedits[1:3]:
+                linedit.setEnabled(True)
+        else:
+            for linedit in linedits[3:]:
+                linedit.setEnabled(True)
+            for linedit in linedits[1:3]:
+                linedit.setEnabled(False)
+                linedit.setText('')
+        print(LINE_TYPES)
+
+
+    def addNewLineType(self):
+        global LINE_TYPES
+        layout = self.InputNewLineTypeFormLayout
+        new_values = list(layout.itemAt(i).widget().text() for i in range(layout.count()) \
+                          if not isinstance(layout.itemAt(i), QLayout))
+        name = new_values[1] if new_values[1] != '' else 'model {}'.format(len(LINE_TYPES)+1)
+        name_values_par = new_values[6::2]; name_values_imp = new_values[2:6:2]
+        number_values_imp = new_values[3:7:2]; number_values_par = new_values[7::2]
+        try:
+            if all(map(lambda x: x != '', number_values_imp)):
+                if np.size(LINE_TYPES) == 0:
+                    LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
+                                                   for i in range(len(number_values_imp))}])
+                    self._statusMsg.emit_sig('Model recorded')
+                else:
+                    filtered = list(filter(lambda array: len(list(array[1].values())) == 2, LINE_TYPES))
+                    if all(list(map(lambda x: float(x), number_values_imp)) != list(type[1].values()) for type in filtered):
+                        LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
+                                                  for i in range(len(number_values_imp))}])
+                        self._statusMsg.emit_sig('Model recorded')
+                    else:
+                        self._statusMsg.emit_sig('This model has been already stored')
+            elif all(map(lambda x: x != '', number_values_par)):
+                if len(LINE_TYPES) == 0:
+                    LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
+                                              for i in range(len(number_values_par))}])
+                    self._statusMsg.emit_sig('Model recorded')
+                else:
+                    filtered = list(filter(lambda array: len(list(array[1].values())) == 8, LINE_TYPES))
+                    if all(list(map(lambda x: float(x), number_values_par)) != list(type[1].values()) for type in filtered):
+                        LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
+                                                  for i in range(len(number_values_par))}])
+                        self._statusMsg.emit_sig('Model recorded')
+                    else:
+                        self._statusMsg.emit_sig('This model has been already stored')
+        except TypeError:
+            self._statusMsg.emit_sig('Invalid input catched: you must input only float numbers')
+        except Exception:
+            logging.error(traceback.format_exc())
 
 
     def setLayoutHidden(self, layout, visible):
@@ -495,7 +603,7 @@ class CircuitInputer(QWidget):
 
     @staticmethod
     def getLtPosFromGridPos(COORDS):
-        """Returns the position in TL array, given the coordinates"""
+        """Returns the TL's position (in TL) and TL element, given the grid coordinates"""
         for pos, tl in enumerate(TL):
             if COORDS in tl[2]:
                 return pos, tl
@@ -555,6 +663,7 @@ class CircuitInputer(QWidget):
         self.AddLoadButton.disconnect()
         self.AddLoadButton.pressed.connect(self.add_load)
 
+
 class Aspy(QMainWindow):
     def __init__(self):
         super(Aspy, self).__init__()
@@ -580,6 +689,7 @@ class Aspy(QMainWindow):
 
         ### ======== Central widget =========== ###
         self.CircuitInputer = CircuitInputer()
+        self.CircuitInputer._statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
         self.setCentralWidget(self.CircuitInputer)
 
         ### Menu bar ###
@@ -594,13 +704,22 @@ class Aspy(QMainWindow):
         linemenu.addAction(editLineAct)
 
         self.setWindowTitle('Aspy')
+        self.setGeometry(200, 200, 1000, 600)
+        self.setMinimumWidth(1000)
         self.show()
+
+    def displayStatusMsg(self, args):
+        self.statusBar().showMessage(args)
 
     def saveCurrentSession(self):
         print('save current session')
 
     def loadSession(self):
         print('load session')
+        # try:
+        #     self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, False)
+        # except Exception:
+        #     logging.error(traceback.format_exc())
 
     def addLineType(self):
         print('add line type')
