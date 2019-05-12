@@ -386,6 +386,7 @@ class CircuitInputer(QWidget):
 
         ### All layouts hidden at first moment ###
         self.setLayoutHidden(self.BarLayout, True)
+        self.setLayoutHidden(self.InputNewLineType, True)
 
         ### Toplayout ###
         self.TopLayout = QHBoxLayout()
@@ -451,6 +452,7 @@ class CircuitInputer(QWidget):
                         self._statusMsg.emit_sig('Model recorded')
                     else:
                         self._statusMsg.emit_sig('This model has been already stored')
+            self.setLayoutHidden(self.InputNewLineType, True)
         except TypeError:
             self._statusMsg.emit_sig('Invalid input catched: you must input only float numbers')
         except Exception:
@@ -459,7 +461,8 @@ class CircuitInputer(QWidget):
 
     def setLayoutHidden(self, layout, visible):
         witems = list(layout.itemAt(i).widget() for i in range(layout.count()) \
-                      if not (isinstance(layout.itemAt(i), QLayout)))
+                      if not isinstance(layout.itemAt(i), QLayout))
+        witems = list(filter(lambda x: x is not None, witems))
         for w in witems: w.setHidden(visible)
         litems = list(layout.itemAt(i).layout() for i in range(layout.count()) if isinstance(layout.itemAt(i), QLayout))
         for layout in litems: self.setLayoutHidden(layout, visible)
@@ -723,6 +726,7 @@ class Aspy(QMainWindow):
 
     def addLineType(self):
         print('add line type')
+        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.InputNewLineType, False)
 
     def editLineType(self):
         print('edit line type')
