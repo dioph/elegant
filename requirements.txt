@@ -1,3 +1,4 @@
+PyQt5
 kivy
 numpy
 scipy
