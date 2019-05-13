@@ -241,10 +241,10 @@ class CircuitInputer(QWidget):
 
         ### ========================= Inspectors =================================== ###
         self.InspectorLayout = QVBoxLayout()
-        self.TypeLayout = QHBoxLayout()
-        self.TypeLayout.addStretch()
-        self.InspectorLayout.addLayout(self.TypeLayout)
-        self.TypeLayout.addStretch()
+        # self.TypeLayout = QHBoxLayout()
+        # self.TypeLayout.addStretch()
+        # self.InspectorLayout.addLayout(self.TypeLayout)
+        # self.TypeLayout.addStretch()
 
         ## Layout for general bar case ###
         self.BarLayout = QVBoxLayout()
@@ -403,8 +403,10 @@ class CircuitInputer(QWidget):
 
         ### Layout that holds bus inspector and Stretches ###
         self.InspectorAreaLayout = QVBoxLayout()
+        self.InspectorLayout.addStretch()
         self.InspectorLayout.addLayout(self.BarLayout)
         self.InspectorLayout.addLayout(self.LtOrTrafoLayout)
+        self.InspectorLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
 
         ### All layouts hidden at first moment ###
@@ -431,11 +433,11 @@ class CircuitInputer(QWidget):
 
 
     def updateLToptions(self):
-        for model in LINE_TYPES:
-            if self.chooseLtModel.findText(model[0]) == -1:
-                self.chooseLtModel.addItem(model[0])
-            else:
-                pass
+        # TODO: >>> Bug <<< When ComboBox is hidden, it is not possible add a new line type
+        try:
+            self.chooseLtModel.addItem(LINE_TYPES[-1][0])
+        except Exception:
+            logging.error(traceback.format_exc())
 
 
     def updateLtParameters(self):
@@ -459,7 +461,6 @@ class CircuitInputer(QWidget):
             for linedit in linedits[1:3]:
                 linedit.setEnabled(False)
                 linedit.setText('')
-        print(LINE_TYPES)
 
 
     def addNewLineType(self):
@@ -500,11 +501,12 @@ class CircuitInputer(QWidget):
                             self._statusMsg.emit_sig('This model has been already stored')
                 self.setLayoutHidden(self.InputNewLineType, True)
                 self.updateLToptions()
-                self.updateLtParameters()
+                # self.updateLtParameters()
                 print(LINE_TYPES)
             else:
                 self._statusMsg.emit_sig('The specified name already exists. Input another name for model')
-        except TypeError:
+        except Exception as exc:
+            print(exc)
             self._statusMsg.emit_sig('Invalid input catched: you must input only float numbers')
         except Exception:
             logging.error(traceback.format_exc())
@@ -780,7 +782,7 @@ class Aspy(QMainWindow):
 
 
         self.setWindowTitle('Aspy')
-        self.setGeometry(200, 200, 1000, 600)
+        self.setGeometry(50, 50, 1000, 600)
         self.setMinimumWidth(1000)
         self.show()
 
