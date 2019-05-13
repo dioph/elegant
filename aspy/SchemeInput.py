@@ -241,10 +241,6 @@ class CircuitInputer(QWidget):
 
         ### ========================= Inspectors =================================== ###
         self.InspectorLayout = QVBoxLayout()
-        # self.TypeLayout = QHBoxLayout()
-        # self.TypeLayout.addStretch()
-        # self.InspectorLayout.addLayout(self.TypeLayout)
-        # self.TypeLayout.addStretch()
 
         ## Layout for general bar case ###
         self.BarLayout = QVBoxLayout()
@@ -566,6 +562,9 @@ class CircuitInputer(QWidget):
 
     def startNewLine(self):
         self._startNewLine = True
+        # If the TL did not stop in a existent bus
+        if len(TL) != 0 and TL[-1][0].destiny is None:
+                self.remove_line()
 
 
     def methodsTrigger(self, args):
