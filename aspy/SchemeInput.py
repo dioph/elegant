@@ -429,7 +429,6 @@ class CircuitInputer(QWidget):
 
 
     def updateLToptions(self):
-        # TODO: >>> Bug <<< When ComboBox is hidden, it is not possible add a new line type
         try:
             self.chooseLtModel.addItem(LINE_TYPES[-1][0])
         except Exception:
@@ -496,7 +495,7 @@ class CircuitInputer(QWidget):
                         else:
                             self._statusMsg.emit_sig('This model has been already stored')
                 self.setLayoutHidden(self.InputNewLineType, True)
-                self.updateLToptions()
+                # self.updateLToptions()
                 # self.updateLtParameters()
                 print(LINE_TYPES)
             else:
@@ -530,15 +529,17 @@ class CircuitInputer(QWidget):
     def add_line(self):
         global TL
         # args = [(i, j), line]
-        # TL = [[TL, line, coordinates], ]
+        # TL = [[TL, line, coordinates, bool ToExclude], ]
         try:
             if self._startNewLine:
                 NEW_TL = LT(origin=self._ltorigin)
-                TL.append([NEW_TL, [], []])
+                TL.append([NEW_TL, [], [], False])
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._ltorigin)
                 TL[-1][2].append(self._currentElement)
             else:
+                if self.checkTlOccup():
+                    TL[-1][3] = True
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._currentElement)
                 if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
@@ -549,13 +550,24 @@ class CircuitInputer(QWidget):
             logging.error(traceback.format_exc())
 
 
+    def checkTlOccup(self):
+        print('occup')
+        for tl in TL:
+            if self._currentElement in tl[2]:
+                return True
+            else:
+                continue
+        return False
+
+
     def remove_line(self):
         try:
-            RemovingTlPosition, RemovingTl = self.getLtPosFromGridPos(self._currentElement)
-            print(RemovingTlPosition)
-            for line in RemovingTl[1]:
-                self.Scene.removeItem(line)
-            TL.remove(RemovingTl)
+            for line in TL:
+                if line[3]:
+                    for linedrawing in line[1]:
+                        self.Scene.removeItem(linedrawing)
+                    TL.remove(line)
+            print(TL)
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -563,9 +575,10 @@ class CircuitInputer(QWidget):
     def startNewLine(self):
         self._startNewLine = True
         # If the TL did not stop in a existent bus
-        if len(TL) != 0 and TL[-1][0].destiny is None:
-                self.remove_line()
-
+        if len(TL) != 0:
+            if TL[-1][0].destiny is None:
+                TL[-1][3] = True
+        self.remove_line()
 
     def methodsTrigger(self, args):
         self.__calls[args]()
