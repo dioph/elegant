@@ -1,6 +1,48 @@
 import numpy as np
 
 
+def short(Y1, Y0, V):
+    """Calculates three-phase short circuit current levels for each bus
+
+    Parameters
+    ----------
+    Y1: Positive-sequence bus admittance matrix
+    Y0: Zero-sequence bus admittance matrix
+    V: Pre-fault voltage levels for each bus
+
+    Returns
+    -------
+    I: array, shape (N, 4, 3)
+        Three-phse current levels for each of the N buses for each of the following fault types:
+        --> Three-phase to ground (TPG);
+        --> Single-line to ground (SLG);
+        --> Double-line to ground (DLG);
+        --> Line-to-line (LL)
+    """
+    Z1 = np.diag(np.linalg.inv(Y1))
+    Z0 = np.diag(np.linalg.inv(Y0))
+    N = len(V)
+    alpha = np.exp(2j * np.pi / 3)
+    A = np.array([[1, 1, 1], [1, alpha**2, alpha], [1, alpha, alpha**2]])
+    I = []
+    for i in range(N):
+        # TPG
+        if1 = np.dot(A, np.array([0., V[i] / Z1[i], 0.]))
+        # SLG
+        if2a = 3 * V[i] / (2 * Z1[i] + Z0[i])
+        if2 = np.array([if2a, 0., 0.])
+        # DLG
+        if3a = V[i] / (Z1[i] + Z1[i] * Z0[i] / (Z1[i] + Z0[i]))
+        if3 = np.array([if3a, -if3a * Z0[i] / (Z1[i] + Z0[i]), -if3a * Z1[i] / (Z1[i] + Z0[i])])
+        if3 = np.dot(A, if3)
+        # LL
+        if4 = V[i] / (2 * Z1[i])
+        if4 = np.array([0., if4, -if4])
+        if4 = np.dot(A, if4)
+        I.append([if1, if2, if3, if4])
+    return np.array(I)
+
+
 def gauss_seidel(Y, V0, S, eps=None, Niter=1, nmax=1000):
     """Gauss-Seidel Method
 
