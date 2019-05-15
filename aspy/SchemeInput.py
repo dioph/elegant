@@ -4,6 +4,7 @@ import traceback
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import QPen, QPixmap, QBrush
+from PyQt5.QtWidgets import QSpacerItem
 from PyQt5.QtWidgets import *
 
 from aspy.core import *
@@ -226,14 +227,14 @@ class CircuitInputer(QWidget):
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.View)
         self._currentElement = None  # coordinates to current object being manipuled
-        self._startNewLine = True
+        self._startNewLT = True
         self._ltorigin = None
         self._temp = None
         self._statusMsg = GenericSignal()
         self.__calls = {'addBus': self.add_bus,
                         'addLine': self.add_line,
                         'showInspector': self.showInspector,
-                        'mouseReleased': self.startNewLine,
+                        'mouseReleased': self.doAfterNewLtInput,
                         'storeOriginAddLt': self.storeOriginAddLt}
         self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
         self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
@@ -405,18 +406,18 @@ class CircuitInputer(QWidget):
         self.InspectorLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
 
-        ### All layouts hidden at first moment ###
-        self.setLayoutHidden(self.BarLayout, True)
-        self.setLayoutHidden(self.InputNewLineType, True)
-        self.setLayoutHidden(self.LtOrTrafoLayout, True)
-        self.setLayoutHidden(self.chooseTrafoFormLayout, True)
-
         ### Toplayout ###
         self.TopLayout = QHBoxLayout()
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
         self.TopLayout.addLayout(self.InputNewLineType)
         self.setLayout(self.TopLayout)
+
+        ### All layouts hidden at first moment ###
+        self.setLayoutHidden(self.BarLayout, False)
+        self.setLayoutHidden(self.InputNewLineType, True)
+        self.setLayoutHidden(self.LtOrTrafoLayout, True)
+        self.setLayoutHidden(self.chooseTrafoFormLayout, True)
 
 
     def defineLtOrTrafoVisibility(self):
@@ -469,31 +470,21 @@ class CircuitInputer(QWidget):
         try:
             if all(map(lambda x: x[0] != name, LINE_TYPES)):
                 if all(map(lambda x: x != '', number_values_imp)):
-                    if np.size(LINE_TYPES) == 0:
+                    filtered = list(filter(lambda array: len(list(array[1].values())) == 2, LINE_TYPES))
+                    if all(list(map(lambda x: float(x), number_values_imp)) != list(type[1].values()) for type in filtered):
                         LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
-                                                       for i in range(len(number_values_imp))}])
+                                                  for i in range(len(number_values_imp))}])
                         self._statusMsg.emit_sig('Model recorded')
                     else:
-                        filtered = list(filter(lambda array: len(list(array[1].values())) == 2, LINE_TYPES))
-                        if all(list(map(lambda x: float(x), number_values_imp)) != list(type[1].values()) for type in filtered):
-                            LINE_TYPES.append([name, {name_values_imp[i]: float(number_values_imp[i]) \
-                                                      for i in range(len(number_values_imp))}])
-                            self._statusMsg.emit_sig('Model recorded')
-                        else:
-                            self._statusMsg.emit_sig('This model has been already stored')
+                        self._statusMsg.emit_sig('This model has been already stored')
                 elif all(map(lambda x: x != '', number_values_par)):
-                    if len(LINE_TYPES) == 0:
+                    filtered = list(filter(lambda array: len(list(array[1].values())) == 8, LINE_TYPES))
+                    if all(list(map(lambda x: float(x), number_values_par)) != list(type[1].values()) for type in filtered):
                         LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
                                                   for i in range(len(number_values_par))}])
                         self._statusMsg.emit_sig('Model recorded')
                     else:
-                        filtered = list(filter(lambda array: len(list(array[1].values())) == 8, LINE_TYPES))
-                        if all(list(map(lambda x: float(x), number_values_par)) != list(type[1].values()) for type in filtered):
-                            LINE_TYPES.append([name, {name_values_par[i]: float(number_values_par[i]) \
-                                                      for i in range(len(number_values_par))}])
-                            self._statusMsg.emit_sig('Model recorded')
-                        else:
-                            self._statusMsg.emit_sig('This model has been already stored')
+                        self._statusMsg.emit_sig('This model has been already stored')
                 self.setLayoutHidden(self.InputNewLineType, True)
                 # self.updateLToptions()
                 # self.updateLtParameters()
@@ -522,7 +513,7 @@ class CircuitInputer(QWidget):
 
 
     def storeOriginAddLt(self):
-        if self._startNewLine:
+        if self._startNewLT:
             self._ltorigin = self._currentElement
 
 
@@ -531,21 +522,26 @@ class CircuitInputer(QWidget):
         # args = [(i, j), line]
         # TL = [[TL, line, coordinates, bool ToExclude], ]
         try:
-            if self._startNewLine:
+            if self._startNewLT:
                 NEW_TL = LT(origin=self._ltorigin)
                 TL.append([NEW_TL, [], [], False])
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._ltorigin)
                 TL[-1][2].append(self._currentElement)
+                print('add TL')
+                print(GRID_ELEMENTS[self._currentElement])
+                print(TL)
+                # TODO: problema. quando eh 1, ele so pega
             else:
                 if self.checkTlOccup():
                     TL[-1][3] = True
+                    print('Ocupado')
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._currentElement)
                 if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
                     if TL[-1][0].destiny is None:
                         TL[-1][0].destiny = self._currentElement
-            self._startNewLine = False
+            self._startNewLT = False
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -553,7 +549,7 @@ class CircuitInputer(QWidget):
     def checkTlOccup(self):
         print('occup')
         for tl in TL:
-            if self._currentElement in tl[2]:
+            if self._currentElement in tl[2] and not isinstance(GRID_ELEMENTS[self._currentElement], Barra):
                 return True
             else:
                 continue
@@ -567,18 +563,24 @@ class CircuitInputer(QWidget):
                     for linedrawing in line[1]:
                         self.Scene.removeItem(linedrawing)
                     TL.remove(line)
-            print(TL)
         except Exception:
             logging.error(traceback.format_exc())
 
 
-    def startNewLine(self):
-        self._startNewLine = True
+    def doAfterNewLtInput(self):
+        self._startNewLT = True
+        if TL:
+            if isinstance(GRID_ELEMENTS[self._currentElement], Barra) and TL[-1][0].destiny is None:
+                TL[-1][0].destiny = GRID_ELEMENTS[self._currentElement]
         # If the TL did not stop in a existent bus
-        if len(TL) != 0:
+        if TL:
             if TL[-1][0].destiny is None:
                 TL[-1][3] = True
         self.remove_line()
+        for lt in TL:
+            assert(lt[0].origin is not None)
+            assert(lt[0].destiny is not None)
+
 
     def methodsTrigger(self, args):
         self.__calls[args]()
@@ -616,6 +618,7 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.BarLayout, False)
                 self.setLayoutHidden(self.LtOrTrafoLayout, True)
                 self.updateBusInspector(ELEMENT)
+                # self.setLayoutHidden(self.emptyLayout, True)
             else:
                 try:
                     POS, ELEMENT = self.getLtPosFromGridPos(self._currentElement)
