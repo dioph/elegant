@@ -523,19 +523,21 @@ class CircuitInputer(QWidget):
         # TL = [[TL, line, coordinates, bool ToExclude], ]
         try:
             if self._startNewLT:
+                print('Colocando nova linha\n')
                 NEW_TL = LT(origin=self._ltorigin)
-                TL.append([NEW_TL, [], [], False])
+                if not self.checkTlCrossing():
+                    TL.append([NEW_TL, [], [], False])
+                else:
+                    print('Linha cruzou na saída')
+                    TL.append([NEW_TL, [], [], True])
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._ltorigin)
                 TL[-1][2].append(self._currentElement)
-                print('add TL')
-                print(GRID_ELEMENTS[self._currentElement])
-                print(TL)
-                # TODO: problema. quando eh 1, ele so pega
             else:
-                if self.checkTlOccup():
+                print('Continuando linha\n')
+                if self.checkTlCrossing():
                     TL[-1][3] = True
-                    print('Ocupado')
+                    print('Linha cruzou com alguma outra já existente')
                 TL[-1][1].append(self._temp)
                 TL[-1][2].append(self._currentElement)
                 if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
@@ -546,8 +548,7 @@ class CircuitInputer(QWidget):
             logging.error(traceback.format_exc())
 
 
-    def checkTlOccup(self):
-        print('occup')
+    def checkTlCrossing(self):
         for tl in TL:
             if self._currentElement in tl[2] and not isinstance(GRID_ELEMENTS[self._currentElement], Barra):
                 return True
@@ -557,6 +558,7 @@ class CircuitInputer(QWidget):
 
 
     def remove_line(self):
+        global TL
         try:
             for line in TL:
                 if line[3]:
@@ -567,19 +569,57 @@ class CircuitInputer(QWidget):
             logging.error(traceback.format_exc())
 
 
+    def isLastLineDuplicated(self):
+        """This method is being used only for lines with two points
+        """
+        try:
+            last_line = TL[-1]
+            assert len(last_line[2]) == 2
+            filtered = TL.copy()
+            filtered.remove(last_line)
+            filtered = list(filter(lambda x: len(x[2]) == 2, filtered))
+            print('isLastLineDuplicated >>> filtered: \n', filtered)
+            if len(filtered) > 1:
+                for other_line in filtered:
+                    if last_line[2] == other_line[2]:
+                        return True
+                    else:
+                        continue
+                return False
+        except Exception:
+            logging.error(traceback.format_exc())
+
+
+
     def doAfterNewLtInput(self):
+        global TL
         self._startNewLT = True
-        if TL:
-            if isinstance(GRID_ELEMENTS[self._currentElement], Barra) and TL[-1][0].destiny is None:
-                TL[-1][0].destiny = GRID_ELEMENTS[self._currentElement]
-        # If the TL did not stop in a existent bus
-        if TL:
-            if TL[-1][0].destiny is None:
-                TL[-1][3] = True
-        self.remove_line()
-        for lt in TL:
-            assert(lt[0].origin is not None)
-            assert(lt[0].destiny is not None)
+        try:
+            if TL:
+                if len(TL[-1][2]) == 2:  # Se a linha é composta por dois pontos
+                    if not self.isLastLineDuplicated():  # Se a linha não está duplicada
+                        print('Segundo TL[-1]: ', TL[-1])
+                        if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
+                            # Se o cursor está em cima de uma barra e a linha não tem destino
+                            print('>>> Setar destino:\n', TL)
+                            TL[-1][0].destiny = GRID_ELEMENTS[self._currentElement]
+                            # A linha recebe a barra como destino
+                        elif not isinstance(GRID_ELEMENTS[self._currentElement], Barra) and TL[-1][0].destiny is None:
+                            TL[-1][3] = True
+                    else:  # Se a linha está duplicada
+                        print('Linha duplicada')
+                        TL[-1][3] = True  # Será excluída
+                else:  # Se a linha é composta por mais de dois pontos
+                    if TL[-1][0].destiny is None:  # Se a linha não tiver destino
+                        TL[-1][3] = True  # Será excluída
+                    # De add_line, a linha True ou False se cruzar com alguma outra linha
+            self.remove_line()
+            print('len(TL) = ', len(TL))
+            for lt in TL:
+                assert(lt[0].origin is not None)
+                assert(lt[0].destiny is not None)
+        except Exception:
+            logging.error(traceback.format_exc())
 
 
     def methodsTrigger(self, args):
