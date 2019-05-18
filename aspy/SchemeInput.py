@@ -5,6 +5,7 @@ import traceback
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from numpy.testing._private.parameterized import param
 
 from aspy.core import *
 
@@ -15,7 +16,7 @@ BUSES_PIXMAP = np.zeros((N, N), object)  # hold the buses drawings
 BUSES = np.zeros((0,), object)  # hold the buses
 TL = []  # hold the transmission lines
 # hold the types of transmission lines
-LINE_TYPES = [['Default', {'l': 80.0, 'r': 1.0, 'd12': 1.0, 'd23': 1.0, 'd31': 1.0, 'd': 1.0, 'rho': 1.78e-8, 'm': 1}]]
+LINE_TYPES = [['Default', {'l': 80.0, 'r': 1.0, 'd12': 2.0, 'd23': 2.0, 'd31': 2.0, 'd': 1.0, 'rho': 1.78e-8, 'm': 1}]]
 TRANSFORMERS = []  # hold the transformers
 
 class GenericSignal(QObject):
@@ -134,7 +135,7 @@ class SchemeInputer(QGraphicsScene):
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
                         self._pointerSignal.emit_sig((i, j))
                         self._methodSignal.emit_sig('storeOriginAddLt')
-                        self._methodSignal.emit_sig('showInspector')
+                        self._methodSignal.emit_sig('LayoutManager')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -231,7 +232,7 @@ class CircuitInputer(QWidget):
         self._statusMsg = GenericSignal()
         self.__calls = {'addBus': self.add_bus,
                         'addLine': self.add_line,
-                        'showInspector': self.showInspector,
+                        'LayoutManager': self.LayoutManager,
                         'mouseReleased': self.doAfterMouseRelease,
                         'storeOriginAddLt': self.storeOriginAddLt}
         self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
@@ -357,8 +358,17 @@ class CircuitInputer(QWidget):
         self.InputNewLineTypeFormLayout.addRow('Name', self.ModelName)
         # self.InputNewLineTypeFormLayout.addRow('Y', self.YLineEdit)
         # self.InputNewLineTypeFormLayout.addRow('Z', self.ZLineEdit)
-        self.InputNewLineTypeFormLayout.addRow('\u03c1', self.RhoLineEdit)
-        self.InputNewLineTypeFormLayout.addRow('\u2113', self.EllLineEdit)
+
+        # region Rho
+        # self.InputNewLineTypeFormLayout.addRow('\u03c1', self.RhoLineEdit)
+        # endregion
+
+        # region Ell
+        # self.InputNewLineTypeFormLayout.addRow('\u2113', self.EllLineEdit)
+        # endregion
+
+        self.InputNewLineTypeFormLayout.addRow('rho', self.RhoLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('l', self.EllLineEdit)
         self.InputNewLineTypeFormLayout.addRow('r', self.rLineEdit)
         self.InputNewLineTypeFormLayout.addRow('d12', self.d12LineEdit)
         self.InputNewLineTypeFormLayout.addRow('d23', self.d23LineEdit)
@@ -473,17 +483,60 @@ class CircuitInputer(QWidget):
     def updateLtInspector(self):
         '''
         ------------------------
-        Called by: showInspector
+        Called by: LayoutManager
         ------------------------
         '''
         try:
-            self.chooseLtModel.addItem(LINE_TYPES[-1][0])  # Adding name to ComboBox
+            POS, LINE = self.getLtFromGridPos(self._currentElement)
+            line = LINE[0]
+            if (line.Y, line.Z) != (0, 0):
+                self.LtYLineEdit = line.Y
+                self.LtZLineEdit = line.Z
+
         except Exception:
             logging.error(traceback.format_exc())
 
 
+    def findParametersSet(self):
+        """Find parameters set based on current selection of line or trafo inspector
+        ----------------------------------------------------------------------------
+        """
+        set_name = self.chooseLtModel.currentText()
+        for line_types in LINE_TYPES:
+            if set_name == line_types[0]:
+                return line_types[1]
+
+
+    def updateLtModelOptions(self):
+        for line_type in LINE_TYPES:
+            if self.chooseLtModel.isVisible() and self.chooseLtModel.findText(line_type[0]) < 0:
+                self.chooseLtModel.addItem(line_type[0])
+            else:
+                pass
+
+
     def updateLtParameters(self):
-        print('updateLtParameters')
+        """Triggered by line or trafo QPushButton Submit
+        ------------------------------------------------
+        """
+        try:
+            POS, LINE = self.getLtFromGridPos(self._currentElement)
+            line = LINE[0]
+            if isinstance(LINE[0], LT) and (self.LtYLineEdit.text() == '' or self.LtZLineEdit.text() == ''):
+                param_values = self.findParametersSet()
+                # Update properties
+                line.Z, line.Y = 0.0, 0.0
+                for key in param_values.keys():
+                    line.__setattr__(key, param_values.get(key))
+                for key in param_values.keys():
+                    assert(line.__getattribute__(key) == param_values.get(key))
+            else:
+                # Update impedance and admittance
+                line.Z = float(self.LtZLineEdit.text())
+                line.Y = float(self.LtYLineEdit.text())
+        except Exception:
+            logging.error(traceback.format_exc())
+
 
     # def chooseNewLineTypeInputManner(self):
     #     layout = self.InputNewLineTypeFormLayout
@@ -647,7 +700,7 @@ class CircuitInputer(QWidget):
             self.Scene.removeItem(linedrawing)
         TL.remove(lt)
         print('len(TL) = ', len(TL))
-        self.showInspector()
+        self.LayoutManager()
 
 
     def remove_pointless_lines(self):
@@ -713,9 +766,9 @@ class CircuitInputer(QWidget):
                 assert(lt[0].origin is not None)
                 assert(lt[0].destiny is not None)
             if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
-                self.showInspector()
+                self.LayoutManager()
             else:
-                self.showInspector()
+                self.LayoutManager()
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -732,10 +785,13 @@ class CircuitInputer(QWidget):
         """Updates the BI with bus data if bus existes or
         show that there's no bus (only after bus exclusion)
         ---------------------------------------------------
-        Called by: showInspector, remove_gen
+        Called by: LayoutManager, remove_gen
         """
         if BUS:
-            self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
+            if BUS.barra_id == 0:
+                self.BarTitle.setText('Barra Slack'.format(BUS.barra_id))
+            else:
+                self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
             self.BarV_Value.setText('{:.1f}'.format(np.abs(BUS.v)))
             self.BarAngle_Value.setText('{:.1f}º'.format(np.angle(BUS.v)))
             self.QgInput.setText('{:.1f}'.format(BUS.qg))
@@ -752,7 +808,7 @@ class CircuitInputer(QWidget):
             self.PlInput.setText('{:.1f}'.format(0.0))
 
 
-    def showInspector(self):
+    def LayoutManager(self):
         """Hide or show specific layouts, based on the current element
         or passed parameters by trigger methods
         --------------------------------------------------------------
@@ -764,15 +820,16 @@ class CircuitInputer(QWidget):
             pos_bus, bus = self.getBusFromGridPos(self._currentElement)
             pos_lt, lt = self.getLtFromGridPos(self._currentElement)
             pos_trafo, trafo = self.getTrafoFromGridPos(self._currentElement)
-
             if bus is not None:
                 self.hideSpacer()
+                self.setLayoutHidden(self.InputNewLineType, True)
                 self.setLayoutHidden(self.LtOrTrafoLayout, True)
                 self.setLayoutHidden(self.BarLayout, False)
                 self.updateBusInspector(self.getBusFromGridPos(self._currentElement)[1])
             elif lt is not None:
                 assert trafo is None
                 self.hideSpacer()
+                self.setLayoutHidden(self.InputNewLineType, True)
                 self.setLayoutHidden(self.BarLayout, True)
                 self.setLayoutHidden(self.LtOrTrafoLayout, False)
                 self.chooseLt.setChecked(True)
@@ -780,8 +837,10 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.chooseLtFormLayout, False)
                 self.generalLtOrTrafoSubmitPushButton.setHidden(False)
                 self.removeLTPushButton.setHidden(False)
+                self.updateLtModelOptions()
             elif trafo is not None:
                 assert lt is None
+                self.setLayoutHidden(self.InputNewLineType, True)
                 self.hideSpacer()
                 self.setLayoutHidden(self.BarLayout, True)
                 self.setLayoutHidden(self.LtOrTrafoLayout, False)
@@ -794,6 +853,7 @@ class CircuitInputer(QWidget):
                 # No element case
                 self.setLayoutHidden(self.BarLayout, True)
                 self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.setLayoutHidden(self.InputNewLineType, True)
                 self.showSpacer()
         except Exception:
             print(logging.error(traceback.format_exc()))
@@ -813,7 +873,7 @@ class CircuitInputer(QWidget):
             GRID_ELEMENTS[COORDS] = BUS
             BUSES = np.append(BUSES, BUS)
             ID += 1
-        self.showInspector()
+        self.LayoutManager()
 
 
     def remove_bus(self):
@@ -831,7 +891,7 @@ class CircuitInputer(QWidget):
             BUSES_PIXMAP[self._currentElement] = 0
             GRID_ELEMENTS[self._currentElement] = 0
             self.updateBusInspector(self.getBusFromGridPos(self._currentElement)[1])
-            self.showInspector()
+            self.LayoutManager()
 
 
     def add_gen(self):
