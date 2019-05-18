@@ -48,7 +48,7 @@ class BarraSL(Barra):
         
 
 class LT(object):
-    def __init__(self, l=80.0, r=1.0, d12=1.0, d23=1.0, d31=1.0, d=1.0, rho=1.78e-8, m=1, origin=None, destiny=None):
+    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1, Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.l = l
         self.r = r
@@ -57,7 +57,8 @@ class LT(object):
         self.d31 = d31
         self.d = d
         self.m = m
-        self.__Z = None
+        self.z = Z
+        self.y = Y
         self.vbase = 1e3
         self.origin = origin
         self.destiny = destiny
@@ -93,18 +94,23 @@ class LT(object):
     def Z(self):
         R = self.rho * self.l / (self.m * PI * self.r**2)
         L = 2e-7 * np.log(gmean([self.d12, self.d23, self.d31]) / self.Rm) * self.l
-        self.__Z = R + OMEGA * L * 1j
-        return self.__Z
+        return R + OMEGA * L * 1j if not self.z else self.z
+
 
     @Z.setter
     def Z(self, Z):
-        self.__Z = Z
+        self.z = Z
 
 
     @property
     def Y(self):
         C = 2 * PI * EPS / np.log(gmean([self.d12, self.d23, self.d31]) / self.Rb) * self.l
-        return OMEGA * C * 1j
+        return OMEGA * C * 1j if not self.y else self.y
+
+
+    @Y.setter
+    def Y(self, Y):
+        self.y = Y
 
 
 class Trafo(object):
