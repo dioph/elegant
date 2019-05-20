@@ -48,7 +48,7 @@ class BarraSL(Barra):
         
 
 class LT(object):
-    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0, Z=0.0, Y=0.0, origin=None, destiny=None):
+    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0, Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.l = l
         self.r = r
@@ -63,38 +63,42 @@ class LT(object):
         self.origin = origin
         self.destiny = destiny
 
-
     @property
     def Rm(self):
-        if self.m == 1:
-            return CORR * self.r
-        elif self.m == 2:
-            return gmean([CORR * self.r, self.d])
-        elif self.m == 3:
-            return gmean([CORR * self.r, self.d, self.d])
-        elif self.m == 4:
-            return gmean([CORR * self.r, self.d, self.d, SQ2 * self.d])
-        else:
-            return np.nan
+        if (self.z, self.y) == (None, None):
+            if self.m == 1:
+                return CORR * self.r
+            elif self.m == 2:
+                return gmean([CORR * self.r, self.d])
+            elif self.m == 3:
+                return gmean([CORR * self.r, self.d, self.d])
+            elif self.m == 4:
+                return gmean([CORR * self.r, self.d, self.d, SQ2 * self.d])
+            else:
+                return np.nan
 
     @property
     def Rb(self):
-        if self.m == 1:
-            return self.r
-        elif self.m == 2:
-            return gmean([self.r, self.d])
-        elif self.m == 3:
-            return gmean([self.r, self.d, self.d])
-        elif self.m == 4:
-            return gmean([self.r, self.d, self.d, SQ2 * self.d])
-        else:
-            return np.nan
+        if (self.z, self.y) == (None, None):
+            if self.m == 1:
+                return self.r
+            elif self.m == 2:
+                return gmean([self.r, self.d])
+            elif self.m == 3:
+                return gmean([self.r, self.d, self.d])
+            elif self.m == 4:
+                return gmean([self.r, self.d, self.d, SQ2 * self.d])
+            else:
+                return np.nan
 
     @property
     def Z(self):
-        R = self.rho * self.l / (self.m * PI * self.r**2)
-        L = 2e-7 * np.log(gmean([self.d12, self.d23, self.d31]) / self.Rm) * self.l
-        return R + OMEGA * L * 1j if not self.z else self.z
+        if (self.z, self.y) == (None, None):
+            R = self.rho * self.l / (self.m * PI * self.r**2)
+            L = 2e-7 * np.log(gmean([self.d12, self.d23, self.d31]) / self.Rm) * self.l
+            return R + OMEGA * L
+        else:
+            return self.z
 
 
     @Z.setter
@@ -104,8 +108,11 @@ class LT(object):
 
     @property
     def Y(self):
-        C = 2 * PI * EPS / np.log(gmean([self.d12, self.d23, self.d31]) / self.Rb) * self.l
-        return OMEGA * C * 1j if not self.y else self.y
+        if (self.z, self.y) == (None, None):
+            C = 2 * PI * EPS / np.log(gmean([self.d12, self.d23, self.d31]) / self.Rb) * self.l
+            return OMEGA * C * 1j
+        else:
+            return self.y
 
 
     @Y.setter
@@ -114,11 +121,15 @@ class LT(object):
 
 
 class Trafo(object):
-    def __init__(self, snom=1e6, vnom1=1e3, vnom2=1e3, jx=0.0):
+    def __init__(self, snom=1e6, vnom1=1e3, vnom2=1e3, jx0=0.0, jx1=0.0, connection='gYyg', origin=None, destiny=None):
         self.snom = snom
         self.vnom1 = vnom1
         self.vnom2 = vnom2
-        self.jx = jx
+        self.jx0 = jx0
+        self.jx1 = jx1
+        self.connection = connection
+        self.origin = origin
+        self.destiny = destiny
 
     @property
     def Zbase1(self):
