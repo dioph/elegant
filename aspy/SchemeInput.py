@@ -8,15 +8,33 @@ from PyQt5.QtWidgets import *
 
 from aspy.core import *
 
+"""
+# The global variables are being used to specify the current state of the system    
+# ----------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------
+# N: graphical grid dimension (N x N - used to initializate the SchemeInputer class)
+# ----------------------------------------------------------------------------------
+# GRID_ELEMENTS:
+# ----------------------------------------------------------------------------------
+# BUSES_PIXMAP:
+# ----------------------------------------------------------------------------------
+# TL:
+# ----------------------------------------------------------------------------------
+# TRANSFORMERS:
+# ----------------------------------------------------------------------------------
+# LINE_TYPES:
+# ----------------------------------------------------------------------------------
+"""
+
 N = 20  # grid size in schemeinputer
 ID = 1  # 0 for slack bus
 GRID_ELEMENTS = np.zeros((N, N), object)  # hold the aspy.core elements
 BUSES_PIXMAP = np.zeros((N, N), object)  # hold the buses drawings
 BUSES = np.zeros((0,), object)  # hold the buses
 TL = []  # hold the transmission lines
+TRANSFORMERS = []  # hold the transformers
 # hold the types of transmission lines
 LINE_TYPES = [['Default', {'l': 80.0, 'r': 1.0, 'd12': 2.0, 'd23': 2.0, 'd31': 2.0, 'd': 1.0, 'rho': 1.78e-8, 'm': 1.0}]]
-TRANSFORMERS = []  # hold the transformers
 
 class GenericSignal(QObject):
     signal = pyqtSignal(object)
@@ -424,6 +442,12 @@ class CircuitInputer(QWidget):
         self.removeLTPushButton = QPushButton('Remove LT')
         self.removeLTPushButton.setMinimumWidth(200.0)
         self.removeLTPushButton.pressed.connect(self.remove_selected_line)
+        """" 
+        # Reason of direct button bind to self.LayoutManager: 
+        #     The layout should disappear only when a line or trafo is excluded.
+        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
+        """
+        self.removeLTPushButton.pressed.connect(self.LayoutManager)
 
         self.choosedTrafoFormLayout = QFormLayout()
         self.SNomTrafoLineEdit = QLineEdit(); self.SNomTrafoLineEdit.setValidator(QDoubleValidator(0, 10.0, 2))
@@ -442,6 +466,12 @@ class CircuitInputer(QWidget):
 
         self.removeTrafoPushButton = QPushButton('Remove trafo')
         self.removeTrafoPushButton.pressed.connect(self.remove_selected_trafo)
+        """" 
+        # Reason of direct button bind to self.LayoutManager: 
+        #     The layout should disappear only when a line or trafo is excluded.
+        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
+        """
+        self.removeTrafoPushButton.pressed.connect(self.LayoutManager)
         self.removeTrafoPushButton.setMinimumWidth(200)
 
         self.choosedTrafoFormLayout.addRow('Snom', self.SNomTrafoLineEdit)
@@ -509,8 +539,26 @@ class CircuitInputer(QWidget):
 
 
     def updateTrafoInspector(self):
-        # TODO to finish
-        pass
+        try:
+            if self.getTrafoFromGridPos(self._currentElement)[1] is not None:
+                _, TRAFO = self.getTrafoFromGridPos(self._currentElement)
+                trafo = TRAFO[0]
+                self.SNomTrafoLineEdit.setText('{:.2g}'.format(trafo.snom))
+                self.XZeroSeqTrafoLineEdit.setText('{:.2g}'.format(trafo.jx0))
+                self.XPosSeqTrafoLineEdit.setText('{:.2g}'.format(trafo.jx1))
+                self.VNom1LineEdit.setText('{:.2g}'.format(trafo.vnom1))
+                self.VNom2LineEdit.setText('{:.2g}'.format(trafo.vnom2))
+                self.TrafoConnection.setCurrentText(trafo.connection)
+            else:
+                self.SNomTrafoLineEdit.setText('0.0')
+                self.XZeroSeqTrafoLineEdit.setText('0.0')
+                self.XPosSeqTrafoLineEdit.setText('0.0')
+                self.VNom1LineEdit.setText('0.0')
+                self.VNom2LineEdit.setText('0.0')
+                self.TrafoConnection.setCurrentText('-')
+        except Exception:
+            logging.error(traceback.format_exc())
+
 
 
     def updateLtInspector(self):
@@ -520,10 +568,9 @@ class CircuitInputer(QWidget):
         --------------------------------------------
         '''
         try:
-            POS, LINE = self.getLtFromGridPos(self._currentElement)
+            _, LINE = self.getLtFromGridPos(self._currentElement)
             line = LINE[0]
             line_model = self.findParametersSetFromLt(line)
-            print(line_model)
             self.LtYLineEdit.setText('{number.imag:.03e}j'.format(number=line.Y))
             self.LtZLineEdit.setText('{number.real:.03g}+{number.imag:.03g}j'.format(number=line.Z))
             self.chooseLtModel.setCurrentText(line_model)
@@ -572,42 +619,77 @@ class CircuitInputer(QWidget):
 
 
     def lineProcessing(self, mode):
-        """Updates the line parameters based on Y and Z or parameters from LINE_TYPES
+        # TODO problem? not updating vbase
+        """
+        --------------------------------------------------------------------------
+        Updates the line parameters based on Y and Z or parameters from LINE_TYPES
+        or converts a trafo into a line and update its parameters in follow
         -------------------------------------------------------------------------------
         Called by: line and trafo -> QPushButtons submit by model, submit by parameters
         -------------------------------------------------------------------------------
         """
         try:
-            POS, LINE = self.getLtFromGridPos(self._currentElement)
-            line = LINE[0]
-            if isinstance(line, LT) and mode == 'parameters':
-                param_values = self.findParametersSetFromComboBox()
-                # Current selected element is a line
-                # Update using properties
-                # Z and Y are obttained from the updated properties
-                line.Z, line.Y = None, None
-                for key in param_values.keys():
-                    line.__setattr__(key, param_values.get(key))
-                for key in param_values.keys():
-                    assert(line.__getattribute__(key) == param_values.get(key))
-                self.updateLtInspector()
-            elif isinstance(line, LT) and mode == 'impedance':
-                # Current selected element is a line
-                # Update using impedance and admittance
-                line.Z = complex(self.LtZLineEdit.text())
-                line.Y = complex(self.LtYLineEdit.text())
-                for key in list(line.__dict__.keys())[:8]:
-                    line.__setattr__(key, -1)
-                    print('parametro da linha: ', line.__getattribute__(key))
-                self.updateLtInspector()
-
+            if self.getLtFromGridPos(self._currentElement)[1] is not None:
+                # The element already is a line
+                assert(self.getTrafoFromGridPos(self._currentElement)[1] is None)
+                _, LINE = self.getLtFromGridPos(self._currentElement)
+                line = LINE[0]
+                if mode == 'parameters':
+                    param_values = self.findParametersSetFromComboBox()
+                    # Current selected element is a line
+                    # Update using properties
+                    # Z and Y are obttained from the updated properties
+                    self.updateLineWithParameters(line, param_values)
+                elif mode == 'impedance':
+                    # Current selected element is a line
+                    # Update using impedance and admittance
+                    Z, Y = complex(self.LtZLineEdit.text()), complex(self.LtYLineEdit.text())
+                    self.updateLineWithImpedances(line, Z, Y)
+                self.LayoutManager()
+            elif self.getTrafoFromGridPos(self._currentElement) is not None:
+                # The element is a trafo and will be converted into a line
+                assert(self.getLtFromGridPos(self._currentElement)[1] is None)
+                _, TRAFO = self.getTrafoFromGridPos(self._currentElement)
+                self.remove_selected_trafo()
+                new_line = LT(); new_line.origin = TRAFO[0].origin; new_line.destiny = TRAFO[0].destiny
+                if mode == 'parameters':
+                    param_values = self.findParametersSetFromComboBox()
+                    self.updateLineWithParameters(new_line, param_values)
+                elif mode == 'impedance':
+                    Z, Y = complex(self.LtZLineEdit.text()), complex(self.LtYLineEdit.text())
+                    self.updateLineWithImpedances(new_line, Z, Y)
+                inserting_line = [new_line, TRAFO[1], TRAFO[2], False]
+                for line_drawing in inserting_line[1]:
+                    blue_pen = QPen()
+                    blue_pen.setColor(Qt.blue)
+                    blue_pen.setWidth(2.5)
+                    line_drawing.setPen(blue_pen)
+                    self.Scene.addItem(line_drawing)
+                TL.append(inserting_line)
+                self.LayoutManager()
         except Exception:
             logging.error(traceback.format_exc())
 
 
+    @staticmethod
+    def updateLineWithParameters(line, param_values):
+        line.Z, line.Y = None, None
+        for key in param_values.keys():
+            line.__setattr__(key, param_values.get(key))
+
+
+    @staticmethod
+    def updateLineWithImpedances(line, Z, Y):
+        line.Z, line.Y = Z, Y
+        for key in list(line.__dict__.keys())[:8]:
+            line.__setattr__(key, -1)
+
+
     def trafoProcessing(self):
-        """If the current element is a line, as QPushButton 'Submit trafo' is pressed, the line
-        will be transformed into a transform
+        """
+        --------------------------------------------------------------------------------------
+        Updates a trafo with the given parameters if the current element is a trafo
+        or converts a line into a trafo with the inputted parameters
         ---------------------------------------------------------------------------------------
         Called by: QPushButton Submit trafo
         ---------------------------------------------------------------------------------------
@@ -630,14 +712,15 @@ class CircuitInputer(QWidget):
                                   )
                 inserting_trafo = [new_trafo, line[1], line[2]]
                 for line_drawing in inserting_trafo[1]:
-                    red_pen = QPen()
-                    red_pen.setColor(Qt.red)
-                    red_pen.setWidth(2.5)
-                    line_drawing.setPen(red_pen)
+                    blue_pen = QPen()
+                    blue_pen.setColor(Qt.red)
+                    blue_pen.setWidth(2.5)
+                    line_drawing.setPen(blue_pen)
                     self.Scene.addItem(line_drawing)
                 TRANSFORMERS.append(inserting_trafo)
                 for key in new_trafo.__dict__.keys():
                     print(key, new_trafo.__getattribute__(key))
+                self.LayoutManager()
             elif self.getTrafoFromGridPos(self._currentElement)[1] is not None:
                 # Update parameters of selected trafo
                 assert(self.getLtFromGridPos(self._currentElement)[1] is None)
@@ -650,6 +733,7 @@ class CircuitInputer(QWidget):
                 trafo[0].connection = self.TrafoConnection.currentText()
                 for key in trafo[0].__dict__.keys():
                     print(key, trafo[0].__getattribute__(key), end='')
+                self.LayoutManager()
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -754,8 +838,13 @@ class CircuitInputer(QWidget):
 
 
     def remove_selected_trafo(self):
-        _, trafo = self.getTrafoFromGridPos(self._currentElement)
-
+        if self.getTrafoFromGridPos(self._currentElement)[1] is not None:
+            _, trafo = self.getTrafoFromGridPos(self._currentElement)
+            for linedrawing in trafo[1]:
+                self.Scene.removeItem(linedrawing)
+            TRANSFORMERS.remove(trafo)
+            print('len(TRANSFORMERS) = ', len(TRANSFORMERS))
+            # self.LayoutManager()
 
 
     def remove_selected_line(self):
@@ -765,7 +854,7 @@ class CircuitInputer(QWidget):
                 self.Scene.removeItem(linedrawing)
             TL.remove(lt)
             print('len(TL) = ', len(TL))
-            self.LayoutManager()
+            # self.LayoutManager()
 
 
     def remove_pointless_lines(self):
@@ -890,6 +979,7 @@ class CircuitInputer(QWidget):
             pos_lt, lt = self.getLtFromGridPos(self._currentElement)
             pos_trafo, trafo = self.getTrafoFromGridPos(self._currentElement)
             if bus is not None:
+                print('identificou barra')
                 # Show bus inspect
                 self.hideSpacer()
                 self.setLayoutHidden(self.InputNewLineType, True)
@@ -897,6 +987,7 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.BarLayout, False)
                 self.updateBusInspector(self.getBusFromGridPos(self._currentElement)[1])
             elif lt is not None:
+                print('identificou linha')
                 # Show line inspect
                 assert trafo is None
                 self.hideSpacer()
@@ -911,7 +1002,9 @@ class CircuitInputer(QWidget):
                 self.removeLTPushButton.setHidden(False)
                 self.updateLtModelOptions()
                 self.updateLtInspector()
+                self.updateTrafoInspector()
             elif trafo is not None:
+                print('identificou trafo')
                 # Show trafo inspect
                 assert lt is None
                 self.setLayoutHidden(self.InputNewLineType, True)
@@ -926,6 +1019,7 @@ class CircuitInputer(QWidget):
                 self.removeLTPushButton.setHidden(True)
                 self.ltSubmitByModelPushButton.setHidden(True)
                 self.ltSubmitByImpedancePushButton.setHidden(True)
+                self.updateTrafoInspector()
             else:
                 # No element case
                 self.setLayoutHidden(self.BarLayout, True)
@@ -1093,6 +1187,7 @@ class CircuitInputer(QWidget):
         ----------------------------------
         """
         global GRID_ELEMENTS, BUSES
+        # TODO mayber simplificate all the get<element>functions to return only the element
         try:
             if isinstance(GRID_ELEMENTS[self._currentElement], Barra):
                 POS, _ = self.getBusFromGridPos(self._currentElement)
