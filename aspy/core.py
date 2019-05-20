@@ -48,7 +48,7 @@ class BarraSL(Barra):
         
 
 class LT(object):
-    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1, Z=None, Y=None, origin=None, destiny=None):
+    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0, Z=0.0, Y=0.0, origin=None, destiny=None):
         self.rho = rho
         self.l = l
         self.r = r
