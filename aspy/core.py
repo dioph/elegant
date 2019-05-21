@@ -59,7 +59,6 @@ class LT(object):
         self.m = m
         self.z = Z
         self.y = Y
-        self.vbase = 1e3
         self.origin = origin
         self.destiny = destiny
 

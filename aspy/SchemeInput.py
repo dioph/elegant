@@ -287,6 +287,7 @@ class CircuitInputer(QWidget):
         self.BarLayout = QVBoxLayout()
 
         ### Bus title ###
+        # TODO add X'd in each bus
         self.BarTitle = QLabel('Bar title')
         self.BarTitle.setAlignment(Qt.AlignCenter)
         self.BarTitle.setMinimumWidth(200)
@@ -626,7 +627,6 @@ class CircuitInputer(QWidget):
 
 
     def lineProcessing(self, mode):
-        # TODO problem? not updating vbase
         """
         --------------------------------------------------------------------------
         Updates the line parameters based on Y and Z or parameters from LINE_TYPES
@@ -657,7 +657,7 @@ class CircuitInputer(QWidget):
                 # The element is a trafo and will be converted into a line
                 assert(self.getLtFromGridPos(self._currElementCoords) is None)
                 TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
-                self.remove_selected_trafo()
+                self.remove_selected_trafo(TRAFO)
                 new_line = LT(); new_line.origin = TRAFO[0].origin; new_line.destiny = TRAFO[0].destiny
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
@@ -707,7 +707,7 @@ class CircuitInputer(QWidget):
                 # Transform line into a trafo
                 assert(self.getTrafoFromGridPos(self._currElementCoords) is None)
                 line = self.getLtFromGridPos(self._currElementCoords)
-                self.remove_selected_line()
+                self.remove_selected_line(line)
                 new_trafo = Trafo(
                                   snom=float(self.SNomTrafoLineEdit.text()),
                                   vnom1=float(self.VNom1LineEdit.text()),
@@ -846,24 +846,33 @@ class CircuitInputer(QWidget):
         return False
 
 
-    def remove_selected_trafo(self):
+    def remove_selected_trafo(self, trafo=None):
+        """Remove an trafo. If parameters trafo is not passed, the method will find it from the selection in GRID.
+        Else, the passed trafo will be deleted
+        """
         global TRANSFORMERS
-        if self.getTrafoFromGridPos(self._currElementCoords) is not None:
-            trafo = self.getTrafoFromGridPos(self._currElementCoords)
-            for linedrawing in trafo[1]:
-                self.Scene.removeItem(linedrawing)
-            TRANSFORMERS.remove(trafo)
-            print('len(TRANSFORMERS) = ', len(TRANSFORMERS))
+        if trafo is None:
+            if self.getTrafoFromGridPos(self._currElementCoords) is not None:
+                trafo = self.getTrafoFromGridPos(self._currElementCoords)
+            else:
+                pass
+        for linedrawing in trafo[1]:
+            self.Scene.removeItem(linedrawing)
+        TRANSFORMERS.remove(trafo)
+        print('len(TRANSFORMERS) = ', len(TRANSFORMERS))
 
 
-    def remove_selected_line(self):
+    def remove_selected_line(self, line=None):
         global TL
-        if self.getLtFromGridPos(self._currElementCoords) is not None:
-            lt = self.getLtFromGridPos(self._currElementCoords)
-            for linedrawing in lt[1]:
-                self.Scene.removeItem(linedrawing)
-            TL.remove(lt)
-            print('len(TL) = ', len(TL))
+        if line is None:
+            if self.getLtFromGridPos(self._currElementCoords):
+                line = self.getLtFromGridPos(self._currElementCoords)
+            else:
+                pass
+        for linedrawing in line[1]:
+            self.Scene.removeItem(linedrawing)
+        TL.remove(line)
+        print('len(TL) = ', len(TL))
 
 
     def remove_pointless_lines(self):
@@ -1055,20 +1064,24 @@ class CircuitInputer(QWidget):
 
     def remove_bus(self):
         global ID, BUSES, GRID_ELEMENTS, BUSES_PIXMAP
-        if GRID_ELEMENTS[self._currElementCoords]:
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            if BUS.barra_id != 0:
-                ID -= 1
-                BUSES.remove(BUS)
-                for i in range(1, ID):
-                    BUSES[i].barra_id = i
-            elif BUS.barra_id == 0:
-                BUSES.remove(BUS)
-            self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
-            BUSES_PIXMAP[self._currElementCoords] = 0
-            GRID_ELEMENTS[self._currElementCoords] = 0
-            self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
-            self.LayoutManager()
+        try:
+            if GRID_ELEMENTS[self._currElementCoords]:
+                BUS = self.getBusFromGridPos(self._currElementCoords)
+                self.removeElementsLinked2Bus(BUS)
+                if BUS.barra_id != 0:
+                    ID -= 1
+                    BUSES.remove(BUS)
+                    for i in range(1, ID):
+                        BUSES[i].barra_id = i
+                elif BUS.barra_id == 0:
+                    BUSES.remove(BUS)
+                self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
+                BUSES_PIXMAP[self._currElementCoords] = 0
+                GRID_ELEMENTS[self._currElementCoords] = 0
+                self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
+                self.LayoutManager()
+        except Exception:
+            logging.error(traceback.format_exc())
 
 
     @staticmethod
@@ -1104,6 +1117,22 @@ class CircuitInputer(QWidget):
             else:
                 continue
         return None
+
+
+    def removeElementsLinked2Bus(self, BUS):
+        global TL, TRANSFORMERS
+        print('posicao do bus: ', BUS.posicao)
+        print(TL)
+        linked_lts, linked_trfs = [], []
+        for line in TL:
+            if BUS.posicao in line[2]:
+                linked_lts.append(line)
+        print('linked_lts: ', linked_lts)
+        for removing_lts in linked_lts: self.remove_selected_line(removing_lts)
+        for trafo in TRANSFORMERS:
+            if BUS.posicao in trafo[2]:
+                linked_trfs.append(trafo)
+        for removing_trfs in linked_trfs: self.remove_selected_trafo(removing_trfs)
 
 
     def add_gen(self):
@@ -1210,6 +1239,7 @@ class CircuitInputer(QWidget):
                 self.AddLoadButton.pressed.connect(self.remove_load)
         except Exception:
             logging.error(traceback.format_exc())
+
 
     def remove_load(self):
         try:
