@@ -605,13 +605,16 @@ class CircuitInputer(QWidget):
 
     def findParametersSetFromComboBox(self):
         """Find parameters set based on current selection of line or trafo inspector combo box
-           If the line was set with parameters, returns 'No model'
+           If the line was set with parameters, returns 'None'
         ---------------------------------------------------------------------------------------
         """
         set_name = self.chooseLtModel.currentText()
         for line_types in LINE_TYPES:
             if set_name == line_types[0]:
                 return line_types[1]
+            else:
+                continue
+        return None
 
 
     def updateLtModelOptions(self):
@@ -646,13 +649,17 @@ class CircuitInputer(QWidget):
                     # Current selected element is a line
                     # Update using properties
                     # Z and Y are obttained from the updated properties
-                    self.updateLineWithParameters(line, param_values)
+                    if param_values is not None:
+                        self.updateLineWithParameters(line, param_values)
+                        self.LayoutManager()
+                    else:
+                        self._statusMsg.emit_sig('You have to choose an valid model')
                 elif mode == 'impedance':
                     # Current selected element is a line
                     # Update using impedance and admittance
                     Z, Y = complex(self.LtZLineEdit.text()), complex(self.LtYLineEdit.text())
                     self.updateLineWithImpedances(line, Z, Y)
-                self.LayoutManager()
+                    self.LayoutManager()
             elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
                 # The element is a trafo and will be converted into a line
                 assert(self.getLtFromGridPos(self._currElementCoords) is None)
@@ -661,7 +668,10 @@ class CircuitInputer(QWidget):
                 new_line = LT(); new_line.origin = TRAFO[0].origin; new_line.destiny = TRAFO[0].destiny
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
-                    self.updateLineWithParameters(new_line, param_values)
+                    if param_values is not None:
+                        self.updateLineWithParameters(new_line, param_values)
+                    else:
+                        self._statusMsg.emit_sig('You have to choose an valid model')
                 elif mode == 'impedance':
                     Z, Y = complex(self.LtZLineEdit.text()), complex(self.LtYLineEdit.text())
                     self.updateLineWithImpedances(new_line, Z, Y)
@@ -920,17 +930,8 @@ class CircuitInputer(QWidget):
         self._startNewLT = True
         try:
             if TL:
-                # TODO line with two points are not allowed anymore
                 if len(TL[-1][2]) == 2:  # If the line has two points only
-                    if not self.isLastLineDuplicated():  # If the line is not duplicated
-                        if isinstance(GRID_ELEMENTS[self._currElementCoords], Barra):
-                            # If cursor points to a bus and the line has not a destiny bus
-                            TL[-1][0].destiny = GRID_ELEMENTS[self._currElementCoords] # Sets destiny
-                        # If cursor does not points to a bus and the bus has not a destiny bus
-                        elif not isinstance(GRID_ELEMENTS[self._currElementCoords], Barra) and TL[-1][0].destiny is None:
-                            TL[-1][3] = True  # Remove line
-                    else:  # If the line is duplicated
-                        TL[-1][3] = True  # Remove line
+                    TL[-1][3] = True # Remove
                 else:  # If the line has more than two points
                     if TL[-1][0].destiny is None:  # If line has not destiny bus
                         TL[-1][3] = True  # Remove line
@@ -980,9 +981,10 @@ class CircuitInputer(QWidget):
 
 
     def LayoutManager(self):
-        """Hide or show specific layouts, based on the current element or passed parameters by trigger methods
+        """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
+        Called two times ever because self.doAfterMouseRelease is triggered whenever the mouse is released
         ------------------------------------------------------------------------------------------------------
-        Called by: doAfterMouseRelease (after input), add_bus, remove_bus, self.removeLTPushButton,
+        Called by: self.doAfterMouseRelease (after input), add_bus, remove_bus, self.removeLTPushButton,
                    self.removeTrafoPushButton, self.lineProcessing, self.trafoProcessing
         ------------------------------------------------------------------------------------------------------
         """
@@ -1121,13 +1123,10 @@ class CircuitInputer(QWidget):
 
     def removeElementsLinked2Bus(self, BUS):
         global TL, TRANSFORMERS
-        print('posicao do bus: ', BUS.posicao)
-        print(TL)
         linked_lts, linked_trfs = [], []
         for line in TL:
             if BUS.posicao in line[2]:
                 linked_lts.append(line)
-        print('linked_lts: ', linked_lts)
         for removing_lts in linked_lts: self.remove_selected_line(removing_lts)
         for trafo in TRANSFORMERS:
             if BUS.posicao in trafo[2]:
