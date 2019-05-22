@@ -137,7 +137,7 @@ class SchemeInputer(QGraphicsScene):
 
 
     def clearSquare(self, oldQRect):
-        # TODO: bug in clearing square after scrolling in any direction
+        # TODO bug in clearing square after scrolling in any direction
         if oldQRect is not None:
             self.removeItem(oldQRect)
 
@@ -320,9 +320,12 @@ class CircuitInputer(QWidget):
         self.AddGenerationFormLayout = QFormLayout()
         self.AddLoadFormLayout = QFormLayout()
 
+        ### Line edit to Xd bus ###
+        self.XdLineEdit = QLineEdit('0.0'); self.XdLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 2))
+        self.XdLineEdit.setEnabled(False)
+
         ### Line edit to input bus Pg ###
         self.PgInput = QLineEdit('0.0'); self.PgInput.setValidator(QDoubleValidator(0.0, 100.0, 2))
-
         self.PgInput.setEnabled(False)
 
         ### Line edit to input bus Qg ###
@@ -330,6 +333,7 @@ class CircuitInputer(QWidget):
         self.QgInput.setEnabled(False)
 
         ### Adding Pg, Qg to add generation FormLayout ###
+        self.AddGenerationFormLayout.addRow('X\'d', self.XdLineEdit)
         self.AddGenerationFormLayout.addRow('Qg', self.QgInput)
         self.AddGenerationFormLayout.addRow('Pg', self.PgInput)
 
@@ -1145,8 +1149,12 @@ class CircuitInputer(QWidget):
         """
         try:
             global BUSES
+            # TODO problema no 'abandono' das entradas da geração
+            BUS = self.getBusFromGridPos(self._currElementCoords)
             self.BarV_Value.setEnabled(True)
-            self.PgInput.setEnabled(True)
+            if BUS.barra_id != 0:
+                self.PgInput.setEnabled(True)
+                self.XdLineEdit.setEnabled(True)
             self.AddGenerationButton.setText('OK')
             self._statusMsg.emit_sig('Input generation data...')
             self.AddGenerationButton.disconnect()
@@ -1166,13 +1174,16 @@ class CircuitInputer(QWidget):
             BUS = self.getBusFromGridPos(self._currElementCoords)
             BUS.v = float(self.BarV_Value.text())
             BUS.pg = float(self.PgInput.text())
+            BUS.xd = float(self.XdLineEdit.text())
             GRID_ELEMENTS[self._currElementCoords].v = BUS.v
             GRID_ELEMENTS[self._currElementCoords].pg = BUS.pg
+            GRID_ELEMENTS[self._currElementCoords].xd = BUS.xd
             self._statusMsg.emit_sig('Added generation')
             print('Barra atualizada')
             print('V da barra: {0}, Pg da barra: {1}'.format(BUS.v, BUS.pg))
             self.BarV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
+            self.XdLineEdit.setEnabled(False)
             self.AddGenerationButton.setText('-')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.remove_gen)
@@ -1182,10 +1193,12 @@ class CircuitInputer(QWidget):
         global GRID_ELEMENTS, BUSES
         if isinstance(GRID_ELEMENTS[self._currElementCoords], Barra):
             BUS = self.getBusFromGridPos(self._currElementCoords)
-            BUS.v = 0.0
-            BUS.pg = 0.0
-            GRID_ELEMENTS[self._currElementCoords].v = 0.0
-            GRID_ELEMENTS[self._currElementCoords].pg = 0.0
+            BUS.v = 0
+            BUS.pg = 0
+            BUS.xd = 0
+            GRID_ELEMENTS[self._currElementCoords].v = 0
+            GRID_ELEMENTS[self._currElementCoords].pg = 0
+            GRID_ELEMENTS[self._currElementCoords].xd = 0
             self._statusMsg.emit_sig('Removed generation')
             print('Geração removida')
             print('V da barra: {0}, Pg da barra: {1}'.format(BUS.v, BUS.pg))
@@ -1245,10 +1258,10 @@ class CircuitInputer(QWidget):
             global GRID_ELEMENTS, BUSES
             if isinstance(GRID_ELEMENTS[self._currElementCoords], Barra):
                 BUS = self.getBusFromGridPos(self._currElementCoords)
-                BUS.pl = 0.0
-                BUS.ql = 0.0
-                GRID_ELEMENTS[self._currElementCoords].pl = 0.0
-                GRID_ELEMENTS[self._currElementCoords].ql = 0.0
+                BUS.pl = 0
+                BUS.ql = 0
+                GRID_ELEMENTS[self._currElementCoords].pl = 0
+                GRID_ELEMENTS[self._currElementCoords].ql = 0
                 self._statusMsg.emit_sig('Removed load')
                 print('Carga removida')
                 print('Pl da barra: {0}, Ql da barra: {1}'.format(BUS.pl, BUS.ql))
