@@ -151,7 +151,7 @@ class SchemeInputer(QGraphicsScene):
                     i, j = self.Point_pos(central_point)
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
-                    pixmap = QPixmap('./data/buttons/DOT.jpg')
+                    pixmap = QPixmap('./data/icons/DOT.jpg')
                     pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
                     sceneItem = self.addPixmap(pixmap)
                     pixmap_COORDS = central_point.x()-self._oneUnityLength/2, central_point.y()-self._oneUnityLength/2
