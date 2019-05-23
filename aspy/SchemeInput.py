@@ -37,7 +37,7 @@ from aspy.core import *
 
 # ---------------------------------------------------------------------------------------------------------
 
-# TL: list that holds transmission line elements. Each element has the following form:
+# LINES: list that holds transmission line elements. Each element has the following form:
 # [[aspy.core.LT lines, [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates], bool remove]]
 
 # ---------------------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ ID = 1
 GRID_BUSES = np.zeros((N, N), object)
 BUSES_PIXMAP = np.zeros((N, N), object)
 BUSES = []
-TL = []
+LINES = []
 TRANSFORMERS = []
 LINE_TYPES = [['Default', {'r': 1.0, 'd12': 2.0, 'd23': 2.0, 'd31': 2.0, 'd': 1.0, 'rho': 1.78e-8, 'm': 1.0}]]
 
@@ -697,7 +697,7 @@ class CircuitInputer(QWidget):
                     blue_pen.setWidth(2.5)
                     line_drawing.setPen(blue_pen)
                     self.Scene.addItem(line_drawing)
-                TL.append(inserting_line)
+                LINES.append(inserting_line)
                 self.LayoutManager()
         except Exception:
             logging.error(traceback.format_exc())
@@ -830,38 +830,38 @@ class CircuitInputer(QWidget):
 
     def add_line(self):
         # args = [(i, j), line]
-        # TL = [[TL, lines, coordinates, bool ToExclude, ]
-        global TL
+        # LINES = [[LINES, lines, coordinates, bool ToExclude, ]
+        global LINES
         try:
             if self._startNewLT:
                 print('Colocando nova linha\n')
-                NEW_TL = LT(origin=self._ltorigin)
+                NEW_LINES = LT(origin=self._ltorigin)
                 if not self.checkTlCrossing():
-                    TL.append([NEW_TL, [], [], False])
+                    LINES.append([NEW_LINES, [], [], False])
                 else:
                     print('Linha cruzou na saída\n')
-                    TL.append([NEW_TL, [], [], True])
-                TL[-1][1].append(self._temp)
-                TL[-1][2].append(self._ltorigin)
-                TL[-1][2].append(self._currElementCoords)
+                    LINES.append([NEW_LINES, [], [], True])
+                LINES[-1][1].append(self._temp)
+                LINES[-1][2].append(self._ltorigin)
+                LINES[-1][2].append(self._currElementCoords)
             else:
                 print('Continuando linha\n')
                 if self.checkTlCrossing():
-                    TL[-1][3] = True
+                    LINES[-1][3] = True
                     print('Linha cruzou com alguma outra já existente\n')
-                TL[-1][1].append(self._temp)
-                TL[-1][2].append(self._currElementCoords)
+                LINES[-1][1].append(self._temp)
+                LINES[-1][2].append(self._currElementCoords)
                 if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                    if TL[-1][0].destiny is None:
-                        TL[-1][0].destiny = self._currElementCoords
+                    if LINES[-1][0].destiny is None:
+                        LINES[-1][0].destiny = self._currElementCoords
             self._startNewLT = False
         except Exception:
             logging.error(traceback.format_exc())
 
 
     def checkTlCrossing(self):
-        global TL
-        for tl in TL:
+        global LINES
+        for tl in LINES:
             if self._currElementCoords in tl[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
                 return True
             else:
@@ -886,7 +886,7 @@ class CircuitInputer(QWidget):
 
 
     def remove_selected_line(self, line=None):
-        global TL
+        global LINES
         if line is None:
             if self.getLtFromGridPos(self._currElementCoords):
                 line = self.getLtFromGridPos(self._currElementCoords)
@@ -894,8 +894,8 @@ class CircuitInputer(QWidget):
                 pass
         for linedrawing in line[1]:
             self.Scene.removeItem(linedrawing)
-        TL.remove(line)
-        print('len(TL) = ', len(TL))
+        LINES.remove(line)
+        print('len(LINES) = ', len(LINES))
 
 
     def remove_pointless_lines(self):
@@ -905,13 +905,13 @@ class CircuitInputer(QWidget):
         2. The line was inputted with only two points
         3. The line has not a destiny bar
         """
-        global TL
+        global LINES
         try:
-            for line in TL:
+            for line in LINES:
                 if line[3]:
                     for linedrawing in line[1]:
                         self.Scene.removeItem(linedrawing)
-                    TL.remove(line)
+                    LINES.remove(line)
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -920,9 +920,9 @@ class CircuitInputer(QWidget):
         """This method is being used only for lines with two points
         """
         try:
-            last_line = TL[-1]
+            last_line = LINES[-1]
             assert len(last_line[2]) == 2
-            filtered = TL.copy()
+            filtered = LINES.copy()
             filtered.remove(last_line)
             filtered = list(filter(lambda x: len(x[2]) == 2, filtered))
             print('isLastLineDuplicated >>> filtered: \n', filtered)
@@ -939,17 +939,17 @@ class CircuitInputer(QWidget):
 
 
     def doAfterMouseRelease(self):
-        global TL
+        global LINES
         self._startNewLT = True
         try:
-            if TL:
-                if len(TL[-1][2]) == 2:  # If the line has two points only
-                    TL[-1][3] = True # Remove
+            if LINES:
+                if len(LINES[-1][2]) == 2:  # If the line has two points only
+                    LINES[-1][3] = True # Remove
                 else:  # If the line has more than two points
-                    if TL[-1][0].destiny is None:  # If line has not destiny bus
-                        TL[-1][3] = True  # Remove line
+                    if LINES[-1][0].destiny is None:  # If line has not destiny bus
+                        LINES[-1][3] = True  # Remove line
             self.remove_pointless_lines()  # Removes all lines with bool remove = True
-            for lt in TL:
+            for lt in LINES:
                 assert(lt[0].origin is not None)
                 assert(lt[0].destiny is not None)
             self.LayoutManager()
@@ -1117,8 +1117,8 @@ class CircuitInputer(QWidget):
 
     @staticmethod
     def getLtFromGridPos(COORDS):
-        """Returns the TL's position (in TL) and TL element, given the grid coordinates"""
-        for tl in TL:
+        """Returns the LINES's position (in LINES) and LINES element, given the grid coordinates"""
+        for tl in LINES:
             if COORDS in tl[2]:
                 return tl
             else:
@@ -1138,9 +1138,9 @@ class CircuitInputer(QWidget):
 
 
     def removeElementsLinked2Bus(self, BUS):
-        global TL, TRANSFORMERS
+        global LINES, TRANSFORMERS
         linked_lts, linked_trfs = [], []
-        for line in TL:
+        for line in LINES:
             if BUS.posicao in line[2]:
                 linked_lts.append(line)
         for removing_lts in linked_lts: self.remove_selected_line(removing_lts)
@@ -1354,10 +1354,28 @@ class Aspy(QMainWindow):
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, True)
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.LtOrTrafoLayout, True)
 
-
     def editLineType(self):
         print('edit line type')
 
+def storeData(db):
+    db['LINES'], db['BUSES'], db['TRANSFORMERS'] = [], [], []
+    for line in LINES:
+        db['LINES'].append([line[0], [], line[2], False])  # aspy.core.LT/coordinates
+    for bus in BUSES:
+        db['BUSES'].append([bus])
+    for trafo in TRANSFORMERS:
+        db['TRANSFORMERS'].append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
+    db['LINE_TYPES'] = LINE_TYPES
+
+def createLocalData(db):
+    global LINES, BUSES, TRANSFORMERS, LINE_TYPES
+    LINE_TYPES = db['LINE_TYPES']
+    LINES = db['LINES']
+    BUSES = db['BUSES']
+    TRANSFORMERS = db['TRANSFORMERS']
+
+def createSchematic(db, scene):
+    global LINES, TRANSFORMERS, BUSES
 
 def getSessionsDir():
     if sys.platform in ('win32', 'win64'):
