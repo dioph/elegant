@@ -110,12 +110,14 @@ class SchemeInputer(QGraphicsScene):
         self._methodSignal.emit_sig('mouseReleased')
 
 
-    def drawLine(self, coordinates):
+    def drawLine(self, coordinates, color='b'):
         pen = QPen()
         pen.setWidth(2.5)
-        pen.setColor(Qt.blue)
+        if color == 'b':
+            pen.setColor(Qt.blue)
+        elif color == 'r':
+            pen.setColor(Qt.red)
         line = self.addLine(coordinates[0, 0], coordinates[0, 1], coordinates[1, 0], coordinates[1, 1], pen)
-        print(type(line))
         return line
 
 
@@ -143,6 +145,14 @@ class SchemeInputer(QGraphicsScene):
         if oldQRect is not None:
             self.removeItem(oldQRect)
 
+    def drawBus(self, coordinates):
+        pixmap = QPixmap('./data/icons/DOT.jpg')
+        pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
+        sceneItem = self.addPixmap(pixmap)
+        pixmap_coords = coordinates[0]-self._oneUnityLength/2, coordinates[1]-self._oneUnityLength/2
+        sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
+        return sceneItem
+
 
     def mouseDoubleClickEvent(self, event):
         global BUSES_PIXMAP
@@ -153,11 +163,7 @@ class SchemeInputer(QGraphicsScene):
                     i, j = self.Point_pos(central_point)
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
-                    pixmap = QPixmap('./data/icons/DOT.jpg')
-                    pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
-                    sceneItem = self.addPixmap(pixmap)
-                    pixmap_COORDS = central_point.x()-self._oneUnityLength/2, central_point.y()-self._oneUnityLength/2
-                    sceneItem.setPos(pixmap_COORDS[0], pixmap_COORDS[1])
+                    sceneItem = self.drawBus([central_point.x(), central_point.y()])
                     BUSES_PIXMAP[(i, j)] = sceneItem
         except Exception:
             logging.error(traceback.format_exc())
@@ -208,6 +214,7 @@ class SchemeInputer(QGraphicsScene):
                             try:
                                 if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
                                     # when a bus is achieved
+                                    print(self._moveHistory)
                                     line = self.drawLine(self._moveHistory)
                                     self._moveHistory[:, :] = -1
                                     self._lastRetainer = True  # Prevent the user for put line outside last bus
@@ -216,6 +223,7 @@ class SchemeInputer(QGraphicsScene):
                                     self._methodSignal.emit_sig('addLine')
                                 elif not isinstance(GRID_BUSES[i, j], Barra) and not (self._lastRetainer or self._firstRetainer):
                                     # started from a bus
+                                    print(self._moveHistory)
                                     line = self.drawLine(self._moveHistory)
                                     self._moveHistory[:, :] = -1
                                     self._pointerSignal.emit_sig((i, j))
@@ -1343,10 +1351,24 @@ class Aspy(QMainWindow):
         self.statusBar().showMessage(args)
 
     def saveSession(self):
-        pass
+        try:
+            sessions_dir = getSessionsDir()
+            with shelve.open(os.path.join(sessions_dir, './db')) as db:
+                db = storeData(db)
+                # print(db['LINES'])
+                # print(db['BUSES'])
+                # print(db['TRANSFORMERS'])
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def loadSession(self):
-        pass
+        try:
+            sessions_dir = getSessionsDir()
+            with shelve.open(os.path.join(sessions_dir, './db')) as db:
+                createLocalData(db)
+            createSchematic(self.CircuitInputer.Scene)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def addLineType(self):
         print('add line type')
@@ -1358,24 +1380,51 @@ class Aspy(QMainWindow):
         print('edit line type')
 
 def storeData(db):
-    db['LINES'], db['BUSES'], db['TRANSFORMERS'] = [], [], []
+    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
+    filtered_lines = []
     for line in LINES:
-        db['LINES'].append([line[0], [], line[2], False])  # aspy.core.LT/coordinates
-    for bus in BUSES:
-        db['BUSES'].append([bus])
+        filtered_lines.append([line[0], [], line[2], False])
+    db['LINES'] = filtered_lines
+    db['BUSES'] = BUSES
+    db['GRID_BUSES'] = GRID_BUSES
+    filtered_trafos = []
     for trafo in TRANSFORMERS:
-        db['TRANSFORMERS'].append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
+        filtered_trafos.append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
+    db['TRANSFORMERS'] = filtered_trafos
     db['LINE_TYPES'] = LINE_TYPES
+    return db
 
 def createLocalData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES
+    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
     LINE_TYPES = db['LINE_TYPES']
     LINES = db['LINES']
     BUSES = db['BUSES']
     TRANSFORMERS = db['TRANSFORMERS']
+    GRID_BUSES = db['GRID_BUSES']
 
-def createSchematic(db, scene):
+def coordpairs(coords):
+    # TODO set square side length as variable
+    k = 0
+    while k < len(coords)-1:
+        yield(np.array([[25+50*coords[k][1], 25+50*coords[k][0]],
+               [25+50*coords[k+1][1], 25+50*coords[k+1][0]]]))
+        k += 1
+
+def createSchematic(scene):
     global LINES, TRANSFORMERS, BUSES
+    for bus in BUSES:
+        point = 25+50*bus.posicao[1], 25+50*bus.posicao[0]
+        drawbus = scene.drawBus(point)
+        BUSES_PIXMAP[bus.posicao] = drawbus
+    for pos, line in enumerate(LINES):
+        for pairs in coordpairs(line[2]):
+            print(pairs)
+            drawline = scene.drawLine(pairs)
+            LINES[pos][1].append(drawline)
+    for pos, trafo in enumerate(TRANSFORMERS):
+        for pairs in coordpairs(trafo[2]):
+            drawline = scene.drawLine(pairs, color='r')
+            TRANSFORMERS[pos][1].append(drawline)
 
 def getSessionsDir():
     if sys.platform in ('win32', 'win64'):
