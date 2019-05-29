@@ -973,12 +973,15 @@ class CircuitInputer(QWidget):
 
 
     def updateBusInspector(self, BUS=0):
-        """Updates the BI with bus data if bus existes or
+        """Updates the BI with bus data if bus exists or
         show that there's no bus (only after bus exclusion)
         ---------------------------------------------------
         Called by: LayoutManager, remove_gen
-        ---------------------------------------------------
-        """
+        ---------------------------------------------------"""
+        self._statusMsg.emit_sig('')
+        to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
+        for item in to_be_desactivated:
+            item.setEnabled(False)
         if BUS:
             if BUS.barra_id == 0:
                 self.BarTitle.setText('Barra Slack'.format(BUS.barra_id))
@@ -990,6 +993,7 @@ class CircuitInputer(QWidget):
             self.PgInput.setText('{:.1f}'.format(BUS.pg))
             self.QlInput.setText('{:.1f}'.format(BUS.ql))
             self.PlInput.setText('{:.1f}'.format(BUS.pl))
+            self.XdLineEdit.setText('{:.1f}'.format(BUS.xd))
         else:
             self.BarTitle.setText('No bar')
             self.BarV_Value.setText('{:.1f}'.format(0.0))
@@ -998,7 +1002,7 @@ class CircuitInputer(QWidget):
             self.PgInput.setText('{:.1f}'.format(0.0))
             self.QlInput.setText('{:.1f}'.format(0.0))
             self.PlInput.setText('{:.1f}'.format(0.0))
-
+            self.XdLineEdit.setText('{:.1f}'.format(0.0))
 
     def LayoutManager(self):
         """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
@@ -1168,7 +1172,6 @@ class CircuitInputer(QWidget):
         """
         try:
             global BUSES
-            # TODO problema no 'abandono' das entradas da geração
             BUS = self.getBusFromGridPos(self._currElementCoords)
             self.BarV_Value.setEnabled(True)
             if BUS.barra_id != 0:
