@@ -76,7 +76,7 @@ class SchemeInputer(QGraphicsScene):
     def __init__(self, n=N, length=50, *args, **kwargs):
         super(SchemeInputer, self).__init__(*args, **kwargs)
         self.n = n
-        self._oneUnityLength = length
+        self._oneSquareSideLength = length
         self._moveHistory = np.ones((2, 2))*-1
         self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
         self._lastRetainer, self._firstRetainer = False, True
@@ -84,10 +84,10 @@ class SchemeInputer(QGraphicsScene):
         self._methodSignal = GenericSignal()
         self._dataSignal = GenericSignal()
         self.selector_radius = length/2
-        self.setSceneRect(0, 0, self._oneUnityLength*self.n, self._oneUnityLength*self.n)  # Visible portion of Scene to View
+        self.setSceneRect(0, 0, self._oneSquareSideLength*self.n, self._oneSquareSideLength*self.n)  # Visible portion of Scene to View
         self.quantizedInterface = self.getQuantizedInterface()
         self.showQuantizedInterface()
-        self.setSceneRect(-2*self._oneUnityLength, -2*self._oneUnityLength, self._oneUnityLength*(self.n+4), self._oneUnityLength*(self.n+4))
+        self.setSceneRect(-2*self._oneSquareSideLength, -2*self._oneSquareSideLength, self._oneSquareSideLength*(self.n+4), self._oneSquareSideLength*(self.n+4))
 
 
     @staticmethod
@@ -98,8 +98,8 @@ class SchemeInputer(QGraphicsScene):
     def Point_pos(self, central_point):
         """Returns point coordinates in grid
         """
-        i = int((central_point.y()-self._oneUnityLength/2)/self._oneUnityLength)
-        j = int((central_point.x()-self._oneUnityLength/2)/self._oneUnityLength)
+        i = int((central_point.y()-self._oneSquareSideLength/2)/self._oneSquareSideLength)
+        j = int((central_point.x()-self._oneSquareSideLength/2)/self._oneSquareSideLength)
         return i, j
 
 
@@ -136,7 +136,7 @@ class SchemeInputer(QGraphicsScene):
         brush.setColor(Qt.yellow)
         brush.setStyle(Qt.Dense7Pattern)
         x, y = coordinates
-        QRect = self.addRect(x, y, self._oneUnityLength, self._oneUnityLength, pen, brush)
+        QRect = self.addRect(x, y, self._oneSquareSideLength, self._oneSquareSideLength, pen, brush)
         return QRect
 
 
@@ -147,9 +147,9 @@ class SchemeInputer(QGraphicsScene):
 
     def drawBus(self, coordinates):
         pixmap = QPixmap('./data/icons/DOT.jpg')
-        pixmap = pixmap.scaled(self._oneUnityLength, self._oneUnityLength, Qt.KeepAspectRatio)
+        pixmap = pixmap.scaled(self._oneSquareSideLength, self._oneSquareSideLength, Qt.KeepAspectRatio)
         sceneItem = self.addPixmap(pixmap)
-        pixmap_coords = coordinates[0]-self._oneUnityLength/2, coordinates[1]-self._oneUnityLength/2
+        pixmap_coords = coordinates[0]-self._oneSquareSideLength/2, coordinates[1]-self._oneSquareSideLength/2
         sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
         return sceneItem
 
@@ -163,7 +163,7 @@ class SchemeInputer(QGraphicsScene):
                     i, j = self.Point_pos(central_point)
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
-                    sceneItem = self.drawBus([central_point.x(), central_point.y()])
+                    sceneItem = self.drawBus((central_point.x(), central_point.y()))
                     BUSES_PIXMAP[(i, j)] = sceneItem
         except Exception:
             logging.error(traceback.format_exc())
@@ -179,8 +179,8 @@ class SchemeInputer(QGraphicsScene):
                         i, j = self.Point_pos(central_point)
                         self.clearSquare(self._selectorHistory[0])
                         #  up-right corner is (0, 0)
-                        self._selectorHistory[1] = central_point.x() - self._oneUnityLength/2
-                        self._selectorHistory[2] = central_point.y() - self._oneUnityLength/2
+                        self._selectorHistory[1] = central_point.x() - self._oneSquareSideLength/2
+                        self._selectorHistory[2] = central_point.y() - self._oneSquareSideLength/2
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
                         self._pointerSignal.emit_sig((i, j))
                         self._methodSignal.emit_sig('storeOriginAddLt')
@@ -297,7 +297,6 @@ class CircuitInputer(QWidget):
         self.BarLayout = QVBoxLayout()
 
         ### Bus title ###
-        # TODO add X'd in each bus
         self.BarTitle = QLabel('Bar title')
         self.BarTitle.setAlignment(Qt.AlignCenter)
         self.BarTitle.setMinimumWidth(200)
@@ -1355,9 +1354,6 @@ class Aspy(QMainWindow):
             sessions_dir = getSessionsDir()
             with shelve.open(os.path.join(sessions_dir, './db')) as db:
                 db = storeData(db)
-                # print(db['LINES'])
-                # print(db['BUSES'])
-                # print(db['TRANSFORMERS'])
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1402,27 +1398,26 @@ def createLocalData(db):
     TRANSFORMERS = db['TRANSFORMERS']
     GRID_BUSES = db['GRID_BUSES']
 
-def coordpairs(coords):
-    # TODO set square side length as variable
+def coordpairs(coords, squarel):
     k = 0
     while k < len(coords)-1:
-        yield(np.array([[25+50*coords[k][1], 25+50*coords[k][0]],
-               [25+50*coords[k+1][1], 25+50*coords[k+1][0]]]))
+        yield(np.array([[squarel/2+squarel*coords[k][1], squarel/2+squarel*coords[k][0]],
+               [squarel/2+squarel*coords[k+1][1], squarel/2+squarel*coords[k+1][0]]]))
         k += 1
 
 def createSchematic(scene):
     global LINES, TRANSFORMERS, BUSES
+    squarel = scene._oneSquareSideLength
     for bus in BUSES:
-        point = 25+50*bus.posicao[1], 25+50*bus.posicao[0]
+        point = squarel/2+squarel*bus.posicao[1], squarel/2+squarel*bus.posicao[0]
         drawbus = scene.drawBus(point)
         BUSES_PIXMAP[bus.posicao] = drawbus
     for pos, line in enumerate(LINES):
-        for pairs in coordpairs(line[2]):
-            print(pairs)
+        for pairs in coordpairs(line[2], squarel):
             drawline = scene.drawLine(pairs)
             LINES[pos][1].append(drawline)
     for pos, trafo in enumerate(TRANSFORMERS):
-        for pairs in coordpairs(trafo[2]):
+        for pairs in coordpairs(trafo[2], squarel):
             drawline = scene.drawLine(pairs, color='r')
             TRANSFORMERS[pos][1].append(drawline)
 
@@ -1431,7 +1426,6 @@ def getSessionsDir():
         home_dir = os.getenv('userprofile')
         sessions_dir = os.path.join(home_dir, 'Documents\\aspy')
     return sessions_dir
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
