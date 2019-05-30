@@ -197,7 +197,6 @@ class SchemeInputer(QGraphicsScene):
                             try:
                                 if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
                                     # when a bus is achieved
-                                    print(self._moveHistory)
                                     line = self.drawLine(self._moveHistory)
                                     self._moveHistory[:, :] = -1
                                     self._lastRetainer = True  # Prevent the user for put line outside last bus
@@ -207,7 +206,6 @@ class SchemeInputer(QGraphicsScene):
                                 elif not isinstance(GRID_BUSES[i, j], Barra) and not (
                                         self._lastRetainer or self._firstRetainer):
                                     # started from a bus
-                                    print(self._moveHistory)
                                     line = self.drawLine(self._moveHistory)
                                     self._moveHistory[:, :] = -1
                                     self._pointerSignal.emit_sig((i, j))
@@ -653,6 +651,7 @@ class CircuitInputer(QWidget):
                         l = float(self.EllLineEdit.text())
                         self.updateLineWithParameters(line, param_values, l)
                         self.LayoutManager()
+                        self._statusMsg.emit_sig('Updated line with parameters')
                     else:
                         self._statusMsg.emit_sig('You have to choose an valid model')
                 elif mode == 'impedance':
@@ -662,6 +661,7 @@ class CircuitInputer(QWidget):
                     l = float(self.EllLineEdit.text())
                     self.updateLineWithImpedances(line, Z, Y, l)
                     self.LayoutManager()
+                    self._statusMsg.emit_sig('Update line with impedances')
             elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
                 # The element is a trafo and will be converted into a line
                 assert (self.getLtFromGridPos(self._currElementCoords) is None)
@@ -675,12 +675,14 @@ class CircuitInputer(QWidget):
                     if param_values is not None:
                         l = float(self.EllLineEdit.text())
                         self.updateLineWithParameters(new_line, param_values, l)
+                        self._statusMsg.emit_sig('Trafo -> line, updated with parameters')
                     else:
                         self._statusMsg.emit_sig('You have to choose an valid model')
                 elif mode == 'impedance':
                     Z, Y = complex(self.LtZLineEdit.text()), complex(self.LtYLineEdit.text())
                     l = float(self.EllLineEdit.text())
                     self.updateLineWithImpedances(new_line, Z, Y, l)
+                    self._statusMsg.emit_sig('Trafo -> line, updated with impedances')
                 inserting_line = [new_line, TRAFO[1], TRAFO[2], False]
                 for line_drawing in inserting_line[1]:
                     blue_pen = QPen()
@@ -742,6 +744,7 @@ class CircuitInputer(QWidget):
                     self.Scene.addItem(line_drawing)
                 TRANSFORMERS.append(inserting_trafo)
                 self.LayoutManager()
+                self._statusMsg.emit_sig('Line -> trafo')
             elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
                 # Update parameters of selected trafo
                 assert (self.getLtFromGridPos(self._currElementCoords) is None)
@@ -753,6 +756,7 @@ class CircuitInputer(QWidget):
                 trafo[0].jx1 = float(self.XPosSeqTrafoLineEdit.text())
                 trafo[0].connection = self.TrafoConnection.currentText()
                 self.LayoutManager()
+                self._statusMsg.emit_sig('Updated trafo parameters')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -765,7 +769,6 @@ class CircuitInputer(QWidget):
             titles = new_values[:2]
             par_names = new_values[2::2]
             par_values = new_values[3::2]
-            print(titles, par_names, par_values)
             if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
                 self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
                 return
@@ -773,15 +776,13 @@ class CircuitInputer(QWidget):
                 self._statusMsg.emit_sig('Undefined parameter. Fill all parameters')
                 return
             elif any(map(lambda x: par_values == list(x[1].values()), LINE_TYPES)):
-                self._statusMsg.emit_sig('A similar model was identified. The model has been not stored')
+                self._statusMsg.emit_sig('A similar model was identified. The model has not been stored')
                 return
             else:
                 LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
                 self._statusMsg.emit_sig('The model has been stored')
         except Exception:
             logging.error(traceback.format_exc())
-        finally:
-            print(LINE_TYPES)
 
     def hideSpacer(self):
         self.Spacer.changeSize(0, 0)
@@ -836,6 +837,7 @@ class CircuitInputer(QWidget):
                     if LINES[-1][0].destiny is None:
                         LINES[-1][0].destiny = self._currElementCoords
             self._startNewLT = False
+            self._statusMsg.emit_sig('Adding line...')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -861,7 +863,7 @@ class CircuitInputer(QWidget):
         for linedrawing in trafo[1]:
             self.Scene.removeItem(linedrawing)
         TRANSFORMERS.remove(trafo)
-        print('len(TRANSFORMERS) = ', len(TRANSFORMERS))
+        self._statusMsg.emit_sig('Removed selected trafo')
 
     def remove_selected_line(self, line=None):
         global LINES
@@ -873,7 +875,7 @@ class CircuitInputer(QWidget):
         for linedrawing in line[1]:
             self.Scene.removeItem(linedrawing)
         LINES.remove(line)
-        print('len(LINES) = ', len(LINES))
+        self._statusMsg.emit_sig('Removed selected line')
 
     def remove_pointless_lines(self):
         """If line's bool remove is True, the line will be removed.
@@ -901,7 +903,6 @@ class CircuitInputer(QWidget):
             filtered = LINES.copy()
             filtered.remove(last_line)
             filtered = list(filter(lambda x: len(x[2]) == 2, filtered))
-            print('isLastLineDuplicated >>> filtered: \n', filtered)
             if len(filtered) > 1:
                 for other_line in filtered:
                     if last_line[2] == other_line[2]:
@@ -942,7 +943,6 @@ class CircuitInputer(QWidget):
         ---------------------------------------------------
         Called by: LayoutManager, remove_gen
         ---------------------------------------------------"""
-        self._statusMsg.emit_sig('')
         to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
         for item in to_be_desactivated:
             item.setEnabled(False)
@@ -1029,13 +1029,14 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.InputNewLineType, True)
                 self.showSpacer()
         except Exception:
-            print(logging.error(traceback.format_exc()))
+            logging.error(traceback.format_exc())
 
     def add_bus(self):
         try:
             global GRID_BUSES, ID, BUSES
             COORDS = self._currElementCoords
             if not isinstance(GRID_BUSES[COORDS], Barra):
+                self._statusMsg.emit_sig('Added bus')
                 if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
                     # first add, or add after bus' exclusion
                     SLACK = Barra(barra_id=0, posicao=COORDS)
@@ -1107,6 +1108,8 @@ class CircuitInputer(QWidget):
         return None
 
     def removeElementsLinked2Bus(self, BUS):
+        """Remove all elements linked to a bus
+        """
         global LINES, TRANSFORMERS
         linked_lts, linked_trfs = [], []
         for line in LINES:
@@ -1120,11 +1123,11 @@ class CircuitInputer(QWidget):
 
     def add_gen(self):
         """
-        Adds generation to the bus, desblocks some QLineEdits
-        -----------------------------------------------------
+        Adds generation to the bus, make some QLineEdits activated
+        ----------------------------------------------------------
         Called by: QPushButton Add generation (__init__)
         -----------------------------------------------------------
-        Consideering: any generation is non-grounded star connected
+        Considering: any generation is non-grounded star connected
         -----------------------------------------------------------
         """
         try:
@@ -1156,40 +1159,36 @@ class CircuitInputer(QWidget):
             GRID_BUSES[self._currElementCoords].v = BUS.v
             GRID_BUSES[self._currElementCoords].pg = BUS.pg
             GRID_BUSES[self._currElementCoords].xd = BUS.xd
-            self._statusMsg.emit_sig('Added generation')
-            print('Barra atualizada')
-            print('V da barra: {0}, Pg da barra: {1}'.format(BUS.v, BUS.pg))
             self.BarV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
             self.XdLineEdit.setEnabled(False)
             self.AddGenerationButton.setText('-')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.remove_gen)
+            self._statusMsg.emit_sig('Added generation')
 
     def remove_gen(self):
         global GRID_BUSES, BUSES
         if isinstance(GRID_BUSES[self._currElementCoords], Barra):
             BUS = self.getBusFromGridPos(self._currElementCoords)
-            BUS.v = 0
+            BUS.v = 1
             BUS.pg = 0
             BUS.xd = 0
-            GRID_BUSES[self._currElementCoords].v = 0
-            GRID_BUSES[self._currElementCoords].pg = 0
-            GRID_BUSES[self._currElementCoords].xd = 0
-            self._statusMsg.emit_sig('Removed generation')
-            print('Geração removida')
-            print('V da barra: {0}, Pg da barra: {1}'.format(BUS.v, BUS.pg))
+            GRID_BUSES[self._currElementCoords].v = BUS.v
+            GRID_BUSES[self._currElementCoords].pg = BUS.pg
+            GRID_BUSES[self._currElementCoords].xd = BUS.pg
             self.updateBusInspector(BUS)
             self.AddGenerationButton.setText('+')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.add_gen)
+            self._statusMsg.emit_sig('Removed generation')
 
     def add_load(self):
         """
         ------------------------------------------
         Called by: QPushButton Add load (__init__)
         ------------------------------------------
-        Consideering: any load is grounded in star connection
+        Considering: any load is grounded in star connection
         """
         try:
             global BUSES
@@ -1216,14 +1215,12 @@ class CircuitInputer(QWidget):
                 BUS.ql = float(self.QlInput.text())
                 GRID_BUSES[self._currElementCoords].pl = BUS.pl
                 GRID_BUSES[self._currElementCoords].ql = BUS.ql
-                self._statusMsg.emit_sig('Added load')
-                print('Barra atualizada')
-                print('Pl da barra: {0}, Ql da barra: {1}'.format(BUS.pl, BUS.ql))
                 self.PlInput.setEnabled(False)
                 self.QlInput.setEnabled(False)
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.remove_load)
+                self._statusMsg.emit_sig('Added load')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1236,13 +1233,11 @@ class CircuitInputer(QWidget):
                 BUS.ql = 0
                 GRID_BUSES[self._currElementCoords].pl = 0
                 GRID_BUSES[self._currElementCoords].ql = 0
-                self._statusMsg.emit_sig('Removed load')
-                print('Carga removida')
-                print('Pl da barra: {0}, Ql da barra: {1}'.format(BUS.pl, BUS.ql))
                 self.updateBusInspector(BUS)
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.add_load)
+                self._statusMsg.emit_sig('Removed load')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1253,7 +1248,7 @@ class Aspy(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.statusBar().showMessage('Ready')
+        self.displayStatusMsg('Ready')
 
         ### Actions ###
         saveAct = QAction('Save current session', self)
@@ -1301,7 +1296,7 @@ class Aspy(QMainWindow):
         pass
 
     def displayStatusMsg(self, args):
-        self.statusBar().showMessage(args)
+        self.statusBar().showMessage(args, msecs=10000)
 
     def saveSession(self):
         try:
@@ -1321,10 +1316,10 @@ class Aspy(QMainWindow):
             logging.error(traceback.format_exc())
 
     def addLineType(self):
-        print('add line type')
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.InputNewLineType, False)
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, True)
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.LtOrTrafoLayout, True)
+        self.displayStatusMsg('Adding new line model')
 
     def editLineType(self):
         print('edit line type')
