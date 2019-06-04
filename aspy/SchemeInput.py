@@ -842,12 +842,13 @@ class CircuitInputer(QWidget):
             logging.error(traceback.format_exc())
 
     def checkTlCrossing(self):
-        global LINES
+        global LINES, TRANSFORMERS
         for tl in LINES:
             if self._currElementCoords in tl[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
                 return True
-            else:
-                continue
+        for trafo in TRANSFORMERS:
+            if self._currElementCoords in trafo[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
+                return True
         return False
 
     def remove_selected_trafo(self, trafo=None):
@@ -951,6 +952,22 @@ class CircuitInputer(QWidget):
                 self.BarTitle.setText('Barra Slack'.format(BUS.barra_id))
             else:
                 self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
+            if BUS.pl > 0 or BUS.ql > 0:
+                self.AddLoadButton.setText('-')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.remove_load)
+            else:
+                self.AddLoadButton.setText('+')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.add_load)
+            if BUS.pg > 0 or BUS.qg > 0:
+                self.AddGenerationButton.setText('-')
+                self.AddGenerationButton.disconnect()
+                self.AddGenerationButton.pressed.connect(self.remove_gen)
+            else:
+                self.AddGenerationButton.setText('+')
+                self.AddGenerationButton.disconnect()
+                self.AddGenerationButton.pressed.connect(self.add_gen)
             self.BarV_Value.setText('{:.1f}'.format(np.abs(BUS.v)))
             self.BarAngle_Value.setText('{:.1f}º'.format(np.angle(BUS.v)))
             self.QgInput.setText('{:.1f}'.format(BUS.qg))
@@ -1070,7 +1087,7 @@ class CircuitInputer(QWidget):
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
-                self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
+                # self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
                 self.LayoutManager()
         except Exception:
             logging.error(traceback.format_exc())
@@ -1162,9 +1179,13 @@ class CircuitInputer(QWidget):
             self.BarV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
             self.XdLineEdit.setEnabled(False)
-            self.AddGenerationButton.setText('-')
             self.AddGenerationButton.disconnect()
-            self.AddGenerationButton.pressed.connect(self.remove_gen)
+            if BUS.barra_id:
+                self.AddGenerationButton.setText('-')
+                self.AddGenerationButton.pressed.connect(self.remove_gen)
+            else:
+                self.AddGenerationButton.setText('+')
+                self.AddGenerationButton.pressed.connect(self.add_gen)
             self._statusMsg.emit_sig('Added generation')
 
     def remove_gen(self):

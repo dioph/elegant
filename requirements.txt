@@ -1,5 +1,4 @@
-kivy
 numpy
 scipy
 pylatex
-matplotlib
+PyQt5
