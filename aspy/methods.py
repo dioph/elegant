@@ -1,6 +1,128 @@
 import numpy as np
 
 
+def update(barras, linhas, trafos, grid, mask):
+    linhas = np.array(linhas)[:, 0]
+    trafos = np.array(trafos)[:, 0]
+    N = len(barras[mask])
+    Y = Ybus(barras, linhas, trafos, grid)
+    V0 = np.zeros(N, complex)
+    S = np.zeros((N, 2))
+    for i in range(N):
+        if barras[i].pg > 0:
+            if barras[i].barra_id > 0:
+                V0[i] = np.abs(barras[i].v)
+                S[i] = np.array([barras[i].pg-barras[i].pl, np.nan])
+            else:
+                V0[i] = barras[i].v
+                S[i] = np.array([np.nan, np.nan])
+        else:
+            V0[i] = 1.0
+            S[i] = np.array([-barras[i].pl, -barras[i].ql])
+    V = gauss_seidel(Y, V0, S, eps=1e-6)
+    return V
+
+
+def Ybus(barras, linhas, trafos, grid):
+    """Generate Ybus matrix from current state
+
+    Parameters
+    ----------
+    barras: bus array (N,)
+    linhas: lines array (N,)
+    trafos: transformers array (N,)
+    grid: bus grid
+
+    Returns
+    -------
+    Y: Ybus matrix (N,N)
+    """
+    N = len(barras)
+    Y = np.zeros((N, N), complex)
+    for lt in linhas:
+        node1 = grid[lt.origin].barra_id
+        node2 = grid[lt.destiny].barra_id
+        Y[node1, node1] += 1/lt.Z + lt.Y/2
+        Y[node2, node2] += 1/lt.Z + lt.Y/2
+        Y[node1, node2] -= 1/lt.Z
+        Y[node2, node1] -= 1/lt.Z
+    for t in trafos:
+        node1 = grid[t.origin].barra_id
+        node2 = grid[t.destiny].barra_id
+        Y[node1, node1] += 1 / t.Z1
+        Y[node2, node2] += 1 / t.Z1
+        Y[node1, node2] -= 1 / t.Z1
+        Y[node2, node1] -= 1 / t.Z1
+    return Y
+
+
+def Yseq(barras, linhas, trafos, grid):
+    """Generate Ybus matrix for positive and zero sequence networks
+
+    Parameters
+    ----------
+    barras: bus array (N,)
+    linhas: lines array (N,)
+    trafos: transformers array (N,)
+    grid: bus grid
+
+    Returns
+    -------
+    Y0: zero-sequence Ybus matrix (N,N)
+    Y1: positive-sequence Ybus matrix (N,N)
+    """
+    # seq +
+    N = len(barras)
+    Y1 = np.zeros((N, N), complex)
+    for b in barras:
+        node = b.barra_id
+        Y1[node, node] += 1 / b.Z
+        Y1[node, node] += 1 / b.xd
+    for lt in linhas:
+        node1 = grid[lt.origin].barra_id
+        node2 = grid[lt.destiny].barra_id
+        Y1[node1, node1] += 1 / lt.Z + lt.Y / 2
+        Y1[node2, node2] += 1 / lt.Z + lt.Y / 2
+        Y1[node1, node2] -= 1 / lt.Z
+        Y1[node2, node1] -= 1 / lt.Z
+    for t in trafos:
+        node1 = grid[t.origin].barra_id
+        node2 = grid[t.destiny].barra_id
+        Y1[node1, node1] += 1 / t.Z1
+        Y1[node2, node2] += 1 / t.Z1
+        Y1[node1, node2] -= 1 / t.Z1
+        Y1[node2, node1] -= 1 / t.Z1
+    # seq 0
+    Y0 = np.zeros((N, N), complex)
+    for b in barras:
+        node = b.barra_id
+        Y0[node, node] += 1 / b.Z
+    for lt in linhas:
+        node1 = grid[lt.origin].barra_id
+        node2 = grid[lt.destiny].barra_id
+        Y0[node1, node1] += 1 / lt.Z + lt.Y / 2
+        Y0[node2, node2] += 1 / lt.Z + lt.Y / 2
+        Y0[node1, node2] -= 1 / lt.Z
+        Y0[node2, node1] -= 1 / lt.Z
+    for t in trafos:
+        if t.primary == 1:
+            if t.secondary == 1:
+                node1 = grid[t.origin].barra_id
+                node2 = grid[t.destiny].barra_id
+                Y0[node1, node1] += 1 / t.Z0
+                Y0[node2, node2] += 1 / t.Z0
+                Y0[node1, node2] -= 1 / t.Z0
+                Y0[node2, node1] -= 1 / t.Z0
+            elif t.secondary == 2:
+                node = grid[t.origin].barra_id
+                Y0[node, node] += 1 / t.Z0
+        elif t.secondary == 1 and t.primary == 2:
+            node = grid[t.destiny].barra_id
+            Y0[node, node] += 1 / t.Z0
+
+    return Y0, Y1
+
+
 def short(Y1, Y0, V):
     """Calculates three-phase short circuit current levels for each bus
 
@@ -13,7 +135,7 @@ def short(Y1, Y0, V):
     Returns
     -------
     I: array, shape (N, 4, 3)
-        Three-phse current levels for each of the N buses for each of the following fault types:
+        Three-phase current levels for each of the N buses for each of the following fault types:
         --> Three-phase to ground (TPG);
         --> Single-line to ground (SLG);
         --> Double-line to ground (DLG);
@@ -43,20 +165,20 @@ def short(Y1, Y0, V):
     return np.array(I)
 
 
-def gauss_seidel(Y, V0, S, eps=None, Niter=1, nmax=1000):
+def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     """Gauss-Seidel Method
 
     Parameters
     ----------
-    Y: Matriz Ybarra (N,N)
-    V0: Chute inicial complexo (N,)
-    S: Potencias especificadas (N,2)
-    eps: tolerancia (optional)
-    Niter: Numero de iteracoes minimo (optional default=1)
+    Y: Ybus matrix (N,N)
+    V0: Complex initial guess (N,)
+    S: Specified apparent power (N,2)
+    eps: tolerance (optional)
+    Niter: minimum number of iterations (optional default=1)
 
     Returns
     -------
-    V: aproximacao para tensoes nos nos
+    V: bus voltage approximations array (N,)
     """
     N = V0.size
     Vold = np.copy(V0)
@@ -65,7 +187,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1, nmax=1000):
     if eps is None:
         eps = np.inf
     count = 0
-    while (delta > eps or count < Niter) and count < nmax:
+    while delta > eps or count < Niter:
         for i in range(N):
             I = np.dot(Y[i], V)
             P, Q = S[i]
@@ -82,8 +204,6 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1, nmax=1000):
         count += 1
     print('TOTAL: {} ITERACOES'.format(count))
     print('delta = ', delta)
-    if count == nmax:
-        return V0
     return V
 
 
