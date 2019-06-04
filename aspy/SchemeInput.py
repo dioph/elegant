@@ -1424,10 +1424,18 @@ def createSchematic(scene):
             drawline = scene.drawLine(pairs, color='r')
             TRANSFORMERS[pos][1].append(drawline)
 
+
 def getSessionsDir():
     if sys.platform in ('win32', 'win64'):
         home_dir = os.getenv('userprofile')
         sessions_dir = os.path.join(home_dir, 'Documents\\aspy')
+    elif sys.platform == 'linux':
+        home_dir = os.getenv('HOME')
+        sessions_dir = os.path.join(home_dir, 'aspy')
+    else:
+        sessions_dir = '.'
+    if not os.path.exists(sessions_dir):
+        os.mkdir(sessions_dir)
     return sessions_dir
 
 if __name__ == '__main__':
