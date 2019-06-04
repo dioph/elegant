@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.stats.mstats import gmean
 
-
 CORR = np.exp(-.25)
 SQ2 = np.sqrt(2.)
 OMEGA = 2 * np.pi * 60.
@@ -10,7 +9,7 @@ EPS = 8.854e-12
 
 
 class Barra(object):
-    def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0, xd=0.0):
+    def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0, xd=np.inf):
         self.barra_id = barra_id
         self.v = v
         self.i = i
@@ -19,7 +18,6 @@ class Barra(object):
         self.qg = qg
         self.pl = pl
         self.ql = ql
-        self.vbase = 1e3
         self.posicao = posicao
         self.xd = xd
 
@@ -30,6 +28,12 @@ class Barra(object):
     @property
     def Q(self):
         return self.qg - self.ql
+
+    @property
+    def Z(self):
+        if self.pl != 0 or self.ql != 0:
+            return np.abs(self.v) ** 2 / (self.pl - 1j * self.ql)
+        return np.inf
 
 
 class BarraPQ(Barra):
@@ -46,10 +50,11 @@ class BarraSL(Barra):
     def __init__(self, barra_id=0, v=1e3, delta=0., pl=0., ql=0.):
         super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=pl, ql=ql)
         self.vbase = 1e3
-        
+
 
 class LT(object):
-    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0, Z=None, Y=None, origin=None, destiny=None):
+    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0,
+                 Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.l = l
         self.r = r
@@ -94,17 +99,15 @@ class LT(object):
     @property
     def Z(self):
         if (self.z, self.y) == (None, None):
-            R = self.rho * self.l / (self.m * PI * self.r**2)
+            R = self.rho * self.l / (self.m * PI * self.r ** 2)
             L = 2e-7 * np.log(gmean([self.d12, self.d23, self.d31]) / self.Rm) * self.l
-            return R + OMEGA * L
+            return R + OMEGA * L * 1j
         else:
             return self.z
-
 
     @Z.setter
     def Z(self, Z):
         self.z = Z
-
 
     @property
     def Y(self):
@@ -114,27 +117,25 @@ class LT(object):
         else:
             return self.y
 
-
     @Y.setter
     def Y(self, Y):
         self.y = Y
 
 
 class Trafo(object):
-    def __init__(self, snom=1e6, vnom1=1e3, vnom2=1e3, jx0=0.0, jx1=0.0, connection='gYyg', origin=None, destiny=None):
+    def __init__(self, snom=1e8, jx0=0.0, jx1=0.0, primary=0, secondary=0, origin=None, destiny=None):
         self.snom = snom
-        self.vnom1 = vnom1
-        self.vnom2 = vnom2
         self.jx0 = jx0
         self.jx1 = jx1
-        self.connection = connection
+        self.primary = primary
+        self.secondary = secondary
         self.origin = origin
         self.destiny = destiny
 
     @property
-    def Zbase1(self):
-        return self.vnom1**2 / self.snom
+    def Z0(self):
+        return self.jx0 * 1e8 * 1j / self.snom
 
     @property
-    def Zbase2(self):
-        return self.vnom2**2 / self.snom
+    def Z1(self):
+        return self.jx1 * 1e8 * 1j / self.snom
