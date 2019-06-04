@@ -1,7 +1,5 @@
 networkx
-PyQt5
-kivy
 numpy
 scipy
 pylatex
-matplotlib
+PyQt5
