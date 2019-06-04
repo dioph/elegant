@@ -5,9 +5,11 @@ import traceback
 import glob
 import os
 
+import networkx as nx
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+
 from aspy.core import *
 
 """
@@ -52,6 +54,7 @@ from aspy.core import *
 # ---------------------------------------------------------------------------------------------------------
 """
 
+MASK = []
 N = 20
 ID = 1
 GRID_BUSES = np.zeros((N, N), object)
@@ -861,6 +864,7 @@ class CircuitInputer(QWidget):
                 if isinstance(GRID_BUSES[self._currElementCoords], Barra):
                     if LINES[-1][0].destiny is None:
                         LINES[-1][0].destiny = self._currElementCoords
+                        update_mask()
             self._startNewLT = False
         except Exception:
             logging.error(traceback.format_exc())
@@ -889,6 +893,7 @@ class CircuitInputer(QWidget):
         for linedrawing in trafo[1]:
             self.Scene.removeItem(linedrawing)
         TRANSFORMERS.remove(trafo)
+        update_mask()
         print('len(TRANSFORMERS) = ', len(TRANSFORMERS))
 
 
@@ -902,6 +907,7 @@ class CircuitInputer(QWidget):
         for linedrawing in line[1]:
             self.Scene.removeItem(linedrawing)
         LINES.remove(line)
+        update_mask()
         print('len(LINES) = ', len(LINES))
 
 
@@ -960,6 +966,7 @@ class CircuitInputer(QWidget):
                 assert(lt[0].origin is not None)
                 assert(lt[0].destiny is not None)
             self.LayoutManager()
+            update_mask()
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1077,12 +1084,14 @@ class CircuitInputer(QWidget):
                     # first add, or add after bus' exclusion
                     SLACK = Barra(barra_id=0, posicao=COORDS)
                     BUSES.insert(0, SLACK)
+                    update_mask()
                     GRID_BUSES[COORDS] = SLACK
                 elif any([BUS.barra_id == 0 for BUS in BUSES]) and np.size(BUSES) > 0:
                     # sequenced bus insert
                     BUS = Barra(barra_id=ID, posicao=COORDS)
                     GRID_BUSES[COORDS] = BUS
                     BUSES.append(BUS)
+                    update_mask()
                     ID += 1
                 self.LayoutManager()
             else:
@@ -1107,6 +1116,7 @@ class CircuitInputer(QWidget):
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
+                update_mask()
                 self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
                 self.LayoutManager()
         except Exception:
@@ -1377,6 +1387,25 @@ class Aspy(QMainWindow):
 
     def editLineType(self):
         print('edit line type')
+
+
+def update_mask():
+    G = nx.Graph()
+    for b in BUSES:
+        G.add_node(b.barra_id)
+    for lt in LINES:
+        node1 = GRID_BUSES[lt[0].origin].barra_id
+        node2 = GRID_BUSES[lt[0].destiny].barra_id
+        G.add_edge(node1, node2)
+    connected_components = nx.connected_components(G)
+    neighbors = []
+    for component in connected_components:
+        if 0 in component:
+            neighbors = component
+    MASK = np.zeros(len(BUSES), bool)
+    MASK[list(neighbors)] = True
+    print([b.barra_id for b in np.array(BUSES)[MASK]])
+
 
 def storeData(db):
     global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES

@@ -1,3 +1,4 @@
+networkx
 PyQt5
 kivy
 numpy
