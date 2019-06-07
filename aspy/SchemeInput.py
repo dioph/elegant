@@ -195,7 +195,7 @@ class SchemeInputer(QGraphicsScene):
                             self._moveHistory[1, 1] = central_point.y()
                         if (np.all(self._moveHistory > 0)) and \
                                 (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
-                            ### DRAW LINE ###
+                            # DRAW LINE #
                             try:
                                 if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
                                     # when a bus is achieved
@@ -247,7 +247,7 @@ class SchemeInputer(QGraphicsScene):
 
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
-        ### ========================= General initializations ======================= ###
+        # ========================= General initializations ======================= #
         super(CircuitInputer, self).__init__(parent)
         self.Scene = SchemeInputer()
         self.View = QGraphicsView(self.Scene)
@@ -267,74 +267,74 @@ class CircuitInputer(QWidget):
         self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
         self.Scene._methodSignal.signal.connect(lambda args: self.methodsTrigger(args))
 
-        ### ========================= Inspectors =================================== ###
+        # ========================= Inspectors =================================== #
         self.InspectorLayout = QVBoxLayout()
 
-        ## Layout for general bar case ###
+        ## Layout for general bar case #
         self.BarLayout = QVBoxLayout()
 
-        ### Bus title ###
+        # Bus title #
         self.BarTitle = QLabel('Bar title')
         self.BarTitle.setAlignment(Qt.AlignCenter)
         self.BarTitle.setMinimumWidth(200)
 
-        ### Bus voltage ###
+        # Bus voltage #
         self.BarV_Value = QLineEdit('0.0')
         self.BarV_Value.setEnabled(False)
         self.BarV_Value.setValidator(QDoubleValidator(0.0, 100.0, 2))
 
-        ### Bus angle ###
+        # Bus angle #
         self.BarAngle_Value = QLineEdit('0.0º')
         self.BarAngle_Value.setEnabled(False)
 
-        ### FormLayout to hold bus data ###
+        # FormLayout to hold bus data #
         self.BarDataFormLayout = QFormLayout()
 
-        ### Adding bus voltage and bus angle to bus data FormLayout ###
+        # Adding bus voltage and bus angle to bus data FormLayout #
         self.BarDataFormLayout.addRow('|V|', self.BarV_Value)
         self.BarDataFormLayout.addRow('\u03b4', self.BarAngle_Value)
 
-        ### Label with 'Geração' ###
+        # Label with 'Geração' #
         self.AddGenerationLabel = QLabel('Geração')
         self.AddGenerationLabel.setAlignment(Qt.AlignCenter)
 
-        ### Button to add generation ###
+        # Button to add generation #
         self.AddGenerationButton = QPushButton('+')
         self.AddGenerationButton.pressed.connect(self.add_gen)  # Bind button to make input editable
 
-        ### FormLayout to add generation section ###
+        # FormLayout to add generation section #
         self.AddGenerationFormLayout = QFormLayout()
         self.AddLoadFormLayout = QFormLayout()
 
-        ### Line edit to Xd bus ###
+        # Line edit to Xd bus #
         self.XdLineEdit = QLineEdit('inf')
         self.XdLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 2))
         self.XdLineEdit.setEnabled(False)
 
-        ### Line edit to input bus Pg ###
+        # Line edit to input bus Pg #
         self.PgInput = QLineEdit('0.0')
         self.PgInput.setValidator(QDoubleValidator(0.0, 100.0, 2))
         self.PgInput.setEnabled(False)
 
-        ### Line edit to input bus Qg ###
+        # Line edit to input bus Qg #
         self.QgInput = QLineEdit('0.0')
         self.QgInput.setValidator(QDoubleValidator(0.0, 100.0, 2))
         self.QgInput.setEnabled(False)
 
-        ### Adding Pg, Qg to add generation FormLayout ###
+        # Adding Pg, Qg to add generation FormLayout #
         self.AddGenerationFormLayout.addRow('X\'d', self.XdLineEdit)
         self.AddGenerationFormLayout.addRow('Qg', self.QgInput)
         self.AddGenerationFormLayout.addRow('Pg', self.PgInput)
 
-        ### Label with 'Carga' ###
+        # Label with 'Carga' #
         self.AddLoadLabel = QLabel('Carga')
         self.AddLoadLabel.setAlignment(Qt.AlignCenter)
 
-        ### PushButton that binds to three different methods ###
+        # PushButton that binds to three different methods #
         self.AddLoadButton = QPushButton('+')
         self.AddLoadButton.pressed.connect(self.add_load)
 
-        ### LineEdit with Ql, Pl ###
+        # LineEdit with Ql, Pl #
         self.QlInput = QLineEdit('0.0')
         self.QlInput.setValidator(QDoubleValidator(0.0, 100.0, 2))
         self.PlInput = QLineEdit('0.0')
@@ -342,7 +342,7 @@ class CircuitInputer(QWidget):
         self.PlInput.setEnabled(False)
         self.QlInput.setEnabled(False)
 
-        ### Adding Pl and Ql to add load FormLayout ###
+        # Adding Pl and Ql to add load FormLayout #
         self.AddLoadFormLayout.addRow('Ql ', self.QlInput)
         self.AddLoadFormLayout.addRow('Pl ', self.PlInput)
         self.RemoveBus = QPushButton('Remove bus')
@@ -358,7 +358,7 @@ class CircuitInputer(QWidget):
         self.BarLayout.addLayout(self.AddLoadFormLayout)
         self.BarLayout.addWidget(self.RemoveBus)
 
-        ### Layout for input new type of line ###
+        # Layout for input new type of line #
         self.InputNewLineType = QVBoxLayout()
         self.InputNewLineTypeFormLayout = QFormLayout()
 
@@ -400,7 +400,7 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
         self.InputNewLineType.addStretch()
 
-        ### General Layout for LT case ###
+        # General Layout for LT case #
         self.LtOrTrafoLayout = QVBoxLayout()
 
         self.chooseLt = QRadioButton('LT')
@@ -511,7 +511,7 @@ class CircuitInputer(QWidget):
         self.LtOrTrafoLayout.addWidget(self.trafoSubmitPushButton)
         self.LtOrTrafoLayout.addWidget(self.removeTrafoPushButton)
 
-        ### Layout that holds bus inspector and Stretches ###
+        # Layout that holds bus inspector and Stretches #
         self.InspectorAreaLayout = QVBoxLayout()
         self.InspectorLayout.addStretch()
         self.InspectorLayout.addLayout(self.BarLayout)
@@ -519,7 +519,7 @@ class CircuitInputer(QWidget):
         self.InspectorLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
 
-        ### Toplayout ###
+        # Toplayout #
         self.TopLayout = QHBoxLayout()
         self.Spacer = QSpacerItem(200, 0, 0, 0)
         self.TopLayout.addItem(self.Spacer)
@@ -528,7 +528,7 @@ class CircuitInputer(QWidget):
         self.TopLayout.addLayout(self.InputNewLineType)
         self.setLayout(self.TopLayout)
 
-        ### All layouts hidden at first moment ###
+        # All layouts hidden at first moment #
         self.setLayoutHidden(self.BarLayout, True)
         self.setLayoutHidden(self.LtOrTrafoLayout, True)
         self.setLayoutHidden(self.InputNewLineType, True)
@@ -997,16 +997,19 @@ class CircuitInputer(QWidget):
             self.PgInput.setText('{:.2g}'.format(BUS.pg))
             self.QlInput.setText('{:.2g}'.format(BUS.ql))
             self.PlInput.setText('{:.2g}'.format(BUS.pl))
-            self.XdLineEdit.setText('{:.2g}'.format(BUS.xd))
+            if BUS.xd == np.inf:
+                self.XdLineEdit.setText("\u221e")
+            else:
+                self.XdLineEdit.setText('{:.2g}'.format(BUS.xd))
         else:
             self.BarTitle.setText('No bar')
-            self.BarV_Value.setText('{:.2g}'.format(0.0))
-            self.BarAngle_Value.setText('{:.2g}º'.format(0.0))
-            self.QgInput.setText('{:.2g}'.format(0.0))
-            self.PgInput.setText('{:.2g}'.format(0.0))
-            self.QlInput.setText('{:.2g}'.format(0.0))
-            self.PlInput.setText('{:.2g}'.format(0.0))
-            self.XdLineEdit.setText('{:.2g}'.format(0.0))
+            self.BarV_Value.setText("-")
+            self.BarAngle_Value.setText("-")
+            self.QgInput.setText("-")
+            self.PgInput.setText("-")
+            self.QlInput.setText("-")
+            self.PlInput.setText("-")
+            self.XdLineEdit.setText("-")
 
     def LayoutManager(self):
         """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
@@ -1300,7 +1303,7 @@ class Aspy(QMainWindow):
     def initUI(self):
         self.displayStatusMsg('Ready')
 
-        ### Actions ###
+        # Actions #
         saveAct = QAction('Save current session', self)
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(self.saveSession)
@@ -1318,12 +1321,12 @@ class Aspy(QMainWindow):
         setDefaultLineAct = QAction('Set default line type', self)
         setDefaultLineAct.triggered.connect(self.setDefaultLineType)
 
-        ### ======== Central widget =========== ###
+        # ======== Central widget =========== #
         self.CircuitInputer = CircuitInputer()
         self.CircuitInputer._statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
         self.setCentralWidget(self.CircuitInputer)
 
-        ### Menu bar ###
+        # Menu bar #
         menubar = self.menuBar()
 
         filemenu = menubar.addMenu('&Session')
