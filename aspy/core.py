@@ -53,7 +53,7 @@ class BarraSL(Barra):
 
 
 class LT(object):
-    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0,
+    def __init__(self, l=80.0, r=1.0, d12=2.0, d23=2.0, d31=2.0, d=1.0, rho=1.78e-8, m=1.0, vbase=1.0,
                  Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.l = l
@@ -67,6 +67,7 @@ class LT(object):
         self.y = Y
         self.origin = origin
         self.destiny = destiny
+        self.vbase = vbase
 
     @property
     def Rm(self):
@@ -105,6 +106,13 @@ class LT(object):
         else:
             return self.z
 
+    @property
+    def Zpu(self):
+        if (self.z, self.y) == (None, None):
+            return self.Z / (self.vbase ** 2 / 1e8)
+        else:
+            return self.z / (self.vbase ** 2 / 1e8)
+
     @Z.setter
     def Z(self, Z):
         self.z = Z
@@ -116,6 +124,13 @@ class LT(object):
             return OMEGA * C * 1j
         else:
             return self.y
+
+    @property
+    def Ypu(self):
+        if (self.z, self.y) == (None, None):
+            return self.Y * (self.vbase ** 2 / 1e8)
+        else:
+            return self.Y * (self.vbase ** 2 / 1e8)
 
     @Y.setter
     def Y(self, Y):
