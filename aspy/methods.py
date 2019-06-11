@@ -4,7 +4,7 @@ import numpy as np
 def update(barras, linhas, trafos, grid, mask):
     linhas = np.array(linhas)[:, 0]
     trafos = np.array(trafos)[:, 0]
-    N = len(barras[mask])
+    N = len(barras)
     Y = Ybus(barras, linhas, trafos, grid)
     V0 = np.zeros(N, complex)
     S = np.zeros((N, 2))
@@ -19,7 +19,7 @@ def update(barras, linhas, trafos, grid, mask):
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    V = gauss_seidel(Y, V0, S, eps=1e-6)
+    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-6)
     return V
 
 
@@ -42,10 +42,10 @@ def Ybus(barras, linhas, trafos, grid):
     for lt in linhas:
         node1 = grid[lt.origin].barra_id
         node2 = grid[lt.destiny].barra_id
-        Y[node1, node1] += 1/lt.Z + lt.Y/2
-        Y[node2, node2] += 1/lt.Z + lt.Y/2
-        Y[node1, node2] -= 1/lt.Z
-        Y[node2, node1] -= 1/lt.Z
+        Y[node1, node1] += 1/lt.Zpu + lt.Ypu/2
+        Y[node2, node2] += 1/lt.Zpu + lt.Ypu/2
+        Y[node1, node2] -= 1/lt.Zpu
+        Y[node2, node1] -= 1/lt.Zpu
     for t in trafos:
         node1 = grid[t.origin].barra_id
         node2 = grid[t.destiny].barra_id
@@ -81,10 +81,10 @@ def Yseq(barras, linhas, trafos, grid):
     for lt in linhas:
         node1 = grid[lt.origin].barra_id
         node2 = grid[lt.destiny].barra_id
-        Y1[node1, node1] += 1 / lt.Z + lt.Y / 2
-        Y1[node2, node2] += 1 / lt.Z + lt.Y / 2
-        Y1[node1, node2] -= 1 / lt.Z
-        Y1[node2, node1] -= 1 / lt.Z
+        Y1[node1, node1] += 1 / lt.Zpu + lt.Y / 2
+        Y1[node2, node2] += 1 / lt.Zpu + lt.Y / 2
+        Y1[node1, node2] -= 1 / lt.Zpu
+        Y1[node2, node1] -= 1 / lt.Zpu
     for t in trafos:
         node1 = grid[t.origin].barra_id
         node2 = grid[t.destiny].barra_id
@@ -100,10 +100,10 @@ def Yseq(barras, linhas, trafos, grid):
     for lt in linhas:
         node1 = grid[lt.origin].barra_id
         node2 = grid[lt.destiny].barra_id
-        Y0[node1, node1] += 1 / lt.Z + lt.Y / 2
-        Y0[node2, node2] += 1 / lt.Z + lt.Y / 2
-        Y0[node1, node2] -= 1 / lt.Z
-        Y0[node2, node1] -= 1 / lt.Z
+        Y0[node1, node1] += 1 / lt.Zpu + lt.Y / 2
+        Y0[node2, node2] += 1 / lt.Zpu + lt.Y / 2
+        Y0[node1, node2] -= 1 / lt.Zpu
+        Y0[node2, node1] -= 1 / lt.Zpu
     for t in trafos:
         if t.primary == 1:
             if t.secondary == 1:
@@ -187,7 +187,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     if eps is None:
         eps = np.inf
     count = 0
-    while delta > eps or count < Niter:
+    while (delta > eps or count < Niter) and count < 1000:
         for i in range(N):
             I = np.dot(Y[i], V)
             P, Q = S[i]
@@ -202,9 +202,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
         delta = max(np.abs(V - Vold))
         Vold = np.copy(V)
         count += 1
-    print('TOTAL: {} ITERACOES'.format(count))
-    print('delta = ', delta)
-    return V
+    return count, delta, V
 
 
 def Gij(i, j, Y):
@@ -382,7 +380,7 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
     if eps is None:
         eps = np.inf
     count = 0
-    while delta > eps and count < Niter:
+    while (delta > eps or count < Niter) and count < 1000:
         deltaPQ = np.zeros([2 * N, 1])
         for i in range(N):
             P, Q = S[i]
@@ -401,5 +399,4 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
         delta = max(np.abs(V - V0))
         V = np.copy(V0)
         count += 1
-    print('TOTAL: {} ITERACOES'.format(count))
-    return V0
+    return count, delta, V0
