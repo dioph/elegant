@@ -10,6 +10,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from aspy.core import *
+from aspy.methods import update
 
 """
 # ---------------------------------------------------------------------------------------------------------
@@ -1368,6 +1369,10 @@ def update_mask():
         node1 = GRID_BUSES[lt[0].origin].barra_id
         node2 = GRID_BUSES[lt[0].destiny].barra_id
         G.add_edge(node1, node2)
+    for tr in TRANSFORMERS:
+        node1 = GRID_BUSES[tr[0].origin].barra_id
+        node2 = GRID_BUSES[tr[0].destiny].barra_id
+        G.add_edge(node1, node2)
     connected_components = nx.connected_components(G)
     neighbors = []
     for component in connected_components:
@@ -1375,7 +1380,34 @@ def update_mask():
             neighbors = component
     MASK = np.zeros(len(BUSES), bool)
     MASK[list(neighbors)] = True
-    print([b.barra_id for b in np.array(BUSES)[MASK]])
+    good_ids = [b.barra_id for b in np.array(BUSES)[MASK]]
+    if len(LINES) > 0:
+        mask_linhas = np.ones(len(LINES), bool)
+        for i in range(len(LINES)):
+            lt = LINES[i][0]
+            if GRID_BUSES[lt.origin].barra_id not in good_ids:
+                mask_linhas[i] = False
+        linhas = np.array(LINES)[mask_linhas][:, 0]
+    else:
+        linhas = np.array([])
+    if len(TRANSFORMERS) > 0:
+        mask_trafos = np.ones(len(TRANSFORMERS), bool)
+        for i in range(len(TRANSFORMERS)):
+            tr = TRANSFORMERS[i][0]
+            if GRID_BUSES[tr.origin].barra_id not in good_ids:
+                mask_trafos[i] = False
+        trafos = np.array(TRANSFORMERS)[mask_trafos][:, 0]
+    else:
+        trafos = np.array([])
+    barras = np.array(BUSES)[MASK]
+    hsh = {}
+    for j, i in enumerate(good_ids):
+        hsh[i] = j
+    V, S0, If = update(barras, linhas, trafos, GRID_BUSES, hsh)
+    print(good_ids)
+    print(V)
+    print(S0)
+    print(hsh)
 
 
 def storeData(db):

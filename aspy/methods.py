@@ -1,29 +1,34 @@
 import numpy as np
 
 
-def update(barras, linhas, trafos, grid, mask):
-    linhas = np.array(linhas)[:, 0]
-    trafos = np.array(trafos)[:, 0]
+def update(barras, linhas, trafos, grid, hsh=None):
     N = len(barras)
-    Y = Ybus(barras, linhas, trafos, grid)
+    Y = Ybus(barras, linhas, trafos, grid, hsh)
     V0 = np.zeros(N, complex)
     S = np.zeros((N, 2))
     for i in range(N):
-        if barras[i].pg > 0:
-            if barras[i].barra_id > 0:
+        if barras[i].barra_id == 0:
+            V0[i] = barras[i].v
+            S[i] = np.array([np.nan, np.nan])
+        elif barras[i].pg > 0:
                 V0[i] = np.abs(barras[i].v)
                 S[i] = np.array([barras[i].pg-barras[i].pl, np.nan])
-            else:
-                V0[i] = barras[i].v
-                S[i] = np.array([np.nan, np.nan])
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
     niter, delta, V = newton_raphson(Y, V0, S, eps=1e-6)
-    return V
+    I = np.dot(Y, V)
+    Scalc = V * np.conjugate(I)
+    S0 = np.zeros_like(S)
+    S0[:, 0] = Scalc.real
+    S0[:, 1] = Scalc.imag
+    assert np.allclose(S0[np.isfinite(S)], S[np.isfinite(S)]), "Unmatching power"
+    Y0, Y1 = Yseq(barras, linhas, trafos, grid, hsh)
+    If = short(Y1, Y0, V)
+    return V, S0, If
 
 
-def Ybus(barras, linhas, trafos, grid):
+def Ybus(barras, linhas, trafos, grid, hsh=None):
     """Generate Ybus matrix from current state
 
     Parameters
@@ -38,17 +43,21 @@ def Ybus(barras, linhas, trafos, grid):
     Y: Ybus matrix (N,N)
     """
     N = len(barras)
+    if hsh is None:
+        hsh = {}
+        for i in range(N):
+            hsh[i] = i
     Y = np.zeros((N, N), complex)
     for lt in linhas:
-        node1 = grid[lt.origin].barra_id
-        node2 = grid[lt.destiny].barra_id
+        node1 = hsh[grid[lt.origin].barra_id]
+        node2 = hsh[grid[lt.destiny].barra_id]
         Y[node1, node1] += 1/lt.Zpu + lt.Ypu/2
         Y[node2, node2] += 1/lt.Zpu + lt.Ypu/2
         Y[node1, node2] -= 1/lt.Zpu
         Y[node2, node1] -= 1/lt.Zpu
     for t in trafos:
-        node1 = grid[t.origin].barra_id
-        node2 = grid[t.destiny].barra_id
+        node1 = hsh[grid[t.origin].barra_id]
+        node2 = hsh[grid[t.destiny].barra_id]
         Y[node1, node1] += 1 / t.Z1
         Y[node2, node2] += 1 / t.Z1
         Y[node1, node2] -= 1 / t.Z1
@@ -56,7 +65,7 @@ def Ybus(barras, linhas, trafos, grid):
     return Y
 
 
-def Yseq(barras, linhas, trafos, grid):
+def Yseq(barras, linhas, trafos, grid, hsh=None):
     """Generate Ybus matrix for positive and zero sequence networks
 
     Parameters
@@ -73,21 +82,25 @@ def Yseq(barras, linhas, trafos, grid):
     """
     # seq +
     N = len(barras)
+    if hsh is None:
+        hsh = {}
+        for i in range(N):
+            hsh[i] = i
     Y1 = np.zeros((N, N), complex)
     for b in barras:
-        node = b.barra_id
+        node = hsh[b.barra_id]
         Y1[node, node] += 1 / b.Z
         Y1[node, node] += 1 / b.xd
     for lt in linhas:
-        node1 = grid[lt.origin].barra_id
-        node2 = grid[lt.destiny].barra_id
+        node1 = hsh[grid[lt.origin].barra_id]
+        node2 = hsh[grid[lt.destiny].barra_id]
         Y1[node1, node1] += 1 / lt.Zpu + lt.Y / 2
         Y1[node2, node2] += 1 / lt.Zpu + lt.Y / 2
         Y1[node1, node2] -= 1 / lt.Zpu
         Y1[node2, node1] -= 1 / lt.Zpu
     for t in trafos:
-        node1 = grid[t.origin].barra_id
-        node2 = grid[t.destiny].barra_id
+        node1 = hsh[grid[t.origin].barra_id]
+        node2 = hsh[grid[t.destiny].barra_id]
         Y1[node1, node1] += 1 / t.Z1
         Y1[node2, node2] += 1 / t.Z1
         Y1[node1, node2] -= 1 / t.Z1
@@ -95,11 +108,11 @@ def Yseq(barras, linhas, trafos, grid):
     # seq 0
     Y0 = np.zeros((N, N), complex)
     for b in barras:
-        node = b.barra_id
+        node = hsh[b.barra_id]
         Y0[node, node] += 1 / b.Z
     for lt in linhas:
-        node1 = grid[lt.origin].barra_id
-        node2 = grid[lt.destiny].barra_id
+        node1 = hsh[grid[lt.origin].barra_id]
+        node2 = hsh[grid[lt.destiny].barra_id]
         Y0[node1, node1] += 1 / lt.Zpu + lt.Y / 2
         Y0[node2, node2] += 1 / lt.Zpu + lt.Y / 2
         Y0[node1, node2] -= 1 / lt.Zpu
@@ -107,17 +120,17 @@ def Yseq(barras, linhas, trafos, grid):
     for t in trafos:
         if t.primary == 1:
             if t.secondary == 1:
-                node1 = grid[t.origin].barra_id
-                node2 = grid[t.destiny].barra_id
+                node1 = hsh[grid[t.origin].barra_id]
+                node2 = hsh[grid[t.destiny].barra_id]
                 Y0[node1, node1] += 1 / t.Z0
                 Y0[node2, node2] += 1 / t.Z0
                 Y0[node1, node2] -= 1 / t.Z0
                 Y0[node2, node1] -= 1 / t.Z0
             elif t.secondary == 2:
-                node = grid[t.origin].barra_id
+                node = hsh[grid[t.origin].barra_id]
                 Y0[node, node] += 1 / t.Z0
         elif t.secondary == 1 and t.primary == 2:
-            node = grid[t.destiny].barra_id
+            node = hsh[grid[t.destiny].barra_id]
             Y0[node, node] += 1 / t.Z0
 
     return Y0, Y1
@@ -141,9 +154,12 @@ def short(Y1, Y0, V):
         --> Double-line to ground (DLG);
         --> Line-to-line (LL)
     """
-    Z1 = np.diag(np.linalg.inv(Y1))
-    Z0 = np.diag(np.linalg.inv(Y0))
     N = len(V)
+    if np.linalg.cond(Y1) < 1 / np.finfo(Y1.dtype).eps:
+        Z1 = np.diag(np.linalg.inv(Y1))
+        Z0 = np.diag(np.linalg.inv(Y0))
+    else:
+        return np.zeros((N, 4, 3))
     alpha = np.exp(2j * np.pi / 3)
     A = np.array([[1, 1, 1], [1, alpha**2, alpha], [1, alpha, alpha**2]])
     I = []
