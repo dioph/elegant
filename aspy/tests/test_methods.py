@@ -63,12 +63,29 @@ def test_Ybus():
     assert np.allclose(Ybarra, Y)
 
 
-def test_Yseq():
-    Y0, Y1 = Yseq(barras, linhas, trafos, grid)
+def test_Scalc():
+    niter, err, V = newton_raphson(Y, V0, S, eps=1e-12)
+    I = np.dot(Y, V)
+    Scalc = V * np.conjugate(I)
+    S0 = np.zeros_like(S)
+    S0[:, 0] = Scalc.real
+    S0[:, 1] = Scalc.imag
+    assert np.allclose(S0[np.isfinite(S)], S[np.isfinite(S)])
 
 
 def test_short():
-    pass
+    Y0, Y1 = Yseq(barras, linhas, trafos, grid)
+    niter, err, V = newton_raphson(Y, V0, S, eps=1e-12)
+    I = short(Y1, Y0, V)
+    assert I.shape == (3, 4, 3)
+    # TPG is symmetric
+    assert np.allclose(np.abs(I[0, 0, :]), np.abs(I[0, 0, 0]))
+    # SLG has no iB (nor iC) current
+    assert np.allclose(np.abs(I[:, 1, 1]), 0.0)
+    # DLG iB == iC
+    assert np.allclose(I[:, 2, 1], I[:, 2, 2])
+    # LL iB + iC == 0
+    assert np.allclose(I[:, 3, 1], -I[:, 3, 2])
 
 
 def test_plot():
