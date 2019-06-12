@@ -13,50 +13,33 @@ from PyQt5.QtWidgets import *
 from aspy.core import *
 
 """
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # The global variables are being used to specify the current state of the system    
-
-# ---------------------------------------------------------------------------------------------------------
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 # N: graphical grid dimension (N x N - used to initializate the SchemeInputer class)
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # GRID_BUSES: N X N numpy array that holds core.aspy.Barra elements. It is used 
 # to link the SchemeInput graphical interface to the data arrays manipulation
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # BUSES_PIXMAP: N x N numpy array that holds PyQt5.QtGui.QPixMap items representing
 # the buses drawings on SchemeInputer
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # BUSES: numpy array that holds core.aspy.Barra elements. Each element has the following
 # form: [aspy.core.Barra Bus]
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # LINES: list that holds transmission line elements. Each element has the following form:
 # [[aspy.core.LT lines, [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates], bool remove]]
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # TRANSFORMERS: list that holds transformer elements. Each element has the following form:
 # [[aspy.core.Trafo], [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates]]
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # LINE_TYPES: dictionaries that holds the line parameters to be put into lines
-
-# ---------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 """
 
 MASK = []
 N = 20
-ID = 1
 GRID_BUSES = np.zeros((N, N), object)
 BUSES_PIXMAP = np.zeros((N, N), object)
 BUSES = []
@@ -1075,26 +1058,37 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
+    @staticmethod
+    def resequence_buses(buses):
+        if 0 in [bus.barra_id for bus in buses]:
+            for i in range(len(buses)):
+                buses[i].barra_id = i
+        else:
+            for i in range(1, len(buses) + 1):
+                buses[i-1].barra_id = i
+
     def add_bus(self):
         try:
             global GRID_BUSES, ID, BUSES, BUSES_PIXMAP
             COORDS = self._currElementCoords
             possible_lt, possible_trafo = self.getLtFromGridPos(COORDS), self.getTrafoFromGridPos(COORDS)
             if not isinstance(GRID_BUSES[COORDS], Barra) and not (possible_lt or possible_trafo):
-                self._statusMsg.emit_sig('Added bus')
-                if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
+                if 0 not in [bus.barra_id for bus in BUSES] or np.size(BUSES) == 0:
                     # first add, or add after bus' exclusion
                     SLACK = Barra(barra_id=0, posicao=COORDS)
                     BUSES.insert(0, SLACK)
+                    self.resequence_buses(BUSES)
                     update_mask()
                     GRID_BUSES[COORDS] = SLACK
-                elif any([BUS.barra_id == 0 for BUS in BUSES]) and np.size(BUSES) > 0:
+                elif 0 in [bus.barra_id for bus in BUSES]:
                     # sequenced bus insert
                     BUS = Barra(barra_id=ID, posicao=COORDS)
                     GRID_BUSES[COORDS] = BUS
                     BUSES.append(BUS)
+                    self.resequence_buses(BUSES)
                     update_mask()
-                    ID += 1
+                print('add: ', [bus.barra_id for bus in BUSES])
+                self._statusMsg.emit_sig('Added bus')
                 self.LayoutManager()
             else:
                 self.Scene.removeItem(BUSES_PIXMAP[COORDS])
@@ -1104,19 +1098,13 @@ class CircuitInputer(QWidget):
 
     def remove_bus(self):
         global ID, BUSES, GRID_BUSES, BUSES_PIXMAP
-        print('ID: ', ID)
         try:
             if GRID_BUSES[self._currElementCoords]:
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 self.removeElementsLinked2Bus(BUS)
                 BUSES.remove(BUS)
-                if len(BUSES) > 1:
-                    ID -= 1
-                    for i in range(1, ID):
-                        BUSES[i].barra_id = i
-                else:
-                    BUSES.remove(BUS)
-                print([bus.barra_id for bus in BUSES])
+                self.resequence_buses(BUSES)
+                print('remove: ', [bus.barra_id for bus in BUSES])
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
