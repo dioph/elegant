@@ -3,6 +3,7 @@ import os
 import shelve
 import sys
 import traceback
+import pdb
 
 import networkx as nx
 from PyQt5.QtCore import *
@@ -150,10 +151,10 @@ class SchemeInputer(QGraphicsScene):
             for central_point in self.quantizedInterface.flatten():
                 if self.distance(double_pressed, central_point) <= self.selector_radius:
                     i, j = self.Point_pos(central_point)
-                    self._pointerSignal.emit_sig((i, j))
-                    self._methodSignal.emit_sig('addBus')
                     sceneItem = self.drawBus((central_point.x(), central_point.y()))
                     BUSES_PIXMAP[(i, j)] = sceneItem
+                    self._pointerSignal.emit_sig((i, j))
+                    self._methodSignal.emit_sig('addBus')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -835,7 +836,7 @@ class CircuitInputer(QWidget):
             if self._startNewLT:
                 print('Colocando nova linha\n')
                 NEW_LINES = LT(origin=self._ltorigin)
-                if not self.checkTlCrossing():
+                if not self.checkLineAndTrafoCrossing():
                     LINES.append([NEW_LINES, [], [], False])
                 else:
                     print('Linha cruzou na saída\n')
@@ -845,7 +846,7 @@ class CircuitInputer(QWidget):
                 LINES[-1][2].append(self._currElementCoords)
             else:
                 print('Continuando linha\n')
-                if self.checkTlCrossing():
+                if self.checkLineAndTrafoCrossing():
                     LINES[-1][3] = True
                     print('Linha cruzou com alguma outra já existente\n')
                 LINES[-1][1].append(self._temp)
@@ -859,7 +860,7 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
-    def checkTlCrossing(self):
+    def checkLineAndTrafoCrossing(self):
         global LINES, TRANSFORMERS
         for tl in LINES:
             if self._currElementCoords in tl[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
@@ -961,7 +962,7 @@ class CircuitInputer(QWidget):
     def setCurrentObject(self, args):
         self._currElementCoords = args
 
-    def updateBusInspector(self, BUS=0):
+    def updateBusInspector(self, BUS):
         """Updates the BI with bus data if bus exists or
         show that there's no bus (only after bus exclusion)
         ---------------------------------------------------
@@ -970,46 +971,46 @@ class CircuitInputer(QWidget):
         to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
         for item in to_be_desactivated:
             item.setEnabled(False)
-        if BUS:
-            if BUS.barra_id == 0:
-                self.BarTitle.setText('Barra Slack')
-            else:
-                self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
-            if BUS.pl > 0 or BUS.ql > 0:
-                self.AddLoadButton.setText('-')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.remove_load)
-            else:
-                self.AddLoadButton.setText('+')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.add_load)
-            if BUS.pg > 0 or BUS.qg > 0:
-                self.AddGenerationButton.setText('-')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.remove_gen)
-            else:
-                self.AddGenerationButton.setText('+')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.add_gen)
-            self.BarV_Value.setText('{:.2g}'.format(np.abs(BUS.v)))
-            self.BarAngle_Value.setText('{:.2g}º'.format(np.angle(BUS.v) * 180/np.pi))
-            self.QgInput.setText('{:.2g}'.format(BUS.qg))
-            self.PgInput.setText('{:.2g}'.format(BUS.pg))
-            self.QlInput.setText('{:.2g}'.format(BUS.ql))
-            self.PlInput.setText('{:.2g}'.format(BUS.pl))
-            if BUS.xd == np.inf:
-                self.XdLineEdit.setText("\u221e")
-            else:
-                self.XdLineEdit.setText('{:.2g}'.format(BUS.xd))
+        # if BUS:
+        if BUS.barra_id == 0:
+            self.BarTitle.setText('Barra Slack')
         else:
-            self.BarTitle.setText('No bar')
-            self.BarV_Value.setText("-")
-            self.BarAngle_Value.setText("-")
-            self.QgInput.setText("-")
-            self.PgInput.setText("-")
-            self.QlInput.setText("-")
-            self.PlInput.setText("-")
-            self.XdLineEdit.setText("-")
+            self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
+        if BUS.pl > 0 or BUS.ql > 0:
+            self.AddLoadButton.setText('-')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.remove_load)
+        else:
+            self.AddLoadButton.setText('+')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.add_load)
+        if BUS.pg > 0 or BUS.qg > 0:
+            self.AddGenerationButton.setText('-')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.remove_gen)
+        else:
+            self.AddGenerationButton.setText('+')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.add_gen)
+        self.BarV_Value.setText('{:.2g}'.format(np.abs(BUS.v)))
+        self.BarAngle_Value.setText('{:.2g}º'.format(np.angle(BUS.v) * 180/np.pi))
+        self.QgInput.setText('{:.2g}'.format(BUS.qg))
+        self.PgInput.setText('{:.2g}'.format(BUS.pg))
+        self.QlInput.setText('{:.2g}'.format(BUS.ql))
+        self.PlInput.setText('{:.2g}'.format(BUS.pl))
+        if BUS.xd == np.inf:
+            self.XdLineEdit.setText("\u221e")
+        else:
+            self.XdLineEdit.setText('{:.2g}'.format(BUS.xd))
+    # else:
+    #     self.BarTitle.setText('No bar')
+    #     self.BarV_Value.setText("-")
+    #     self.BarAngle_Value.setText("-")
+    #     self.QgInput.setText("-")
+    #     self.PgInput.setText("-")
+    #     self.QlInput.setText("-")
+    #     self.PlInput.setText("-")
+    #     self.XdLineEdit.setText("-")
 
     def LayoutManager(self):
         """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
@@ -1076,9 +1077,10 @@ class CircuitInputer(QWidget):
 
     def add_bus(self):
         try:
-            global GRID_BUSES, ID, BUSES
+            global GRID_BUSES, ID, BUSES, BUSES_PIXMAP
             COORDS = self._currElementCoords
-            if not isinstance(GRID_BUSES[COORDS], Barra):
+            possible_lt, possible_trafo = self.getLtFromGridPos(COORDS), self.getTrafoFromGridPos(COORDS)
+            if not isinstance(GRID_BUSES[COORDS], Barra) and not (possible_lt or possible_trafo):
                 self._statusMsg.emit_sig('Added bus')
                 if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
                     # first add, or add after bus' exclusion
@@ -1095,23 +1097,26 @@ class CircuitInputer(QWidget):
                     ID += 1
                 self.LayoutManager()
             else:
-                self._statusMsg.emit_sig('There\'s a bus in this position!')
+                self.Scene.removeItem(BUSES_PIXMAP[COORDS])
+                self._statusMsg.emit_sig('There\'s an element in this position!')
         except Exception:
             logging.error(traceback.format_exc())
 
     def remove_bus(self):
         global ID, BUSES, GRID_BUSES, BUSES_PIXMAP
+        print('ID: ', ID)
         try:
             if GRID_BUSES[self._currElementCoords]:
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 self.removeElementsLinked2Bus(BUS)
-                if BUS.barra_id != 0:
+                BUSES.remove(BUS)
+                if len(BUSES) > 1:
                     ID -= 1
-                    BUSES.remove(BUS)
                     for i in range(1, ID):
                         BUSES[i].barra_id = i
-                elif BUS.barra_id == 0:
+                else:
                     BUSES.remove(BUS)
+                print([bus.barra_id for bus in BUSES])
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
