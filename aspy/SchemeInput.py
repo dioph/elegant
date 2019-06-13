@@ -46,8 +46,7 @@ BUSES_PIXMAP = np.zeros((N, N), object)
 BUSES = []
 LINES = []
 TRANSFORMERS = []
-LINE_TYPES = [['Default', {'r': 1.0, 'd12': 2.0, 'd23': 2.0, 'd31': 2.0, 'd': 1.0, 'rho': 1.78e-8, 'm': 1.0}]]
-
+LINE_TYPES = [['Default', {'r': 1.0e-2, 'd12': 2.0, 'd23': 2.0, 'd31': 2.0, 'd': 1.0, 'rho': 1.78e-8, 'm': 1.0}]]
 
 class GenericSignal(QObject):
     signal = pyqtSignal(object)
@@ -578,6 +577,7 @@ class CircuitInputer(QWidget):
            returns None if the line has been set by impedance and admittance
         ---------------------------------------------------------------------
         """
+        global LINE_TYPES
         try:
             line_parameters_val = list(LINE.__dict__.values())[:8]
             if all(line_parameters_val == np.ones((8,)) * -1):
@@ -586,8 +586,6 @@ class CircuitInputer(QWidget):
                 for line_type in LINE_TYPES:
                     if all(tuple(LINE.__getattribute__(key) == line_type[1].get(key) for key in line_type[1].keys())):
                         return line_type[0]
-                    else:
-                        continue
                 return "No model"
         except Exception:
             logging.error(traceback.format_exc())
@@ -633,6 +631,7 @@ class CircuitInputer(QWidget):
                 line = LINE[0]
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
+                    print(param_values)
                     # Current selected element is a line
                     # Update using properties
                     # Z and Y are obttained from the updated properties
@@ -762,7 +761,10 @@ class CircuitInputer(QWidget):
                               if not isinstance(layout.itemAt(i), QLayout))
             titles = new_values[:2]
             par_names = new_values[2::2]
-            par_values = new_values[3::2]
+            par_values = list(map(lambda x: float(x), new_values[3::2]))
+            print('titles: ', titles)
+            print('par_names: ', par_names)
+            print('par_values: ', par_values)
             if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
                 self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
                 return
@@ -775,6 +777,7 @@ class CircuitInputer(QWidget):
             else:
                 LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
                 self._statusMsg.emit_sig('The model has been stored')
+            print(LINE_TYPES)
         except Exception:
             logging.error(traceback.format_exc())
 
