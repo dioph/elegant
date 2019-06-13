@@ -1068,7 +1068,7 @@ class CircuitInputer(QWidget):
                     GRID_BUSES[COORDS] = SLACK
                 elif 0 in [bus.barra_id for bus in BUSES]:
                     # sequenced bus insert
-                    BUS = Barra(barra_id=ID, posicao=COORDS)
+                    BUS = Barra(barra_id=len(BUSES)+1, posicao=COORDS)
                     GRID_BUSES[COORDS] = BUS
                     BUSES.append(BUS)
                     self.resequence_buses(BUSES)
