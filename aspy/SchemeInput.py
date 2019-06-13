@@ -3,6 +3,7 @@ import os
 import shelve
 import sys
 import traceback
+import pdb
 
 import networkx as nx
 from PyQt5.QtCore import *
@@ -13,50 +14,33 @@ from aspy.core import *
 from aspy.methods import update
 
 """
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # The global variables are being used to specify the current state of the system    
-
-# ---------------------------------------------------------------------------------------------------------
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 # N: graphical grid dimension (N x N - used to initializate the SchemeInputer class)
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # GRID_BUSES: N X N numpy array that holds core.aspy.Barra elements. It is used 
 # to link the SchemeInput graphical interface to the data arrays manipulation
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # BUSES_PIXMAP: N x N numpy array that holds PyQt5.QtGui.QPixMap items representing
 # the buses drawings on SchemeInputer
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # BUSES: numpy array that holds core.aspy.Barra elements. Each element has the following
 # form: [aspy.core.Barra Bus]
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # LINES: list that holds transmission line elements. Each element has the following form:
 # [[aspy.core.LT lines, [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates], bool remove]]
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # TRANSFORMERS: list that holds transformer elements. Each element has the following form:
 # [[aspy.core.Trafo], [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates]]
-
-# ---------------------------------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------------------------------
 # LINE_TYPES: dictionaries that holds the line parameters to be put into lines
-
-# ---------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 """
 
 MASK = []
 N = 20
-ID = 1
 GRID_BUSES = np.zeros((N, N), object)
 BUSES_PIXMAP = np.zeros((N, N), object)
 BUSES = []
@@ -151,10 +135,10 @@ class SchemeInputer(QGraphicsScene):
             for central_point in self.quantizedInterface.flatten():
                 if self.distance(double_pressed, central_point) <= self.selector_radius:
                     i, j = self.Point_pos(central_point)
-                    self._pointerSignal.emit_sig((i, j))
-                    self._methodSignal.emit_sig('addBus')
                     sceneItem = self.drawBus((central_point.x(), central_point.y()))
                     BUSES_PIXMAP[(i, j)] = sceneItem
+                    self._pointerSignal.emit_sig((i, j))
+                    self._methodSignal.emit_sig('addBus')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -196,7 +180,7 @@ class SchemeInputer(QGraphicsScene):
                             self._moveHistory[1, 1] = central_point.y()
                         if (np.all(self._moveHistory > 0)) and \
                                 (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
-                            ### DRAW LINE ###
+                            # DRAW LINE #
                             try:
                                 if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
                                     # when a bus is achieved
@@ -249,7 +233,7 @@ class SchemeInputer(QGraphicsScene):
 
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
-        ### ========================= General initializations ======================= ###
+        # ========================= General initializations ======================= #
         super(CircuitInputer, self).__init__(parent)
         self.Scene = SchemeInputer()
         self.View = QGraphicsView(self.Scene)
@@ -269,18 +253,18 @@ class CircuitInputer(QWidget):
         self.Scene._dataSignal.signal.connect(lambda args: self.settemp(args))
         self.Scene._methodSignal.signal.connect(lambda args: self.methodsTrigger(args))
 
-        ### ========================= Inspectors =================================== ###
+        # ========================= Inspectors =================================== #
         self.InspectorLayout = QVBoxLayout()
 
-        ## Layout for general bar case ###
+        ## Layout for general bar case #
         self.BarLayout = QVBoxLayout()
 
-        ### Bus title ###
+        # Bus title #
         self.BarTitle = QLabel('Bar title')
         self.BarTitle.setAlignment(Qt.AlignCenter)
         self.BarTitle.setMinimumWidth(200)
 
-        ### Bus voltage ###
+        # Bus voltage #
         self.BarV_Value = QLineEdit('0.0')
         self.BarV_Value.setEnabled(False)
         self.BarV_Value.setValidator(QDoubleValidator(0.0, 100.0, 3))
@@ -289,54 +273,54 @@ class CircuitInputer(QWidget):
         self.BarAngle_Value = QLineEdit('0.0')
         self.BarAngle_Value.setEnabled(False)
 
-        ### FormLayout to hold bus data ###
+        # FormLayout to hold bus data #
         self.BarDataFormLayout = QFormLayout()
 
-        ### Adding bus voltage and bus angle to bus data FormLayout ###
+        # Adding bus voltage and bus angle to bus data FormLayout #
         self.BarDataFormLayout.addRow('|V|', self.BarV_Value)
         self.BarDataFormLayout.addRow('\u03b4 (\u00B0)', self.BarAngle_Value)
 
-        ### Label with 'Geração' ###
+        # Label with 'Geração' #
         self.AddGenerationLabel = QLabel('Geração')
         self.AddGenerationLabel.setAlignment(Qt.AlignCenter)
 
-        ### Button to add generation ###
+        # Button to add generation #
         self.AddGenerationButton = QPushButton('+')
         self.AddGenerationButton.pressed.connect(self.add_gen)  # Bind button to make input editable
 
-        ### FormLayout to add generation section ###
+        # FormLayout to add generation section #
         self.AddGenerationFormLayout = QFormLayout()
         self.AddLoadFormLayout = QFormLayout()
 
-        ### Line edit to Xd bus ###
+        # Line edit to Xd bus #
         self.XdLineEdit = QLineEdit('inf')
         self.XdLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.XdLineEdit.setEnabled(False)
 
-        ### Line edit to input bus Pg ###
+        # Line edit to input bus Pg #
         self.PgInput = QLineEdit('0.0')
         self.PgInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.PgInput.setEnabled(False)
 
-        ### Line edit to input bus Qg ###
+        # Line edit to input bus Qg #
         self.QgInput = QLineEdit('0.0')
         self.QgInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.QgInput.setEnabled(False)
-
+        
         ### Adding Pg, Qg to add generation FormLayout ###
         self.AddGenerationFormLayout.addRow('x\'d (pu)', self.XdLineEdit)
         self.AddGenerationFormLayout.addRow('Qg (pu)', self.QgInput)
         self.AddGenerationFormLayout.addRow('Pg (pu)', self.PgInput)
 
-        ### Label with 'Carga' ###
+        # Label with 'Carga' #
         self.AddLoadLabel = QLabel('Carga')
         self.AddLoadLabel.setAlignment(Qt.AlignCenter)
 
-        ### PushButton that binds to three different methods ###
+        # PushButton that binds to three different methods #
         self.AddLoadButton = QPushButton('+')
         self.AddLoadButton.pressed.connect(self.add_load)
 
-        ### LineEdit with Ql, Pl ###
+        # LineEdit with Ql, Pl #
         self.QlInput = QLineEdit('0.0')
         self.QlInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.PlInput = QLineEdit('0.0')
@@ -360,7 +344,7 @@ class CircuitInputer(QWidget):
         self.BarLayout.addLayout(self.AddLoadFormLayout)
         self.BarLayout.addWidget(self.RemoveBus)
 
-        ### Layout for input new type of line ###
+        # Layout for input new type of line #
         self.InputNewLineType = QVBoxLayout()
         self.InputNewLineTypeFormLayout = QFormLayout()
 
@@ -398,7 +382,7 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
         self.InputNewLineType.addStretch()
 
-        ### General Layout for LT case ###
+        # General Layout for LT case #
         self.LtOrTrafoLayout = QVBoxLayout()
 
         self.chooseLt = QRadioButton('LT')
@@ -502,7 +486,7 @@ class CircuitInputer(QWidget):
         self.LtOrTrafoLayout.addWidget(self.trafoSubmitPushButton)
         self.LtOrTrafoLayout.addWidget(self.removeTrafoPushButton)
 
-        ### Layout that holds bus inspector and Stretches ###
+        # Layout that holds bus inspector and Stretches #
         self.InspectorAreaLayout = QVBoxLayout()
         self.InspectorLayout.addStretch()
         self.InspectorLayout.addLayout(self.BarLayout)
@@ -510,7 +494,7 @@ class CircuitInputer(QWidget):
         self.InspectorLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
 
-        ### Toplayout ###
+        # Toplayout #
         self.TopLayout = QHBoxLayout()
         self.Spacer = QSpacerItem(200, 0, 0, 0)
         self.TopLayout.addItem(self.Spacer)
@@ -519,7 +503,7 @@ class CircuitInputer(QWidget):
         self.TopLayout.addLayout(self.InputNewLineType)
         self.setLayout(self.TopLayout)
 
-        ### All layouts hidden at first moment ###
+        # All layouts hidden at first moment #
         self.setLayoutHidden(self.BarLayout, True)
         self.setLayoutHidden(self.LtOrTrafoLayout, True)
         self.setLayoutHidden(self.InputNewLineType, True)
@@ -825,7 +809,7 @@ class CircuitInputer(QWidget):
             if self._startNewLT:
                 print('Colocando nova linha\n')
                 NEW_LINES = LT(origin=self._ltorigin)
-                if not self.checkTlCrossing():
+                if not self.checkLineAndTrafoCrossing():
                     LINES.append([NEW_LINES, [], [], False])
                 else:
                     print('Linha cruzou na saída\n')
@@ -835,7 +819,7 @@ class CircuitInputer(QWidget):
                 LINES[-1][2].append(self._currElementCoords)
             else:
                 print('Continuando linha\n')
-                if self.checkTlCrossing():
+                if self.checkLineAndTrafoCrossing():
                     LINES[-1][3] = True
                     print('Linha cruzou com alguma outra já existente\n')
                 LINES[-1][1].append(self._temp)
@@ -849,7 +833,7 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
-    def checkTlCrossing(self):
+    def checkLineAndTrafoCrossing(self):
         global LINES, TRANSFORMERS
         for tl in LINES:
             if self._currElementCoords in tl[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
@@ -949,7 +933,7 @@ class CircuitInputer(QWidget):
     def setCurrentObject(self, args):
         self._currElementCoords = args
 
-    def updateBusInspector(self, BUS=0):
+    def updateBusInspector(self, BUS):
         """Updates the BI with bus data if bus exists or
         show that there's no bus (only after bus exclusion)
         ---------------------------------------------------
@@ -958,6 +942,7 @@ class CircuitInputer(QWidget):
         to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
         for item in to_be_desactivated:
             item.setEnabled(False)
+
         if BUS:
             if BUS.barra_id == 0:
                 self.BarTitle.setText('Barra Slack')
@@ -1059,28 +1044,41 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
+    @staticmethod
+    def resequence_buses(buses):
+        if 0 in [bus.barra_id for bus in buses]:
+            for i in range(len(buses)):
+                buses[i].barra_id = i
+        else:
+            for i in range(1, len(buses) + 1):
+                buses[i-1].barra_id = i
+
     def add_bus(self):
         try:
-            global GRID_BUSES, ID, BUSES
+            global GRID_BUSES, ID, BUSES, BUSES_PIXMAP
             COORDS = self._currElementCoords
-            if not isinstance(GRID_BUSES[COORDS], Barra):
-                self._statusMsg.emit_sig('Added bus')
-                if all([BUS.barra_id > 0 for BUS in BUSES]) or np.size(BUSES) == 0:
+            possible_lt, possible_trafo = self.getLtFromGridPos(COORDS), self.getTrafoFromGridPos(COORDS)
+            if not isinstance(GRID_BUSES[COORDS], Barra) and not (possible_lt or possible_trafo):
+                if 0 not in [bus.barra_id for bus in BUSES] or np.size(BUSES) == 0:
                     # first add, or add after bus' exclusion
                     SLACK = Barra(barra_id=0, posicao=COORDS)
                     BUSES.insert(0, SLACK)
+                    self.resequence_buses(BUSES)
                     update_mask()
                     GRID_BUSES[COORDS] = SLACK
-                elif any([BUS.barra_id == 0 for BUS in BUSES]) and np.size(BUSES) > 0:
+                elif 0 in [bus.barra_id for bus in BUSES]:
                     # sequenced bus insert
                     BUS = Barra(barra_id=ID, posicao=COORDS)
                     GRID_BUSES[COORDS] = BUS
                     BUSES.append(BUS)
+                    self.resequence_buses(BUSES)
                     update_mask()
-                    ID += 1
+                print('add: ', [bus.barra_id for bus in BUSES])
+                self._statusMsg.emit_sig('Added bus')
                 self.LayoutManager()
             else:
-                self._statusMsg.emit_sig('There\'s a bus in this position!')
+                self.Scene.removeItem(BUSES_PIXMAP[COORDS])
+                self._statusMsg.emit_sig('There\'s an element in this position!')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1090,13 +1088,9 @@ class CircuitInputer(QWidget):
             if GRID_BUSES[self._currElementCoords]:
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 self.removeElementsLinked2Bus(BUS)
-                if BUS.barra_id != 0:
-                    ID -= 1
-                    BUSES.remove(BUS)
-                    for i in range(1, ID):
-                        BUSES[i].barra_id = i
-                elif BUS.barra_id == 0:
-                    BUSES.remove(BUS)
+                BUSES.remove(BUS)
+                self.resequence_buses(BUSES)
+                print('remove: ', [bus.barra_id for bus in BUSES])
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
@@ -1286,7 +1280,7 @@ class Aspy(QMainWindow):
     def initUI(self):
         self.displayStatusMsg('Ready')
 
-        ### Actions ###
+        # Actions #
         saveAct = QAction('Save current session', self)
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(self.saveSession)
@@ -1304,12 +1298,12 @@ class Aspy(QMainWindow):
         setDefaultLineAct = QAction('Set default line type', self)
         setDefaultLineAct.triggered.connect(self.setDefaultLineType)
 
-        ### ======== Central widget =========== ###
+        # ======== Central widget =========== #
         self.CircuitInputer = CircuitInputer()
         self.CircuitInputer._statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
         self.setCentralWidget(self.CircuitInputer)
 
-        ### Menu bar ###
+        # Menu bar #
         menubar = self.menuBar()
 
         filemenu = menubar.addMenu('&Session')
