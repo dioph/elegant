@@ -11,8 +11,8 @@ def update(barras, linhas, trafos, grid, hsh=None):
             V0[i] = barras[i].v
             S[i] = np.array([np.nan, np.nan])
         elif barras[i].pg > 0:
-                V0[i] = np.abs(barras[i].v)
-                S[i] = np.array([barras[i].pg-barras[i].pl, np.nan])
+            V0[i] = np.abs(barras[i].v)
+            S[i] = np.array([barras[i].pg - barras[i].pl, np.nan])
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
@@ -22,7 +22,9 @@ def update(barras, linhas, trafos, grid, hsh=None):
     S0 = np.zeros_like(S)
     S0[:, 0] = Scalc.real
     S0[:, 1] = Scalc.imag
-    assert np.allclose(S0[np.isfinite(S)], S[np.isfinite(S)]), "Unmatching power"
+    if not np.allclose(S0[np.isfinite(S)], S[np.isfinite(S)]):
+        print('Unmatching power!')
+        return V0, S, np.zeros((N, 4, 3))
     Y0, Y1 = Yseq(barras, linhas, trafos, grid, hsh)
     If = short(Y1, Y0, V)
     return V, S0, If
@@ -51,10 +53,10 @@ def Ybus(barras, linhas, trafos, grid, hsh=None):
     for lt in linhas:
         node1 = hsh[grid[lt.origin].barra_id]
         node2 = hsh[grid[lt.destiny].barra_id]
-        Y[node1, node1] += 1/lt.Zpu + lt.Ypu/2
-        Y[node2, node2] += 1/lt.Zpu + lt.Ypu/2
-        Y[node1, node2] -= 1/lt.Zpu
-        Y[node2, node1] -= 1/lt.Zpu
+        Y[node1, node1] += 1 / lt.Zpu + lt.Ypu / 2
+        Y[node2, node2] += 1 / lt.Zpu + lt.Ypu / 2
+        Y[node1, node2] -= 1 / lt.Zpu
+        Y[node2, node1] -= 1 / lt.Zpu
     for t in trafos:
         node1 = hsh[grid[t.origin].barra_id]
         node2 = hsh[grid[t.destiny].barra_id]
@@ -161,7 +163,7 @@ def short(Y1, Y0, V):
     else:
         return np.zeros((N, 4, 3))
     alpha = np.exp(2j * np.pi / 3)
-    A = np.array([[1, 1, 1], [1, alpha**2, alpha], [1, alpha, alpha**2]])
+    A = np.array([[1, 1, 1], [1, alpha ** 2, alpha], [1, alpha, alpha ** 2]])
     I = []
     for i in range(N):
         # TPG
@@ -337,8 +339,11 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
         jAdj = np.delete(jAdj, int(lincol), 0)
         jAdj = np.delete(jAdj, int(lincol), 1)
     jacobianDisregard = set(jacobianDisregard)
-    # assert np.rank(jAdj) == np.shape(jAdj)[0]  # checks if jAdj is inversible
-    deltaVdelta = np.linalg.solve(jAdj, deltaPQAdj)
+    if np.linalg.cond(jAdj) < 1 / np.finfo(jAdj.dtype).eps:
+        deltaVdelta = np.linalg.solve(jAdj, deltaPQAdj)
+    else:
+        print('### SINGULAR JACOBIAN! ###')
+        return None, None
     return deltaVdelta, jacobianDisregard
 
 
@@ -356,6 +361,8 @@ def update_V(deltaPQ, N, V0, Y):
     V0: updated array with new estimates to the node tensions
     """
     deltaVdelta, RemoveFromJAdj = DeltaVdelta(deltaPQ, N, V0, Y)
+    if deltaVdelta is None:
+        return V0
     vAdj = np.empty((0, 0))
     for v in V0:  # First the angles of voltages
         vAdj = np.append(vAdj, np.angle(v))
@@ -368,10 +375,9 @@ def update_V(deltaPQ, N, V0, Y):
         else:
             vAdj[i] += deltaVdelta[vAdj_counter]
             vAdj_counter += 1
-    vAdj_counter = int(np.size(vAdj)/2)
+    vAdj_counter = int(np.size(vAdj) / 2)
     for i in range(N):
-        # V0[i] = complex(vAdj[vAdj_counter] * np.cos(vAdj[vAdj_counter - N]), vAdj[vAdj_counter] * np.sin(vAdj[vAdj_counter - N]))
-        V0[i] = vAdj[vAdj_counter]*np.exp(1j*vAdj[vAdj_counter - N])
+        V0[i] = vAdj[vAdj_counter] * np.exp(1j * vAdj[vAdj_counter - N])
         vAdj_counter += 1
     return V0
 
