@@ -5,8 +5,6 @@ version = aspy.__version__
 with open("README.md", 'r') as f:
     long_description = f.read()
 
-extension = Extension(name="methods", sources=["aspy/methods.cpp"])
-
 setup(
     name="aspy",
     version=version,
@@ -18,12 +16,11 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/dioph/aspy",
     packages=["aspy"],
-    ext_modules=[extension],
     install_requires=["numpy", "scipy"],
-    classifiers=(
+    classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Intended Audience :: Science/Research",
-    ),
+    ],
 )
