@@ -139,6 +139,7 @@ class SchemeInputer(QGraphicsScene):
                     BUSES_PIXMAP[(i, j)] = sceneItem
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
+                    return
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -158,6 +159,7 @@ class SchemeInputer(QGraphicsScene):
                         self._pointerSignal.emit_sig((i, j))
                         self._methodSignal.emit_sig('storeOriginAddLt')
                         self._methodSignal.emit_sig('LayoutManager')
+                        return
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -200,6 +202,7 @@ class SchemeInputer(QGraphicsScene):
                                     self._methodSignal.emit_sig('addLine')
                             except Exception:
                                 logging.error(traceback.format_exc())
+                        return
                     else:  # No bar case
                         pass
                 except Exception:
@@ -293,7 +296,7 @@ class CircuitInputer(QWidget):
         self.AddLoadFormLayout = QFormLayout()
 
         # Line edit to Xd bus #
-        self.XdLineEdit = QLineEdit('inf')
+        self.XdLineEdit = QLineEdit('\u221e')
         self.XdLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.XdLineEdit.setEnabled(False)
 
@@ -942,44 +945,37 @@ class CircuitInputer(QWidget):
         to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
         for item in to_be_desactivated:
             item.setEnabled(False)
-
-        if BUS:
-            if BUS.barra_id == 0:
-                self.BarTitle.setText('Barra Slack')
-            else:
-                self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
-            if BUS.pl > 0 or BUS.ql > 0:
-                self.AddLoadButton.setText('-')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.remove_load)
-            else:
-                self.AddLoadButton.setText('+')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.add_load)
-            if BUS.pg > 0 or BUS.qg > 0:
-                self.AddGenerationButton.setText('-')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.remove_gen)
-            else:
-                self.AddGenerationButton.setText('+')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.add_gen)
-            self.BarV_Value.setText('{:.3g}'.format(np.abs(BUS.v)))
-            self.BarAngle_Value.setText('{:.3g}'.format(np.angle(BUS.v) * 180 / np.pi))
-            self.QgInput.setText('{:.3g}'.format(BUS.qg))
-            self.PgInput.setText('{:.3g}'.format(BUS.pg))
-            self.QlInput.setText('{:.3g}'.format(BUS.ql))
-            self.PlInput.setText('{:.3g}'.format(BUS.pl))
-            self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
+        if BUS.barra_id == 0:
+            self.BarTitle.setText('Barra Slack')
         else:
-            self.BarTitle.setText('No bar')
-            self.BarV_Value.setText('{:.3g}'.format(0.0))
-            self.BarAngle_Value.setText('{:.3g}'.format(0.0))
-            self.QgInput.setText('{:.3g}'.format(0.0))
-            self.PgInput.setText('{:.3g}'.format(0.0))
-            self.QlInput.setText('{:.3g}'.format(0.0))
-            self.PlInput.setText('{:.3g}'.format(0.0))
-            self.XdLineEdit.setText('{:.3g}'.format(0.0))
+            self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
+        if BUS.pl > 0 or BUS.ql > 0:
+            self.AddLoadButton.setText('-')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.remove_load)
+        else:
+            self.AddLoadButton.setText('+')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.add_load)
+        if BUS.pg > 0 or BUS.qg > 0:
+            self.AddGenerationButton.setText('-')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.remove_gen)
+        else:
+            self.AddGenerationButton.setText('+')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.add_gen)
+        self.BarV_Value.setText('{:.3g}'.format(np.abs(BUS.v)))
+        self.BarAngle_Value.setText('{:.3g}'.format(np.angle(BUS.v) * 180 / np.pi))
+        self.QgInput.setText('{:.3g}'.format(BUS.qg))
+        self.PgInput.setText('{:.3g}'.format(BUS.pg))
+        self.QlInput.setText('{:.3g}'.format(BUS.ql))
+        self.PlInput.setText('{:.3g}'.format(BUS.pl))
+        if BUS.xd == np.inf:
+            self.XdLineEdit.setText('\u221e')
+        else:
+            self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
+
 
     def LayoutManager(self):
         """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
@@ -1094,8 +1090,8 @@ class CircuitInputer(QWidget):
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
-                update_mask()
                 self.LayoutManager()
+                update_mask()
         except Exception:
             logging.error(traceback.format_exc())
 
