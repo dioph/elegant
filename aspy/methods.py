@@ -157,7 +157,7 @@ def short(Y1, Y0, V):
         --> Line-to-line (LL)
     """
     N = len(V)
-    if np.linalg.cond(Y1) < 1 / np.finfo(Y1.dtype).eps:
+    if N > 0 and np.linalg.cond(Y1) < 1 / np.finfo(Y1.dtype).eps:
         Z1 = np.diag(np.linalg.inv(Y1))
         Z0 = np.diag(np.linalg.inv(Y0))
     else:
@@ -199,6 +199,8 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     V: bus voltage approximations array (N,)
     """
     N = V0.size
+    if N < 1:
+        return 0, np.inf, V0
     Vold = np.copy(V0)
     V = np.copy(V0)
     delta = np.inf
@@ -223,6 +225,47 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     return count, delta, V
 
 
+def newton_raphson(Y, V0, S, eps=None, Niter=1):
+    """
+    Parameters
+    ----------
+    Y: admittance matrix
+    V0: array with initial estimates (1, N)
+    S: array with specified powers in each bar (N, 2)
+    eps: defined tolerance, default = None
+    Niter: max number of iterations, default = 1
+
+    Returns
+    -------
+    V0: updated array with estimates to the node tensions (1, N)
+    """
+    N = V0.size
+    if N < 1:
+        return 0, np.inf, V0
+    V = np.copy(V0)
+    Vold = np.copy(V0)
+    delta = np.inf
+    if eps is None:
+        eps = np.inf
+    count = 0
+    while (delta > eps or count < Niter) and count < 1000:
+        deltaPQ = np.zeros((2 * N, 1))
+        for i in range(N):
+            P, Q = S[i]
+            I = np.dot(Y[i], V)
+            if np.isfinite(P):
+                Pcalc = np.real(V[i] * np.conjugate(I))
+                deltaPQ[i] = P - Pcalc
+                if np.isfinite(Q):
+                    Qcalc = np.imag(V[i] * np.conjugate(I))
+                    deltaPQ[i + N] = Q - Qcalc
+        V = update_V(deltaPQ, N, V, Y)
+        delta = max(np.abs(V - Vold))
+        Vold = np.copy(V)
+        count += 1
+    return count, delta, V
+
+
 def Gij(i, j, Y):
     return np.abs(Y[i][j]) * np.cos(np.angle(Y[i][j]))
 
@@ -232,19 +275,19 @@ def Bij(i, j, Y):
 
 
 def Pi(i, N, V, Y):
-    _ = 0
+    s = 0
     for n in range(N):
         if n != i:
-            _ += np.abs(V[i] * V[n] * Y[i][n]) * np.cos(np.angle(Y[i][n]) + np.angle(V[n]) - np.angle(V[i]))
-    return np.abs(V[i]) ** 2 * Gij(i, i, Y) + _
+            s += np.abs(V[i] * V[n] * Y[i][n]) * np.cos(np.angle(Y[i][n]) + np.angle(V[n]) - np.angle(V[i]))
+    return np.abs(V[i]) ** 2 * Gij(i, i, Y) + s
 
 
 def Qi(i, N, V, Y):
-    _ = 0
+    s = 0
     for n in range(N):
         if n != i:
-            _ += np.abs(V[i] * V[n] * Y[i][n]) * np.sin(np.angle(Y[i][n]) + np.angle(V[n]) - np.angle(V[i]))
-    return -np.abs(V[i]) ** 2 * Bij(i, i, Y) - _
+            s += np.abs(V[i] * V[n] * Y[i][n]) * np.sin(np.angle(Y[i][n]) + np.angle(V[n]) - np.angle(V[i]))
+    return -np.abs(V[i]) ** 2 * Bij(i, i, Y) - s
 
 
 def Mij(i, j, V, N, Y):
@@ -339,7 +382,7 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
         jAdj = np.delete(jAdj, int(lincol), 0)
         jAdj = np.delete(jAdj, int(lincol), 1)
     jacobianDisregard = set(jacobianDisregard)
-    if np.linalg.cond(jAdj) < 1 / np.finfo(jAdj.dtype).eps:
+    if np.size(jAdj) > 0 and np.linalg.cond(jAdj) < 1 / np.finfo(jAdj.dtype).eps:
         deltaVdelta = np.linalg.solve(jAdj, deltaPQAdj)
     else:
         print('### SINGULAR JACOBIAN! ###')
@@ -366,7 +409,7 @@ def update_V(deltaPQ, N, V0, Y):
     vAdj = np.empty((0, 0))
     for v in V0:  # First the angles of voltages
         vAdj = np.append(vAdj, np.angle(v))
-    for v in V0:  # Lastly, the absolute vaues of voltages
+    for v in V0:  # Lastly, the absolute values of voltages
         vAdj = np.append(vAdj, np.abs(v))
     vAdj_counter = 0
     for i in range(np.size(vAdj)):
@@ -381,44 +424,3 @@ def update_V(deltaPQ, N, V0, Y):
         vAdj_counter += 1
     return V0
 
-
-def newton_raphson(Y, V0, S, eps=None, Niter=1):
-    """
-    Parameters
-    ----------
-    Y: admittance matrix
-    V0: array with initial estimates (1, N)
-    S: array with specified powers in each bar (N, 2)
-    eps: defined tolerance, default = None
-    Niter: max number of iterations, default = 1
-
-    Returns
-    -------
-    V0: updated array with estimates to the node tensions (1, N)
-    """
-    N = V0.size
-    V = np.copy(V0)
-    delta = np.inf
-    if eps is None:
-        eps = np.inf
-    count = 0
-    while (delta > eps or count < Niter) and count < 1000:
-        deltaPQ = np.zeros([2 * N, 1])
-        for i in range(N):
-            P, Q = S[i]
-            I = np.dot(V0, Y[i])
-            if not (np.isnan(P)):
-                Pcalc = np.dot(V[i], I.conjugate()).real
-                deltaPQ[i] = P - Pcalc
-                if np.isnan(Q):
-                    pass
-                else:
-                    Qcalc = np.dot(V[i], I.conjugate()).imag
-                    deltaPQ[i + N] = Q - Qcalc
-            else:
-                continue
-        V0 = update_V(deltaPQ, N, V0, Y)
-        delta = max(np.abs(V - V0))
-        V = np.copy(V0)
-        count += 1
-    return count, delta, V0
