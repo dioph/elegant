@@ -45,8 +45,8 @@ BUSES_PIXMAP = np.zeros((N, N), object)
 BUSES = []
 LINES = []
 TRANSFORMERS = []
-LINE_TYPES = [['Default', {'r': 2.5e-2, 'd12': 3.0, 'd23': 4.5, 'd31': 7.5, 'd': 0.4, 'rho': 1.78e-8, 'm': 2}]]
-
+LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31 (m)': 7.5, 'd (m)': 0.4, '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2}]]
+LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31', 'd (m)': 'd', 'm': 'm'}
 
 class GenericSignal(QObject):
     signal = pyqtSignal(object)
@@ -138,6 +138,7 @@ class SchemeInputer(QGraphicsScene):
                     BUSES_PIXMAP[(i, j)] = sceneItem
                     self._pointerSignal.emit_sig((i, j))
                     self._methodSignal.emit_sig('addBus')
+                    return
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -157,6 +158,7 @@ class SchemeInputer(QGraphicsScene):
                         self._pointerSignal.emit_sig((i, j))
                         self._methodSignal.emit_sig('storeOriginAddLt')
                         self._methodSignal.emit_sig('LayoutManager')
+                        return
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -199,6 +201,7 @@ class SchemeInputer(QGraphicsScene):
                                     self._methodSignal.emit_sig('addLine')
                             except Exception:
                                 logging.error(traceback.format_exc())
+                        return
                     else:  # No bar case
                         pass
                 except Exception:
@@ -574,13 +577,14 @@ class CircuitInputer(QWidget):
            returns None if the line has been set by impedance and admittance
         ---------------------------------------------------------------------
         """
+        global LINE_TYPES
         try:
             line_parameters_val = list(LINE.__dict__.values())[:8]
             if all(line_parameters_val == np.ones((8,)) * -1):
                 return "No model"
             else:
                 for line_type in LINE_TYPES:
-                    if all(tuple(LINE.__getattribute__(key) == line_type[1].get(key) for key in line_type[1].keys())):
+                    if all(tuple(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in line_type[1].keys())):
                         return line_type[0]
                 return "No model"
         except Exception:
@@ -623,6 +627,7 @@ class CircuitInputer(QWidget):
                 line = LINE[0]
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
+                    print('update na linha com: ', param_values)
                     # Current selected element is a line
                     # Update using properties
                     # Z and Y are obttained from the updated properties
@@ -640,7 +645,7 @@ class CircuitInputer(QWidget):
                     Z, Y = complex(self.LtZLineEdit.text()), complex(self.LtYLineEdit.text())
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
-                    self.updateLineWithImpedances(line, Z, Y, l)
+                    self.updateLineWithImpedances(line, Z, Y, l, vbase)
                     self.LayoutManager()
                     self._statusMsg.emit_sig('Update line with impedances')
             elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
@@ -683,7 +688,7 @@ class CircuitInputer(QWidget):
         line.Z, line.Y = None, None
         line.l = l
         line.vbase = vbase
-        line.__dict__.update(param_values)
+        line.__dict__.update({LINE_TYPES_HSH[x]: param_values.get(x) for x in param_values})
 
     @staticmethod
     def updateLineWithImpedances(line, Z, Y, l, vbase):
@@ -752,7 +757,10 @@ class CircuitInputer(QWidget):
                               if not isinstance(layout.itemAt(i), QLayout))
             titles = new_values[:2]
             par_names = new_values[2::2]
-            par_values = new_values[3::2]
+            par_values = list(map(lambda x: float(x), new_values[3::2]))
+            print('titles: ', titles)
+            print('par_names: ', par_names)
+            print('par_values: ', par_values)
             if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
                 self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
                 return
@@ -765,6 +773,7 @@ class CircuitInputer(QWidget):
             else:
                 LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
                 self._statusMsg.emit_sig('The model has been stored')
+            print(LINE_TYPES)
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -932,7 +941,6 @@ class CircuitInputer(QWidget):
         to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
         for item in to_be_desactivated:
             item.setEnabled(False)
-
         if BUS:
             if BUS.barra_id == 0:
                 self.BarTitle.setText('Barra Slack')
@@ -962,14 +970,28 @@ class CircuitInputer(QWidget):
             self.PlInput.setText('{:.3g}'.format(BUS.pl))
             self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
         else:
-            self.BarTitle.setText('No bar')
-            self.BarV_Value.setText('{:.3g}'.format(0.0))
-            self.BarAngle_Value.setText('{:.3g}'.format(0.0))
-            self.QgInput.setText('{:.3g}'.format(0.0))
-            self.PgInput.setText('{:.3g}'.format(0.0))
-            self.QlInput.setText('{:.3g}'.format(0.0))
-            self.PlInput.setText('{:.3g}'.format(0.0))
-            self.XdLineEdit.setText('{:.3g}'.format(0.0))
+            self.AddLoadButton.setText('+')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.add_load)
+        if BUS.pg > 0 or BUS.qg > 0:
+            self.AddGenerationButton.setText('-')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.remove_gen)
+        else:
+            self.AddGenerationButton.setText('+')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.add_gen)
+        self.BarV_Value.setText('{:.3g}'.format(np.abs(BUS.v)))
+        self.BarAngle_Value.setText('{:.3g}'.format(np.angle(BUS.v) * 180 / np.pi))
+        self.QgInput.setText('{:.3g}'.format(BUS.qg))
+        self.PgInput.setText('{:.3g}'.format(BUS.pg))
+        self.QlInput.setText('{:.3g}'.format(BUS.ql))
+        self.PlInput.setText('{:.3g}'.format(BUS.pl))
+        if BUS.xd == np.inf:
+            self.XdLineEdit.setText('\u221e')
+        else:
+            self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
+
 
     def LayoutManager(self):
         """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
@@ -1083,6 +1105,7 @@ class CircuitInputer(QWidget):
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
                 self.LayoutManager()
+                update_mask()
         except Exception:
             logging.error(traceback.format_exc())
 
