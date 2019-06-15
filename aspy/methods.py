@@ -322,8 +322,8 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
 
     Returns
     -------
-    jacobianDisregard: array with positions of to be removed from J
-    deltaVdelta: array with the increase values to update V0
+    jacobianDisregard: array with positions to be removed from J
+    deltaVdelta: array with the increasing values to update V0
     """
     n = np.size(deltaPQ)
     deltaPQAdj = np.empty((0, 0))
@@ -358,7 +358,7 @@ def update_V(deltaPQ, N, V0, Y):
 
     Returns
     -------
-    V0: updated array with new estimates to the node tensions
+    V0: updated array with new estimates to the node voltages
     """
     deltaVdelta, RemoveFromJAdj = DeltaVdelta(deltaPQ, N, V0, Y)
     if deltaVdelta is None:
@@ -394,7 +394,7 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
 
     Returns
     -------
-    V0: updated array with estimates to the node tensions (1, N)
+    V0: updated array with estimates to the node voltages (1, N)
     """
     N = V0.size
     V = np.copy(V0)
