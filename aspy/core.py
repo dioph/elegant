@@ -74,7 +74,7 @@ class LT(object):
         self.destiny = destiny
         self.vbase = vbase
         if imax is None:
-            imax = 1e8 / vbase
+            imax = np.inf
         self.imax = imax
         self.v1 = v1
         self.v2 = v2
