@@ -74,6 +74,7 @@ def test_Scalc():
 
 
 def test_short():
+    setup()
     Y0, Y1 = Yseq(barras, linhas, trafos, grid)
     niter, err, V = newton_raphson(Y, V0, S, eps=1e-12)
     I = short(Y1, Y0, V)
@@ -95,10 +96,10 @@ def test_plot():
     S0 = np.zeros((N, 2))
     for i in range(N):
         if barras[i].pg > 0 and barras[i].barra_id > 0:
-            V1[i] = np.abs(barras[i].v)
+            V1[i] = barras[i].v
             S0[i] = np.array([barras[i].pg - barras[i].pl, np.nan])
         elif barras[i].barra_id == 0:
-            V1[i] = barras[i].v
+            V1[i] = barras[i].v * np.exp(barras[i].delta * 1j)
             S0[i] = np.array([np.nan, np.nan])
         else:
             V1[i] = 1.0
