@@ -87,6 +87,7 @@ class SchemeInputer(QGraphicsScene):
         ----------
         interface_point: center of bump box from interface points
         point: clicked point by user
+
         Returns
         -------
         : distance between point and interface_point
@@ -98,6 +99,7 @@ class SchemeInputer(QGraphicsScene):
         Parameters
         ----------
         central_point: coordinates of quantized point from interface
+
         Returns
         -------
         : index codes for point, given its quantized coordinates
@@ -117,6 +119,7 @@ class SchemeInputer(QGraphicsScene):
         Parameters
         ----------
         coordinates: coordinates that guide line drawing
+
         Returns
         -------
         line: drawn line (PyQt5 object)
@@ -135,6 +138,7 @@ class SchemeInputer(QGraphicsScene):
         Parameters
         ----------
         coordinates: coordinates that guide square drawing
+
         Returns
         -------
         QRect: drawn square (PyQt5 object)
@@ -157,6 +161,7 @@ class SchemeInputer(QGraphicsScene):
         Parameters
         ----------
         coordinates: coordinates that guide bus drawing
+
         Returns
         -------
         QRect: drawn bus (PyQt5 object)
@@ -280,7 +285,7 @@ class SchemeInputer(QGraphicsScene):
 
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
-        #  General initializations
+        # General initializations
         super(CircuitInputer, self).__init__(parent)
         self.Scene = SchemeInputer()
         self.View = QGraphicsView(self.Scene)
@@ -300,7 +305,7 @@ class CircuitInputer(QWidget):
         self.Scene._dataSignal.signal.connect(lambda args: self.setTemp(args))
         self.Scene._methodSignal.signal.connect(lambda args: self.methodsTrigger(args))
 
-        #  Inspectors
+        # Inspectors
         self.InspectorLayout = QVBoxLayout()
 
         # Layout for general bar case
@@ -630,7 +635,7 @@ class CircuitInputer(QWidget):
     @staticmethod
     def findParametersSetFromLt(LINE):
         """Return the name of parameters set of a existent line or
-           returns None if the line has been set by impedance and admittance
+        return None if the line has been set by impedance and admittance
         """
         global LINE_TYPES
         try:
@@ -648,7 +653,7 @@ class CircuitInputer(QWidget):
 
     def findParametersSetFromComboBox(self):
         """Find parameters set based on current selected line or trafo inspector combo box
-           If the line was set with impedance/admittance, return 'None'
+        If the line was set with impedance/admittance, return 'None'
         """
         set_name = self.chooseLtModel.currentText()
         for line_types in LINE_TYPES:
@@ -775,6 +780,7 @@ class CircuitInputer(QWidget):
         """
         Updates a trafo with the given parameters if the current element is a trafo
         or converts a line into a trafo with the inputted parameters
+
         Calls
         -----
         QPushButton Submit trafo
@@ -857,8 +863,6 @@ class CircuitInputer(QWidget):
 
     def setLayoutHidden(self, layout, visible):
         """Hide completely any layout containing widgets or/and other layouts"""
-        """Hide recursivelly any layout containing widgets or/and other layouts
-        """
         witems = list(layout.itemAt(i).widget() for i in range(layout.count()) \
                       if not isinstance(layout.itemAt(i), QLayout))
         witems = list(filter(lambda x: x is not None, witems))
@@ -919,7 +923,7 @@ class CircuitInputer(QWidget):
         return False
 
     def remove_trafo(self, trafo=None):
-        """Remove an trafo (draw and electrical representation).
+        """Remove an trafo (draw and electrical representation)
         Parameters
         ----------
         trafo: trafo to be removed. If it is None, current selected trafo in interface will be removed
@@ -936,6 +940,7 @@ class CircuitInputer(QWidget):
 
     def remove_selected_line(self, line=None):
         """Remove an line (draw and electrical representation)
+
         Parameters
         ----------
         line: line to be removed. If it is None, current selected line in interface will be removed
@@ -999,9 +1004,11 @@ class CircuitInputer(QWidget):
     def updateBusInspector(self, BUS):
         """Updates the bus inspector with bus data if bus exists or
         show that there's no bus (only after bus exclusion)
+
         Parameters
         ----------
         BUS: barra object which data will be displayed
+
         Calls
         -----
         LayoutManager, remove_gen, remove_load
@@ -1184,8 +1191,6 @@ class CircuitInputer(QWidget):
             for bus in BUSES:
                 if bus.posicao == grid_bus.posicao:
                     return bus
-                else:
-                    continue
         return None
 
     @staticmethod
@@ -1194,8 +1199,6 @@ class CircuitInputer(QWidget):
         for tl in LINES:
             if COORDS in tl[2]:
                 return tl
-            else:
-                continue
         return None
 
     @staticmethod
@@ -1204,8 +1207,6 @@ class CircuitInputer(QWidget):
         for trafo in TRANSFORMERS:
             if COORDS in trafo[2]:
                 return trafo
-            else:
-                continue
         return None
 
     def removeElementsLinked2Bus(self, BUS):
@@ -1223,6 +1224,7 @@ class CircuitInputer(QWidget):
     def add_gen(self):
         """
         Adds generation to the bus, make some QLineEdits activated
+
         Calls
         -----
         QPushButton Add generation (__init__)
@@ -1243,6 +1245,7 @@ class CircuitInputer(QWidget):
 
     def submit_gen(self):
         """Updates bus parameters with the user input in bus inspector
+
         Calls
         -----
         add_gen (button rebind)
