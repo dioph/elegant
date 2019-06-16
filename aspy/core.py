@@ -7,8 +7,10 @@ OMEGA = 2 * np.pi * 60.
 PI = np.pi
 EPS = 8.854e-12
 
+
 class Barra(object):
-    def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0, xd=np.inf):
+    def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
+                 xd=np.inf, iTPG=None, iSLG=None, iDLG=None, iLL=None):
         self.barra_id = barra_id
         self.v = v
         self.i = i
@@ -19,6 +21,10 @@ class Barra(object):
         self.ql = ql
         self.posicao = posicao
         self.xd = xd
+        self.iTPG = iTPG
+        self.iSLG = iSLG
+        self.iDLG = iDLG
+        self.iLL = iLL
 
     @property
     def P(self):
@@ -31,7 +37,7 @@ class Barra(object):
     @property
     def Z(self):
         if self.pl != 0 or self.ql != 0:
-            return np.abs(self.v) ** 2 / (self.pl - 1j * self.ql)
+            return self.v ** 2 / (self.pl - 1j * self.ql)
         return np.inf
 
 
@@ -53,7 +59,7 @@ class BarraSL(Barra):
 
 class LT(object):
     def __init__(self, l=32e3, r=2.5e-2, d12=3.0, d23=4.5, d31=7.5, d=0.4, rho=1.78e-8, m=2, vbase=1e4,
-                 Z=None, Y=None, origin=None, destiny=None):
+                 imax=None, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.l = l
         self.r = r
@@ -67,6 +73,11 @@ class LT(object):
         self.origin = origin
         self.destiny = destiny
         self.vbase = vbase
+        if imax is None:
+            imax = 1e8 / vbase
+        self.imax = imax
+        self.v1 = 0.
+        self.v2 = 0.
 
     @property
     def Rm(self):
@@ -107,10 +118,7 @@ class LT(object):
 
     @property
     def Zpu(self):
-        if (self.z, self.y) == (None, None):
-            return self.Z / (self.vbase ** 2 / 1e8)
-        else:
-            return self.z / (self.vbase ** 2 / 1e8)
+        return self.Z / (self.vbase ** 2 / 1e8)
 
     @Z.setter
     def Z(self, Z):
@@ -126,14 +134,39 @@ class LT(object):
 
     @property
     def Ypu(self):
-        if (self.z, self.y) == (None, None):
-            return self.Y * (self.vbase ** 2 / 1e8)
-        else:
-            return self.Y * (self.vbase ** 2 / 1e8)
+        return self.Y * (self.vbase ** 2 / 1e8)
 
     @Y.setter
     def Y(self, Y):
         self.y = Y
+
+    @property
+    def gamma(self):
+        return np.sqrt(self.Z * self.Y)
+
+    @property
+    def Zc(self):
+        return np.sqrt(self.Z / self.Y)
+
+    @property
+    def Zcpu(self):
+        return np.sqrt(self.Zpu / self.Ypu)
+
+    @property
+    def T(self):
+        A = np.cosh(self.gamma)
+        B = self.Zc * np.sinh(self.gamma)
+        C = np.sinh(self.gamma) / self.Zc
+        D = np.cosh(self.gamma)
+        return np.array([[A, B], [C, D]])
+
+    @property
+    def Tpu(self):
+        A = np.cosh(self.gamma)
+        B = self.Zcpu * np.sinh(self.gamma)
+        C = np.sinh(self.gamma) / self.Zcpu
+        D = np.cosh(self.gamma)
+        return np.array([[A, B], [C, D]])
 
 
 class Trafo(object):
