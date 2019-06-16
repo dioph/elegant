@@ -16,7 +16,7 @@ def update_flow(barras, linhas, trafos, grid, hsh=None):
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=1000)
+    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=25)
     I = np.dot(Y, V)
     Scalc = V * np.conjugate(I)
     S0 = np.zeros_like(S)
