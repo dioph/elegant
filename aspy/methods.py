@@ -1,22 +1,22 @@
 import numpy as np
 
 
-def update(barras, linhas, trafos, grid, hsh=None):
+def update_flow(barras, linhas, trafos, grid, hsh=None):
     N = len(barras)
     Y = Ybus(barras, linhas, trafos, grid, hsh)
     V0 = np.zeros(N, complex)
     S = np.zeros((N, 2))
     for i in range(N):
         if barras[i].barra_id == 0:
-            V0[i] = barras[i].v
+            V0[i] = barras[i].v * np.exp(1j * barras[i].delta)
             S[i] = np.array([np.nan, np.nan])
         elif barras[i].pg > 0:
-            V0[i] = np.abs(barras[i].v)
+            V0[i] = barras[i].v
             S[i] = np.array([barras[i].pg - barras[i].pl, np.nan])
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-6)
+    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=1000)
     I = np.dot(Y, V)
     Scalc = V * np.conjugate(I)
     S0 = np.zeros_like(S)
@@ -24,10 +24,15 @@ def update(barras, linhas, trafos, grid, hsh=None):
     S0[:, 1] = Scalc.imag
     if not np.allclose(S0[np.isfinite(S)], S[np.isfinite(S)]):
         print('Unmatching power!')
-        return V0, S, np.zeros((N, 4, 3))
+        return V0, S
+    return V, S0
+
+
+def update_short(barras, linhas, trafos, grid, hsh):
+    V = np.array([b.v * np.exp(1j * b.delta) for b in barras])
     Y0, Y1 = Yseq(barras, linhas, trafos, grid, hsh)
     If = short(Y1, Y0, V)
-    return V, S0, If
+    return If
 
 
 def Ybus(barras, linhas, trafos, grid, hsh=None):
@@ -96,8 +101,8 @@ def Yseq(barras, linhas, trafos, grid, hsh=None):
     for lt in linhas:
         node1 = hsh[grid[lt.origin].barra_id]
         node2 = hsh[grid[lt.destiny].barra_id]
-        Y1[node1, node1] += 1 / lt.Zpu + lt.Y / 2
-        Y1[node2, node2] += 1 / lt.Zpu + lt.Y / 2
+        Y1[node1, node1] += 1 / lt.Zpu + lt.Ypu / 2
+        Y1[node2, node2] += 1 / lt.Zpu + lt.Ypu / 2
         Y1[node1, node2] -= 1 / lt.Zpu
         Y1[node2, node1] -= 1 / lt.Zpu
     for t in trafos:
@@ -115,8 +120,8 @@ def Yseq(barras, linhas, trafos, grid, hsh=None):
     for lt in linhas:
         node1 = hsh[grid[lt.origin].barra_id]
         node2 = hsh[grid[lt.destiny].barra_id]
-        Y0[node1, node1] += 1 / lt.Zpu + lt.Y / 2
-        Y0[node2, node2] += 1 / lt.Zpu + lt.Y / 2
+        Y0[node1, node1] += 1 / lt.Zpu + lt.Ypu / 2
+        Y0[node2, node2] += 1 / lt.Zpu + lt.Ypu / 2
         Y0[node1, node2] -= 1 / lt.Zpu
         Y0[node2, node1] -= 1 / lt.Zpu
     for t in trafos:
@@ -183,7 +188,7 @@ def short(Y1, Y0, V):
     return np.array(I)
 
 
-def gauss_seidel(Y, V0, S, eps=None, Niter=1):
+def gauss_seidel(Y, V0, S, eps=None, Niter=1, Nmax=1000):
     """Gauss-Seidel Method
 
     Parameters
@@ -207,7 +212,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     if eps is None:
         eps = np.inf
     count = 0
-    while (delta > eps or count < Niter) and count < 1000:
+    while (delta > eps or count < Niter) and count < Nmax:
         for i in range(N):
             I = np.dot(Y[i], V)
             P, Q = S[i]
@@ -225,7 +230,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1):
     return count, delta, V
 
 
-def newton_raphson(Y, V0, S, eps=None, Niter=1):
+def newton_raphson(Y, V0, S, eps=None, Niter=1, Nmax=1000):
     """
     Parameters
     ----------
@@ -248,7 +253,7 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1):
     if eps is None:
         eps = np.inf
     count = 0
-    while (delta > eps or count < Niter) and count < 1000:
+    while (delta > eps or count < Niter) and count < Nmax:
         deltaPQ = np.zeros((2 * N, 1))
         for i in range(N):
             P, Q = S[i]
