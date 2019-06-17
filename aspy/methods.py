@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def update_flow(barras, linhas, trafos, grid, hsh=None):
+def update_flow(barras, linhas, trafos, grid, hsh=None, method=1):
     N = len(barras)
     Y = Ybus(barras, linhas, trafos, grid, hsh)
     V0 = np.zeros(N, complex)
@@ -16,7 +16,10 @@ def update_flow(barras, linhas, trafos, grid, hsh=None):
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=1000)
+    if method == 1:
+        niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=1000)
+    elif method == 2:
+        niter, delta, V = gauss_seidel(Y, V0, S, eps=1e-12, Nmax=1000)
     I = np.dot(Y, V)
     Scalc = V * np.conjugate(I)
     S0 = np.zeros_like(S)

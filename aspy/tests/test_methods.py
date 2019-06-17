@@ -6,7 +6,8 @@ from ..SchemeInput import createLocalData
 from ..core import *
 from ..methods import *
 
-with shelve.open('/home/alpaca/aspy/db') as db:
+
+with shelve.open('C:\\Users\\Fernando Dantas\\Documents\\GitHub\\aspy\\test\\test_file') as db:
     tipos, linhas, barras, trafos, grid = createLocalData(db)
     linhas = np.array(linhas)[:, 0]
     trafos = np.array(trafos)[:, 0]

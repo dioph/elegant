@@ -8,9 +8,12 @@ import networkx as nx
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from PyQt5.Qt import QPrinter
 
 from aspy.core import *
 from aspy.methods import update_flow, update_short
+
+from aspy.report import *
 
 """
 # ----------------------------------------------------------------------------------------------------
@@ -46,7 +49,7 @@ BUSES = []
 LINES = []
 TRANSFORMERS = []
 LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31 (m)': 7.5, 'd (m)': 0.4,
-                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': 1000}]]
+                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': None}]]
 LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
 
@@ -1370,11 +1373,17 @@ class Aspy(QMainWindow):
         addLineAct = QAction('Add line type', self)
         addLineAct.triggered.connect(self.addLineType)
 
-        editLineAct = QAction('Edit line type', self)
-        editLineAct.triggered.connect(self.editLineType)
+        # editLineAct = QAction('Edit line type', self)
+        # editLineAct.triggered.connect(self.editLineType)
 
-        setDefaultLineAct = QAction('Set default line type', self)
-        setDefaultLineAct.triggered.connect(self.setDefaultLineType)
+        # setDefaultLineAct = QAction('Set default line type', self)
+        # setDefaultLineAct.triggered.connect(self.setDefaultLineType)
+
+        # setMethodAct = QAction('Set method do run power flux', self)
+        # setMethodAct.triggered.connect(self.setMethod)
+
+        generateReportAct = QAction('Generate report', self)
+        generateReportAct.triggered.connect(self.generateReport)
 
         # Central widget
         self.CircuitInputer = CircuitInputer()
@@ -1390,17 +1399,32 @@ class Aspy(QMainWindow):
 
         linemenu = menubar.addMenu('&Lines')
         linemenu.addAction(addLineAct)
-        linemenu.addAction(editLineAct)
+        # linemenu.addAction(editLineAct)
 
-        settings = menubar.addMenu('&Settings')
-        settings.addAction(setDefaultLineAct)
+        # settings = menubar.addMenu('&Settings')
+        # settings.addAction(setDefaultLineAct)
+        # settings.addAction(setMethodAct)
+
+        results = menubar.addMenu('&Results')
+        results.addAction(generateReportAct)
 
         self.setWindowTitle('Aspy')
         self.setGeometry(50, 50, 1000, 600)
         self.setMinimumWidth(1000)
         self.show()
 
+    def generateReport(self):
+        try:
+            global LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
+            self.displayStatusMsg("Generating report...")
+            create_report(BUSES, np.array(LINES)[:, 0], np.array(TRANSFORMERS)[:, 0], GRID_BUSES)
+        except Exception:
+            logging.error(traceback.format_exc())
+
     def setDefaultLineType(self):
+        pass
+
+    def setMethod(self):
         pass
 
     def displayStatusMsg(self, args):
@@ -1521,11 +1545,9 @@ def createLocalData(db):
 
 
 def coordpairs(coords, squarel):
-    k = 0
-    while k < len(coords) - 1:
+    for k in range(len(coords)-1):
         yield (np.array([[squarel / 2 + squarel * coords[k][1], squarel / 2 + squarel * coords[k][0]],
                          [squarel / 2 + squarel * coords[k + 1][1], squarel / 2 + squarel * coords[k + 1][0]]]))
-        k += 1
 
 
 def createSchematic(scene):

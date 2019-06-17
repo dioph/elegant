@@ -3,7 +3,7 @@ import tempfile
 
 import numpy as np
 from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
-    Subsection, MultiColumn, MultiRow, UnsafeCommand
+    Subsection, MultiColumn, MultiRow, UnsafeCommand, NewPage
 
 from pylatex.base_classes import CommandBase
 from pylatex.package import Package
@@ -140,6 +140,7 @@ def create_report(barras, linhas, trafos, grid):
                                  NoEscape('{:.04f}'.format(lt.Ypu.imag * 100)), 1, 2, 3, 4, 5),
                                 color=color)
                 tbl.add_hline()
+    doc.append(NewPage())
     with doc.create(Section('Trafos')):
         with doc.create(Table(position='h')) as table:
             doc.append(NoEscape('\\centering'))
