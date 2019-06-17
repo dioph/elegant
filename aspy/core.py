@@ -50,21 +50,21 @@ class LT(object):
     def __init__(self, l=32e3, r=2.5e-2, d12=3.0, d23=4.5, d31=7.5, d=0.4, rho=1.78e-8, m=2, vbase=1e4,
                  imax=np.inf, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
-        self.l = l
         self.r = r
         self.d12 = d12
         self.d23 = d23
         self.d31 = d31
         self.d = d
         self.m = m
+        if imax is None:
+            imax = np.inf
+        self.imax = imax
+        self.l = l
         self.z = Z
         self.y = Y
         self.origin = origin
         self.destiny = destiny
         self.vbase = vbase
-        if imax is None:
-            imax = np.inf
-        self.imax = imax
         self.v1 = v1
         self.v2 = v2
 
