@@ -8,11 +8,9 @@ import networkx as nx
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from PyQt5.Qt import QPrinter
 
 from aspy.core import *
 from aspy.methods import update_flow, update_short
-from aspy.report import create_report
 
 from aspy.report import *
 
@@ -50,7 +48,7 @@ BUSES = []
 LINES = []
 TRANSFORMERS = []
 LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31 (m)': 7.5, 'd (m)': 0.4,
-                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': None}]]
+                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': np.inf}]]
 LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
 
@@ -643,15 +641,15 @@ class CircuitInputer(QWidget):
         """
         global LINE_TYPES
         try:
-            line_parameters_val = list(LINE.__dict__.values())[:8]
-            if all(line_parameters_val == np.ones((8,)) * -1):
+            line_parameters_keys = ['rho', 'r', 'd12', 'd23', 'd31', 'd', 'm', 'imax']
+            line_parameters_vals = list(map(lambda x: LINE.__getattribute__(x), line_parameters_keys))
+            if all(line_parameters_vals == np.ones((8,)) * -1):
                 return "No model"
             else:
                 for line_type in LINE_TYPES:
                     if all(tuple(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
                                  line_type[1].keys())):
                         return line_type[0]
-                return "No model"
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1377,18 +1375,6 @@ class Aspy(QMainWindow):
         addLineAct = QAction('Add line type', self)
         addLineAct.triggered.connect(self.addLineType)
 
-        # editLineAct = QAction('Edit line type', self)
-        # editLineAct.triggered.connect(self.editLineType)
-
-        # setDefaultLineAct = QAction('Set default line type', self)
-        # setDefaultLineAct.triggered.connect(self.setDefaultLineType)
-
-        # setMethodAct = QAction('Set method do run power flux', self)
-        # setMethodAct.triggered.connect(self.setMethod)
-
-        generateReportAct = QAction('Generate report', self)
-        generateReportAct.triggered.connect(self.generateReport)
-
         # Central widget
         self.CircuitInputer = CircuitInputer()
         self.CircuitInputer._statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
@@ -1404,14 +1390,6 @@ class Aspy(QMainWindow):
 
         linemenu = menubar.addMenu('&Lines')
         linemenu.addAction(addLineAct)
-        # linemenu.addAction(editLineAct)
-
-        # settings = menubar.addMenu('&Settings')
-        # settings.addAction(setDefaultLineAct)
-        # settings.addAction(setMethodAct)
-
-        results = menubar.addMenu('&Results')
-        results.addAction(generateReportAct)
 
         self.setWindowTitle('ASPy')
         self.setGeometry(50, 50, 1000, 600)
@@ -1425,12 +1403,6 @@ class Aspy(QMainWindow):
             create_report(BUSES, np.array(LINES)[:, 0], np.array(TRANSFORMERS)[:, 0], GRID_BUSES)
         except Exception:
             logging.error(traceback.format_exc())
-
-    def setDefaultLineType(self):
-        pass
-
-    def setMethod(self):
-        pass
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args, msecs=10000)
@@ -1464,9 +1436,6 @@ class Aspy(QMainWindow):
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, True)
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.LtOrTrafoLayout, True)
         self.displayStatusMsg('Adding new line model')
-
-    def editLineType(self):
-        print('edit line type')
 
 
 def update_mask():
