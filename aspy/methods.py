@@ -16,10 +16,7 @@ def update_flow(barras, linhas, trafos, grid, hsh=None, method=1):
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    if method == 1:
-        niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=1000)
-    elif method == 2:
-        niter, delta, V = gauss_seidel(Y, V0, S, eps=1e-12, Nmax=1000)
+    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=25)
     I = np.dot(Y, V)
     Scalc = V * np.conjugate(I)
     S0 = np.zeros_like(S)
@@ -165,7 +162,8 @@ def short(Y1, Y0, V):
         --> Line-to-line (LL)
     """
     N = len(V)
-    if N > 0 and np.linalg.cond(Y1) < 1 / np.finfo(Y1.dtype).eps:
+    if N > 0 and np.linalg.cond(Y1) < 1 / np.finfo(Y1.dtype).eps and \
+            np.linalg.cond(Y0) < 1 / np.finfo(Y0.dtype).eps:
         Z1 = np.diag(np.linalg.inv(Y1))
         Z0 = np.diag(np.linalg.inv(Y0))
     else:
@@ -181,7 +179,7 @@ def short(Y1, Y0, V):
         if2 = np.array([if2a, 0., 0.])
         # DLG
         if3a = V[i] / (Z1[i] + Z1[i] * Z0[i] / (Z1[i] + Z0[i]))
-        if3 = np.array([if3a, -if3a * Z0[i] / (Z1[i] + Z0[i]), -if3a * Z1[i] / (Z1[i] + Z0[i])])
+        if3 = np.array([-if3a * Z1[i] / (Z1[i] + Z0[i]), if3a, -if3a * Z0[i] / (Z1[i] + Z0[i])])
         if3 = np.dot(A, if3)
         # LL
         if4 = V[i] / (2 * Z1[i])

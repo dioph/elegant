@@ -74,10 +74,10 @@ class LT(object):
         self.destiny = destiny
         self.vbase = vbase
         if imax is None:
-            imax = 1e8 / vbase
+            imax = np.inf
         self.imax = imax
-        self.v1 = 0.
-        self.v2 = 0.
+        self.v1 = v1
+        self.v2 = v2
 
     @property
     def Rm(self):
@@ -153,24 +153,33 @@ class LT(object):
         return np.sqrt(self.Zpu / self.Ypu)
 
     @property
-    def T(self):
-        A = np.cosh(self.gamma)
-        B = self.Zc * np.sinh(self.gamma)
-        C = np.sinh(self.gamma) / self.Zc
-        D = np.cosh(self.gamma)
-        return np.array([[A, B], [C, D]])
+    def Tpu(self):
+        A = (self.Zpu * self.Ypu / 2 + 1)
+        B = self.Zpu
+        C = self.Ypu * (1 + self.Zpu * self.Ypu / 4)
+        return np.array([[A, B], [C, A]])
 
     @property
-    def Tpu(self):
-        A = np.cosh(self.gamma)
-        B = self.Zcpu * np.sinh(self.gamma)
-        C = np.sinh(self.gamma) / self.Zcpu
-        D = np.cosh(self.gamma)
-        return np.array([[A, B], [C, D]])
+    def Ipu(self):
+        A, B, C, D = self.Tpu.flatten()
+        return (self.v1 - A * self.v2) / B
+
+    @property
+    def I(self):
+        ibase = 1e8 / self.vbase
+        return self.Ipu * ibase
+
+    @property
+    def Sper(self):
+        return self.Zpu * np.abs(self.Ipu) ** 2 - self.Ypu
+
+    @property
+    def Spu(self):
+        return self.v2 * self.Ipu.conjugate()
 
 
 class Trafo(object):
-    def __init__(self, snom=1e8, jx0=0.0, jx1=0.0, primary=0, secondary=0, origin=None, destiny=None):
+    def __init__(self, snom=1e8, jx0=0.0, jx1=0.0, primary=0, secondary=0, origin=None, destiny=None, v1=0., v2=0.):
         self.snom = snom
         self.jx0 = jx0
         self.jx1 = jx1
@@ -178,6 +187,8 @@ class Trafo(object):
         self.secondary = secondary
         self.origin = origin
         self.destiny = destiny
+        self.v1 = v1
+        self.v2 = v2
 
     @property
     def Z0(self):
@@ -186,3 +197,15 @@ class Trafo(object):
     @property
     def Z1(self):
         return self.jx1 * 1e8 * 1j / self.snom
+
+    @property
+    def Ipu(self):
+        return (self.v1 - self.v2) / self.Z1
+
+    @property
+    def Sper(self):
+        return self.Z1 * np.abs(self.Ipu) ** 2
+
+    @property
+    def Spu(self):
+        return self.v2 * self.Ipu.conjugate()

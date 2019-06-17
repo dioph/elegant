@@ -6,9 +6,6 @@ from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, NewPage
 
 from pylatex.base_classes import CommandBase
-from pylatex.package import Package
-from .SchemeInput import getSessionsDir
-
 
 class Wye(CommandBase):
     _latex_name = 'wye'
@@ -22,23 +19,24 @@ def test_inf(x):
 
 
 def get_scheme(tr):
-    code = {0: '\\why', 1: '\\wye', 2: '\\Delta'}
+    code = {0: '$\\why{}$', 1: '$\\wye{}$', 2: '$\\Delta$'}
     return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
 
 
 def create_report(barras, linhas, trafos, grid):
+    from .SchemeInput import getSessionsDir
+
     geometry_options = {"tmargin": "2cm", "lmargin": "2cm", "rmargin": "2cm", "bmargin": "2cm"}
     doc = Document(geometry_options=geometry_options)
     doc.preamble.append(Command('usepackage', 'cmbright'))
     doc.preamble.append(Command('usepackage', 'tikz'))
-    # doc.preamble.append(Command('usepackage', 'xcolor', options='table'))
-    # doc.preamble.append(Command('usepackage', 'pgfplots'))
+    doc.preamble.append(Command('usepackage', 'amsmath'))
     now = datetime.datetime.now()
     doc.append('Relatório gerado automaticamente em '
                '{:02d}/{:02d}/{:02d} {:02d}:{:02d}:{:02d} usando ASPy'.format(
         now.day, now.month, now.year, now.hour, now.minute, now.second))
-    wye_comm = UnsafeCommand('newcommand', '\\wye', options=0,
-                             extra_arguments=r'\text{\begin{tikzpicture}[x=1pt, y=1pt, scale=2]'
+    wye_comm = UnsafeCommand('newcommand', '\\wye',
+                             extra_arguments=r'\mathbin{\text{\begin{tikzpicture}[x=1pt, y=1pt, scale=2]'
                                              r'\draw '
                                              r'(-0.9, 0) -- (0.9, 0) '
                                              r'(-0.6, -0.5) -- (0.6, -0.5) '
@@ -46,14 +44,14 @@ def create_report(barras, linhas, trafos, grid):
                                              r'(0, 0) -- ++(0, 1.5) -- ++(1.2, 0) coordinate (tmp)'
                                              r'-- +(0, -2) '
                                              r'(tmp) +(45:2) -- (tmp) -- +(135:2) ;'
-                                             r'\end{tikzpicture}}')
-    why_comm = UnsafeCommand('newcommand', '\\why', options=0,
-                             extra_arguments=r'\text{\begin{tikzpicture}[x=1pt, y=1pt, scale=2]'
+                                             r'\end{tikzpicture}}}')
+    why_comm = UnsafeCommand('newcommand', '\\why',
+                             extra_arguments=r'\mathbin{\text{\begin{tikzpicture}[x=1pt, y=1pt, scale=2]'
                                              r'\draw '
                                              r'(1.2, 1.5) coordinate (tmp)'
                                              r'-- +(0, -2) '
                                              r'(tmp) +(45:2) -- (tmp) -- +(135:2) ;'
-                                             r'\end{tikzpicture}}')
+                                             r'\end{tikzpicture}}}')
     doc.append(wye_comm)
     doc.append(why_comm)
     doc.add_color(name="lightgray", model="gray", description="0.80")
@@ -137,7 +135,12 @@ def create_report(barras, linhas, trafos, grid):
                     tbl.add_row((NoEscape('{} -- {}'.format(grid[lt.origin].barra_id, grid[lt.destiny].barra_id)),
                                  NoEscape('{:.04f}'.format(lt.Zpu.real * 100)),
                                  NoEscape('{:.04f}'.format(lt.Zpu.imag * 100)),
-                                 NoEscape('{:.04f}'.format(lt.Ypu.imag * 100)), 1, 2, 3, 4, 5),
+                                 NoEscape('{:.04f}'.format(lt.Ypu.imag * 100)),
+                                 NoEscape('{:.02f}'.format(lt.Sper.real * 100)),
+                                 NoEscape('{:.02f}'.format(lt.Sper.imag * 100)),
+                                 NoEscape('{:.02f}'.format(lt.Spu.real * 100)),
+                                 NoEscape('{:.02f}'.format(lt.Spu.imag * 100)),
+                                 NoEscape('{:.02f}'.format(np.abs(lt.I) / lt.imax * 100))),
                                 color=color)
                 tbl.add_hline()
     doc.append(NewPage())
@@ -163,7 +166,12 @@ def create_report(barras, linhas, trafos, grid):
                     tbl.add_row((NoEscape('{} -- {}'.format(grid[tr.origin].barra_id, grid[tr.destiny].barra_id)),
                                  NoEscape('{:.02f}'.format(tr.Z1.imag * 100)),
                                  NoEscape('{:.02f}'.format(tr.Z0.imag * 100)),
-                                 get_scheme(tr), 1, 2, 3, 4, 5),
+                                 get_scheme(tr),
+                                 NoEscape('{:.02f}'.format(tr.Sper.real * 100)),
+                                 NoEscape('{:.02f}'.format(tr.Sper.imag * 100)),
+                                 NoEscape('{:.02f}'.format(tr.Spu.real * 100)),
+                                 NoEscape('{:.02f}'.format(tr.Spu.imag * 100)),
+                                 NoEscape('{:.02f}'.format(np.abs(tr.Spu) * 1e8 / tr.snom * 100))),
                                 color=color)
                 tbl.add_hline()
     filename = next(tempfile._get_candidate_names())

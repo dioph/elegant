@@ -12,6 +12,7 @@ from PyQt5.Qt import QPrinter
 
 from aspy.core import *
 from aspy.methods import update_flow, update_short
+from aspy.report import create_report
 
 from aspy.report import *
 
@@ -1370,6 +1371,9 @@ class Aspy(QMainWindow):
         loadAct.setShortcut('Ctrl+O')
         loadAct.triggered.connect(self.loadSession)
 
+        createReport = QAction('Generate report', self)
+        createReport.triggered.connect(self.report)
+
         addLineAct = QAction('Add line type', self)
         addLineAct.triggered.connect(self.addLineType)
 
@@ -1396,6 +1400,7 @@ class Aspy(QMainWindow):
         filemenu = menubar.addMenu('&Session')
         filemenu.addAction(saveAct)
         filemenu.addAction(loadAct)
+        filemenu.addAction(createReport)
 
         linemenu = menubar.addMenu('&Lines')
         linemenu.addAction(addLineAct)
@@ -1408,7 +1413,7 @@ class Aspy(QMainWindow):
         results = menubar.addMenu('&Results')
         results.addAction(generateReportAct)
 
-        self.setWindowTitle('Aspy')
+        self.setWindowTitle('ASPy')
         self.setGeometry(50, 50, 1000, 600)
         self.setMinimumWidth(1000)
         self.show()
@@ -1446,6 +1451,13 @@ class Aspy(QMainWindow):
             createSchematic(self.CircuitInputer.Scene)
         except Exception:
             logging.error(traceback.format_exc())
+
+    def report(self):
+        linhas = np.array(LINES)[:, 0]
+        trafos = np.array(TRANSFORMERS)[:, 0]
+        grid = GRID_BUSES
+        barras = BUSES
+        create_report(barras, linhas, trafos, grid)
 
     def addLineType(self):
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.InputNewLineType, False)
@@ -1501,21 +1513,26 @@ def update_mask():
         hsh[i] = j
     V, S0 = update_flow(barras, linhas, trafos, GRID_BUSES, hsh)
     for b in barras:
-        if b.barra_id in good_ids:
-            b.v = np.abs(V[hsh[b.barra_id]])
-            b.delta = np.angle(V[hsh[b.barra_id]])
-            b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
-            b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
+        b.v = np.abs(V[hsh[b.barra_id]])
+        b.delta = np.angle(V[hsh[b.barra_id]])
+        b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
+        b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
+    for lt in linhas:
+        node1 = hsh[GRID_BUSES[lt.origin].barra_id]
+        node2 = hsh[GRID_BUSES[lt.destiny].barra_id]
+        lt.v1 = V[node1]
+        lt.v2 = V[node2]
+    for tr in trafos:
+        node1 = hsh[GRID_BUSES[tr.origin].barra_id]
+        node2 = hsh[GRID_BUSES[tr.destiny].barra_id]
+        tr.v1 = V[node1]
+        tr.v2 = V[node2]
     If = update_short(barras, linhas, trafos, GRID_BUSES, hsh)
     for b in barras:
-        if b.barra_id in good_ids:
-            b.iTPG = If[hsh[b.barra_id], 0, 0]
-            b.iSLG = If[hsh[b.barra_id], 1, 0]
-            b.iDLG = If[hsh[b.barra_id], 2, 1]
-            b.iLL = If[hsh[b.barra_id], 3, 1]
-    print(S0)
-    print([np.abs(b.iTPG) for b in barras])
-    print(hsh)
+        b.iTPG = If[hsh[b.barra_id], 0, 0]
+        b.iSLG = If[hsh[b.barra_id], 1, 0]
+        b.iDLG = If[hsh[b.barra_id], 2, 1]
+        b.iLL = If[hsh[b.barra_id], 3, 1]
 
 
 def storeData(db):
