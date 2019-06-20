@@ -774,9 +774,9 @@ class CircuitInputer(QWidget):
         line.Z, line.Y = Z * zbase, Y / zbase
         line.l = l
         line.vbase = vbase
-        for key in list(line.__dict__.keys())[:8]:
-            if key is not 'l':
-                line.__setattr__(key, -1)
+        keys = ['rho', 'r', 'd12', 'd23', 'd31', 'd', 'm', 'imax']
+        up_dict = {key: -1 for key in keys}
+        line.__dict__.update(up_dict)
 
     def trafoProcessing(self):
         """
