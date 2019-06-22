@@ -1,5 +1,9 @@
 import numpy as np
 
+def singular_matrix(matrix):
+    if np.size(matrix) > 0 and np.linalg.cond(matrix) < 1/np.finfo(matrix.dtype).eps:
+        return False
+    return True
 
 def update_flow(barras, linhas, trafos, grid, hsh=None, method=1):
     N = len(barras)
@@ -388,7 +392,7 @@ def DeltaVdelta(deltaPQ, N, V0, Y):
         jAdj = np.delete(jAdj, int(lincol), 0)
         jAdj = np.delete(jAdj, int(lincol), 1)
     jacobianDisregard = set(jacobianDisregard)
-    if np.size(jAdj) > 0 and np.linalg.cond(jAdj) < 1 / np.finfo(jAdj.dtype).eps:
+    if singular_matrix(jAdj):
         deltaVdelta = np.linalg.solve(jAdj, deltaPQAdj)
     else:
         print('### SINGULAR JACOBIAN! ###')

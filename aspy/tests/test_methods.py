@@ -1,7 +1,5 @@
 import shelve
 
-import matplotlib.pyplot as plt
-
 from ..SchemeInput import createLocalData
 from ..core import *
 from ..methods import *
