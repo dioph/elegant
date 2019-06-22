@@ -178,32 +178,38 @@ class SchemeInputer(QGraphicsScene):
     def mouseDoubleClickEvent(self, event):
         """This method allows buses additions"""
         global BUSES_PIXMAP
-        double_pressed = event.scenePos().x(), event.scenePos().y()
-        for central_point in self.quantizedInterface.flatten():
-            if self.distance(double_pressed, central_point) <= self.selector_radius:
-                i, j = self.Point_pos(central_point)
-                sceneItem = self.drawBus((central_point.x(), central_point.y()))
-                BUSES_PIXMAP[(i, j)] = sceneItem
-                self._pointerSignal.emit_sig((i, j))
-                self._methodSignal.emit_sig(0)
-                return
+        try:
+            double_pressed = event.scenePos().x(), event.scenePos().y()
+            for central_point in self.quantizedInterface.flatten():
+                if self.distance(double_pressed, central_point) <= self.selector_radius:
+                    i, j = self.Point_pos(central_point)
+                    sceneItem = self.drawBus((central_point.x(), central_point.y()))
+                    BUSES_PIXMAP[(i, j)] = sceneItem
+                    self._pointerSignal.emit_sig((i, j))
+                    self._methodSignal.emit_sig(0)
+                    return
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def mousePressEvent(self, event):
         """This method allows transmission lines additions"""
-        if event.button() in (1, 2):
-            pressed = event.scenePos().x(), event.scenePos().y()
-            for central_point in self.quantizedInterface.flatten():
-                if self.distance(pressed, central_point) <= self.selector_radius:
-                    i, j = self.Point_pos(central_point)
-                    self.clearSquare(self._selectorHistory[0])
-                    #  up-right corner is (0, 0)
-                    self._selectorHistory[1] = central_point.x() - self._oneSquareSideLength / 2
-                    self._selectorHistory[2] = central_point.y() - self._oneSquareSideLength / 2
-                    self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
-                    self._pointerSignal.emit_sig((i, j))
-                    self._methodSignal.emit_sig(4)
-                    self._methodSignal.emit_sig(2)
-                    return
+        try:
+            if event.button() in (1, 2):
+                pressed = event.scenePos().x(), event.scenePos().y()
+                for central_point in self.quantizedInterface.flatten():
+                    if self.distance(pressed, central_point) <= self.selector_radius:
+                        i, j = self.Point_pos(central_point)
+                        self.clearSquare(self._selectorHistory[0])
+                        #  up-right corner is (0, 0)
+                        self._selectorHistory[1] = central_point.x() - self._oneSquareSideLength / 2
+                        self._selectorHistory[2] = central_point.y() - self._oneSquareSideLength / 2
+                        self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
+                        self._pointerSignal.emit_sig((i, j))
+                        self._methodSignal.emit_sig(4)
+                        self._methodSignal.emit_sig(2)
+                        return
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def mouseMoveEvent(self, event):
         """This method gives behavior to adding lines wire tool"""
@@ -211,36 +217,42 @@ class SchemeInputer(QGraphicsScene):
             clicked = event.scenePos().x(), event.scenePos().y()
             for central_point in self.quantizedInterface.flatten():
                 i, j = self.Point_pos(central_point)
-                if self.distance(clicked, central_point) <= self.selector_radius:
-                    if np.all(self._moveHistory[0] < 0):  # Set source
-                        self._moveHistory[0, 0] = central_point.x()
-                        self._moveHistory[0, 1] = central_point.y()
-                        if isinstance(GRID_BUSES[i, j], Barra):  # Asserts the start was from a bus
-                            self._firstRetainer = False
-                    if central_point.x() != self._moveHistory[0, 0] \
-                            or central_point.y() != self._moveHistory[0, 1]:  # Set destiny
-                        self._moveHistory[1, 0] = central_point.x()
-                        self._moveHistory[1, 1] = central_point.y()
-                    if (np.all(self._moveHistory > 0)) and \
-                            (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
-                        # DRAW LINE #
-                        if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
-                            # when a bus is achieved
-                            line = self.drawLine(self._moveHistory)
-                            self._moveHistory[:, :] = -1
-                            self._lastRetainer = True  # Prevent the user for put line outside last bus
-                            self._pointerSignal.emit_sig((i, j))
-                            self._dataSignal.emit_sig(line)
-                            self._methodSignal.emit_sig(1)
-                        elif not isinstance(GRID_BUSES[i, j], Barra) and not (
-                                self._lastRetainer or self._firstRetainer):
-                            # started from a bus
-                            line = self.drawLine(self._moveHistory)
-                            self._moveHistory[:, :] = -1
-                            self._pointerSignal.emit_sig((i, j))
-                            self._dataSignal.emit_sig(line)
-                            self._methodSignal.emit_sig(1)
-                    return
+                try:
+                    if self.distance(clicked, central_point) <= self.selector_radius:
+                        if np.all(self._moveHistory[0] < 0):  # Set source
+                            self._moveHistory[0, 0] = central_point.x()
+                            self._moveHistory[0, 1] = central_point.y()
+                            if isinstance(GRID_BUSES[i, j], Barra):  # Asserts the start was from a bus
+                                self._firstRetainer = False
+                        if central_point.x() != self._moveHistory[0, 0] \
+                                or central_point.y() != self._moveHistory[0, 1]:  # Set destiny
+                            self._moveHistory[1, 0] = central_point.x()
+                            self._moveHistory[1, 1] = central_point.y()
+                        if (np.all(self._moveHistory > 0)) and \
+                                (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
+                            # DRAW LINE #
+                            try:
+                                if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
+                                    # when a bus is achieved
+                                    line = self.drawLine(self._moveHistory)
+                                    self._moveHistory[:, :] = -1
+                                    self._lastRetainer = True  # Prevent the user for put line outside last bus
+                                    self._pointerSignal.emit_sig((i, j))
+                                    self._dataSignal.emit_sig(line)
+                                    self._methodSignal.emit_sig(1)
+                                elif not isinstance(GRID_BUSES[i, j], Barra) and not (
+                                        self._lastRetainer or self._firstRetainer):
+                                    # started from a bus
+                                    line = self.drawLine(self._moveHistory)
+                                    self._moveHistory[:, :] = -1
+                                    self._pointerSignal.emit_sig((i, j))
+                                    self._dataSignal.emit_sig(line)
+                                    self._methodSignal.emit_sig(1)
+                            except Exception:
+                                logging.error(traceback.format_exc())
+                        return
+                except Exception:
+                    logging.error(traceback.format_exc())
 
     def getQuantizedInterface(self):
         """
@@ -585,20 +597,23 @@ class CircuitInputer(QWidget):
         LayoutManager, trafoProcessing
         """
         trafo_code = {0: 'Y', 1: 'Yg', 2: '\u0394'}
-        if self.getTrafoFromGridPos(self._currElementCoords) is not None:
-            TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
-            trafo = TRAFO[0]
-            self.SNomTrafoLineEdit.setText('{:.3g}'.format(trafo.snom))
-            self.XZeroSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx0 * 100))
-            self.XPosSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx1 * 100))
-            self.TrafoPrimary.setCurrentText(trafo_code[trafo.primary])
-            self.TrafoSecondary.setCurrentText(trafo_code[trafo.secondary])
-        else:
-            self.SNomTrafoLineEdit.setText('1e8')
-            self.XZeroSeqTrafoLineEdit.setText('0.0')
-            self.XPosSeqTrafoLineEdit.setText('0.0')
-            self.TrafoPrimary.setCurrentText(trafo_code[1])
-            self.TrafoSecondary.setCurrentText(trafo_code[1])
+        try:
+            if self.getTrafoFromGridPos(self._currElementCoords) is not None:
+                TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
+                trafo = TRAFO[0]
+                self.SNomTrafoLineEdit.setText('{:.3g}'.format(trafo.snom))
+                self.XZeroSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx0 * 100))
+                self.XPosSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx1 * 100))
+                self.TrafoPrimary.setCurrentText(trafo_code[trafo.primary])
+                self.TrafoSecondary.setCurrentText(trafo_code[trafo.secondary])
+            else:
+                self.SNomTrafoLineEdit.setText('1e8')
+                self.XZeroSeqTrafoLineEdit.setText('0.0')
+                self.XPosSeqTrafoLineEdit.setText('0.0')
+                self.TrafoPrimary.setCurrentText(trafo_code[1])
+                self.TrafoSecondary.setCurrentText(trafo_code[1])
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def updateLtInspector(self):
         """Updates the line inspector
@@ -606,15 +621,18 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, lineProcessing
         """
-        LINE = self.getLtFromGridPos(self._currElementCoords)
-        line = LINE[0]
-        line_model = self.findParametersSetFromLt(line)
-        self.EllLineEdit.setText('{:.03g}'.format(line.l))
-        self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase))
-        self.LtYLineEdit.setText('{number.imag:.03f}j'.format(number=line.Ypu*100))
-        self.LtZLineEdit.setText('{number.real:.03f}{sgn}{number.imag:.03f}j'.format(
-            number=line.Zpu*100, sgn='+' if np.sign(line.Zpu.imag) > 0 else ''))
-        self.chooseLtModel.setCurrentText(line_model)
+        try:
+            LINE = self.getLtFromGridPos(self._currElementCoords)
+            line = LINE[0]
+            line_model = self.findParametersSetFromLt(line)
+            self.EllLineEdit.setText('{:.03g}'.format(line.l))
+            self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase))
+            self.LtYLineEdit.setText('{number.imag:.03f}j'.format(number=line.Ypu*100))
+            self.LtZLineEdit.setText('{number.real:.03f}{sgn}{number.imag:.03f}j'.format(
+                number=line.Zpu*100, sgn='+' if np.sign(line.Zpu.imag) > 0 else ''))
+            self.chooseLtModel.setCurrentText(line_model)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     @staticmethod
     def findParametersSetFromLt(LINE):
@@ -622,15 +640,18 @@ class CircuitInputer(QWidget):
         return None if the line has been set by impedance and admittance
         """
         global LINE_TYPES
-        line_parameters_keys = ['rho', 'r', 'd12', 'd23', 'd31', 'd', 'm', 'imax']
-        line_parameters_vals = list(map(lambda x: LINE.__getattribute__(x), line_parameters_keys))
-        if all(line_parameters_vals == np.ones((8,)) * -1):
-            return "No model"
-        else:
-            for line_type in LINE_TYPES:
-                if all(tuple(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
-                             line_type[1].keys())):
-                    return line_type[0]
+        try:
+            line_parameters_keys = ['rho', 'r', 'd12', 'd23', 'd31', 'd', 'm', 'imax']
+            line_parameters_vals = list(map(lambda x: LINE.__getattribute__(x), line_parameters_keys))
+            if all(line_parameters_vals == np.ones((8,)) * -1):
+                return "No model"
+            else:
+                for line_type in LINE_TYPES:
+                    if all(tuple(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
+                                 line_type[1].keys())):
+                        return line_type[0]
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def findParametersSetFromComboBox(self):
         """Find parameters set based on current selected line or trafo inspector combo box
@@ -659,66 +680,69 @@ class CircuitInputer(QWidget):
         -----
         line and trafo QPushButtons submit by model, submit by parameters
         """
-        if self.getLtFromGridPos(self._currElementCoords) is not None:
-            # The element already is a line
-            assert (self.getTrafoFromGridPos(self._currElementCoords) is None)
-            LINE = self.getLtFromGridPos(self._currElementCoords)
-            line = LINE[0]
-            if mode == 'parameters':
-                param_values = self.findParametersSetFromComboBox()
-                print('update na linha com: ', param_values)
-                # Current selected element is a line
-                # Update using properties
-                # Z and Y are obtained from the updated properties
-                if param_values is not None:
+        try:
+            if self.getLtFromGridPos(self._currElementCoords) is not None:
+                # The element already is a line
+                assert (self.getTrafoFromGridPos(self._currElementCoords) is None)
+                LINE = self.getLtFromGridPos(self._currElementCoords)
+                line = LINE[0]
+                if mode == 'parameters':
+                    param_values = self.findParametersSetFromComboBox()
+                    print('update na linha com: ', param_values)
+                    # Current selected element is a line
+                    # Update using properties
+                    # Z and Y are obtained from the updated properties
+                    if param_values is not None:
+                        l = float(self.EllLineEdit.text())
+                        vbase = float(self.VbaseLineEdit.text())
+                        self.updateLineWithParameters(line, param_values, l, vbase)
+                        self.LayoutManager()
+                        self._statusMsg.emit_sig('Updated line with parameters')
+                    else:
+                        self._statusMsg.emit_sig('You have to choose an valid model')
+                elif mode == 'impedance':
+                    # Current selected element is a line
+                    # Update using impedance and admittance
+                    Z, Y = complex(self.LtZLineEdit.text())/100, complex(self.LtYLineEdit.text())/100
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
-                    self.updateLineWithParameters(line, param_values, l, vbase)
+                    self.updateLineWithImpedances(line, Z, Y, l, vbase)
                     self.LayoutManager()
-                    self._statusMsg.emit_sig('Updated line with parameters')
-                else:
-                    self._statusMsg.emit_sig('You have to choose an valid model')
-            elif mode == 'impedance':
-                # Current selected element is a line
-                # Update using impedance and admittance
-                Z, Y = complex(self.LtZLineEdit.text())/100, complex(self.LtYLineEdit.text())/100
-                l = float(self.EllLineEdit.text())
-                vbase = float(self.VbaseLineEdit.text())
-                self.updateLineWithImpedances(line, Z, Y, l, vbase)
-                self.LayoutManager()
-                self._statusMsg.emit_sig('Update line with impedances')
-        elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
-            # The element is a trafo and will be converted into a line
-            assert (self.getLtFromGridPos(self._currElementCoords) is None)
-            TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
-            self.remove_trafo(TRAFO)
-            new_line = LT()
-            new_line.origin = TRAFO[0].origin
-            new_line.destiny = TRAFO[0].destiny
-            if mode == 'parameters':
-                param_values = self.findParametersSetFromComboBox()
-                if param_values is not None:
+                    self._statusMsg.emit_sig('Update line with impedances')
+            elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
+                # The element is a trafo and will be converted into a line
+                assert (self.getLtFromGridPos(self._currElementCoords) is None)
+                TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
+                self.remove_trafo(TRAFO)
+                new_line = LT()
+                new_line.origin = TRAFO[0].origin
+                new_line.destiny = TRAFO[0].destiny
+                if mode == 'parameters':
+                    param_values = self.findParametersSetFromComboBox()
+                    if param_values is not None:
+                        l = float(self.EllLineEdit.text())
+                        vbase = float(self.VbaseLineEdit.text())
+                        self.updateLineWithParameters(new_line, param_values, l, vbase)
+                        self._statusMsg.emit_sig('Trafo -> line, updated with parameters')
+                    else:
+                        self._statusMsg.emit_sig('You have to choose a valid model')
+                elif mode == 'impedance':
+                    Z, Y = complex(self.LtZLineEdit.text())/100, complex(self.LtYLineEdit.text())/100
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
-                    self.updateLineWithParameters(new_line, param_values, l, vbase)
-                    self._statusMsg.emit_sig('Trafo -> line, updated with parameters')
-                else:
-                    self._statusMsg.emit_sig('You have to choose a valid model')
-            elif mode == 'impedance':
-                Z, Y = complex(self.LtZLineEdit.text())/100, complex(self.LtYLineEdit.text())/100
-                l = float(self.EllLineEdit.text())
-                vbase = float(self.VbaseLineEdit.text())
-                self.updateLineWithImpedances(new_line, Z, Y, l, vbase)
-                self._statusMsg.emit_sig('Trafo -> line, updated with impedances')
-            inserting_line = [new_line, TRAFO[1], TRAFO[2], False]
-            for line_drawing in inserting_line[1]:
-                blue_pen = QPen()
-                blue_pen.setColor(Qt.blue)
-                blue_pen.setWidth(2.5)
-                line_drawing.setPen(blue_pen)
-                self.Scene.addItem(line_drawing)
-            LINES.append(inserting_line)
-            self.LayoutManager()
+                    self.updateLineWithImpedances(new_line, Z, Y, l, vbase)
+                    self._statusMsg.emit_sig('Trafo -> line, updated with impedances')
+                inserting_line = [new_line, TRAFO[1], TRAFO[2], False]
+                for line_drawing in inserting_line[1]:
+                    blue_pen = QPen()
+                    blue_pen.setColor(Qt.blue)
+                    blue_pen.setWidth(2.5)
+                    line_drawing.setPen(blue_pen)
+                    self.Scene.addItem(line_drawing)
+                LINES.append(inserting_line)
+                self.LayoutManager()
+        except Exception:
+            logging.error(traceback.format_exc())
 
     @staticmethod
     def updateLineWithParameters(line, param_values, l, vbase):
@@ -750,9 +774,9 @@ class CircuitInputer(QWidget):
         line.Z, line.Y = Z * zbase, Y / zbase
         line.l = l
         line.vbase = vbase
-        keys = ['rho', 'r', 'd12', 'd23', 'd31', 'd', 'm', 'imax']
-        up_dict = {key: -1 for key in keys}
-        line.__dict__.update(up_dict)
+        for key in list(line.__dict__.keys())[:8]:
+            if key is not 'l':
+                line.__setattr__(key, -1)
 
     def trafoProcessing(self):
         """
@@ -765,67 +789,73 @@ class CircuitInputer(QWidget):
         """
         global TRANSFORMERS
         trafo_code = {'Y': 0, 'Yg': 1, '\u0394': 2}
-        if self.getLtFromGridPos(self._currElementCoords) is not None:
-            # Transform line into a trafo
-            assert (self.getTrafoFromGridPos(self._currElementCoords) is None)
-            line = self.getLtFromGridPos(self._currElementCoords)
-            self.remove_selected_line(line)
-            new_trafo = Trafo(
-                snom=float(self.SNomTrafoLineEdit.text()),
-                jx0=float(self.XZeroSeqTrafoLineEdit.text()) / 100,
-                jx1=float(self.XPosSeqTrafoLineEdit.text()) / 100,
-                primary=trafo_code[self.TrafoPrimary.currentText()],
-                secondary=trafo_code[self.TrafoSecondary.currentText()],
-                origin=line[0].origin,
-                destiny=line[0].destiny
-            )
-            inserting_trafo = [new_trafo, line[1], line[2]]
-            for line_drawing in inserting_trafo[1]:
-                blue_pen = QPen()
-                blue_pen.setColor(Qt.red)
-                blue_pen.setWidth(2.5)
-                line_drawing.setPen(blue_pen)
-                self.Scene.addItem(line_drawing)
-            TRANSFORMERS.append(inserting_trafo)
-            self.LayoutManager()
-            self._statusMsg.emit_sig('Line -> trafo')
-        elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
-            # Update parameters of selected trafo
-            assert (self.getLtFromGridPos(self._currElementCoords) is None)
-            trafo = self.getTrafoFromGridPos(self._currElementCoords)
-            trafo[0].snom = float(self.SNomTrafoLineEdit.text())
-            trafo[0].jx0 = float(self.XZeroSeqTrafoLineEdit.text()) / 100
-            trafo[0].jx1 = float(self.XPosSeqTrafoLineEdit.text()) / 100
-            trafo[0].primary = trafo_code[self.TrafoPrimary.currentText()]
-            trafo[0].secondary = trafo_code[self.TrafoSecondary.currentText()]
-            self.LayoutManager()
-            self._statusMsg.emit_sig('Updated trafo parameters')
+        try:
+            if self.getLtFromGridPos(self._currElementCoords) is not None:
+                # Transform line into a trafo
+                assert (self.getTrafoFromGridPos(self._currElementCoords) is None)
+                line = self.getLtFromGridPos(self._currElementCoords)
+                self.remove_selected_line(line)
+                new_trafo = Trafo(
+                    snom=float(self.SNomTrafoLineEdit.text()),
+                    jx0=float(self.XZeroSeqTrafoLineEdit.text()) / 100,
+                    jx1=float(self.XPosSeqTrafoLineEdit.text()) / 100,
+                    primary=trafo_code[self.TrafoPrimary.currentText()],
+                    secondary=trafo_code[self.TrafoSecondary.currentText()],
+                    origin=line[0].origin,
+                    destiny=line[0].destiny
+                )
+                inserting_trafo = [new_trafo, line[1], line[2]]
+                for line_drawing in inserting_trafo[1]:
+                    blue_pen = QPen()
+                    blue_pen.setColor(Qt.red)
+                    blue_pen.setWidth(2.5)
+                    line_drawing.setPen(blue_pen)
+                    self.Scene.addItem(line_drawing)
+                TRANSFORMERS.append(inserting_trafo)
+                self.LayoutManager()
+                self._statusMsg.emit_sig('Line -> trafo')
+            elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
+                # Update parameters of selected trafo
+                assert (self.getLtFromGridPos(self._currElementCoords) is None)
+                trafo = self.getTrafoFromGridPos(self._currElementCoords)
+                trafo[0].snom = float(self.SNomTrafoLineEdit.text())
+                trafo[0].jx0 = float(self.XZeroSeqTrafoLineEdit.text()) / 100
+                trafo[0].jx1 = float(self.XPosSeqTrafoLineEdit.text()) / 100
+                trafo[0].primary = trafo_code[self.TrafoPrimary.currentText()]
+                trafo[0].secondary = trafo_code[self.TrafoSecondary.currentText()]
+                self.LayoutManager()
+                self._statusMsg.emit_sig('Updated trafo parameters')
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def addNewLineType(self):
         """Add an new type of line, if given parameters has passed in all the tests"""
-        global LINE_TYPES
-        layout = self.InputNewLineTypeFormLayout
-        new_values = list(layout.itemAt(i).widget().text() for i in range(layout.count())
-                          if not isinstance(layout.itemAt(i), QLayout))
-        titles = new_values[:2]
-        par_names = new_values[2::2]
-        par_values = list(map(lambda x: float(x), new_values[3::2]))
-        print('titles: ', titles)
-        print('par_names: ', par_names)
-        print('par_values: ', par_values)
-        if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
-            self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
-            return
-        elif any(map(lambda x: x == '', par_values)):
-            self._statusMsg.emit_sig('Undefined parameter. Fill all parameters')
-            return
-        elif any(map(lambda x: par_values == list(x[1].values()), LINE_TYPES)):
-            self._statusMsg.emit_sig('A similar model was identified. The model has not been stored')
-            return
-        else:
-            LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
-            self._statusMsg.emit_sig('The model has been stored')
-        print(LINE_TYPES)
+        try:
+            global LINE_TYPES
+            layout = self.InputNewLineTypeFormLayout
+            new_values = list(layout.itemAt(i).widget().text() for i in range(layout.count())
+                              if not isinstance(layout.itemAt(i), QLayout))
+            titles = new_values[:2]
+            par_names = new_values[2::2]
+            par_values = list(map(lambda x: float(x), new_values[3::2]))
+            print('titles: ', titles)
+            print('par_names: ', par_names)
+            print('par_values: ', par_values)
+            if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
+                self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
+                return
+            elif any(map(lambda x: x == '', par_values)):
+                self._statusMsg.emit_sig('Undefined parameter. Fill all parameters')
+                return
+            elif any(map(lambda x: par_values == list(x[1].values()), LINE_TYPES)):
+                self._statusMsg.emit_sig('A similar model was identified. The model has not been stored')
+                return
+            else:
+                LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
+                self._statusMsg.emit_sig('The model has been stored')
+            print(LINE_TYPES)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def hideSpacer(self):
         self.Spacer.changeSize(0, 0)
@@ -856,25 +886,32 @@ class CircuitInputer(QWidget):
         # args = [(i, j), line]
         # LINES = [[LINES, lines, coordinates, bool ToExclude, ]
         global LINES
-        if self._startNewLT:
-            NEW_LINES = LT(origin=self._ltorigin)
-            if not self.checkLineAndTrafoCrossing():
-                LINES.append([NEW_LINES, [], [], False])
+        try:
+            if self._startNewLT:
+                print('Colocando nova linha\n')
+                NEW_LINES = LT(origin=self._ltorigin)
+                if not self.checkLineAndTrafoCrossing():
+                    LINES.append([NEW_LINES, [], [], False])
+                else:
+                    print('Linha cruzou na saída\n')
+                    LINES.append([NEW_LINES, [], [], True])
+                LINES[-1][1].append(self._temp)
+                LINES[-1][2].append(self._ltorigin)
+                LINES[-1][2].append(self._currElementCoords)
             else:
-                LINES.append([NEW_LINES, [], [], True])
-            LINES[-1][1].append(self._temp)
-            LINES[-1][2].append(self._ltorigin)
-            LINES[-1][2].append(self._currElementCoords)
-        else:
-            if self.checkLineAndTrafoCrossing():
-                LINES[-1][3] = True
-            LINES[-1][1].append(self._temp)
-            LINES[-1][2].append(self._currElementCoords)
-            if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                if LINES[-1][0].destiny is None:
-                    LINES[-1][0].destiny = self._currElementCoords
-        self._startNewLT = False
-        self._statusMsg.emit_sig('Adding line...')
+                print('Continuando linha\n')
+                if self.checkLineAndTrafoCrossing():
+                    LINES[-1][3] = True
+                    print('Linha cruzou com alguma outra já existente\n')
+                LINES[-1][1].append(self._temp)
+                LINES[-1][2].append(self._currElementCoords)
+                if isinstance(GRID_BUSES[self._currElementCoords], Barra):
+                    if LINES[-1][0].destiny is None:
+                        LINES[-1][0].destiny = self._currElementCoords
+            self._startNewLT = False
+            self._statusMsg.emit_sig('Adding line...')
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def checkLineAndTrafoCrossing(self):
         """Searches for crossing between current inputting line/trafo and existent line/trafo"""
@@ -930,27 +967,33 @@ class CircuitInputer(QWidget):
         3. The line has not a destiny bar
         """
         global LINES
-        for line in LINES:
-            if line[3]:
-                for linedrawing in line[1]:
-                    self.Scene.removeItem(linedrawing)
-                LINES.remove(line)
+        try:
+            for line in LINES:
+                if line[3]:
+                    for linedrawing in line[1]:
+                        self.Scene.removeItem(linedrawing)
+                    LINES.remove(line)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def doAfterMouseRelease(self):
         global LINES
         self._startNewLT = True
-        if LINES:
-            if len(LINES[-1][2]) == 2:  # If the line has two points only
-                LINES[-1][3] = True  # Remove
-            else:  # If the line has more than two points
-                if LINES[-1][0].destiny is None:  # If line has not destiny bus
-                    LINES[-1][3] = True  # Remove line
-        self.remove_pointless_lines()  # Removes all lines with bool remove = True
-        for lt in LINES:
-            assert (lt[0].origin is not None)
-            assert (lt[0].destiny is not None)
-        self.LayoutManager()
-        update_mask()
+        try:
+            if LINES:
+                if len(LINES[-1][2]) == 2:  # If the line has two points only
+                    LINES[-1][3] = True  # Remove
+                else:  # If the line has more than two points
+                    if LINES[-1][0].destiny is None:  # If line has not destiny bus
+                        LINES[-1][3] = True  # Remove line
+            self.remove_pointless_lines()  # Removes all lines with bool remove = True
+            for lt in LINES:
+                assert (lt[0].origin is not None)
+                assert (lt[0].destiny is not None)
+            self.LayoutManager()
+            update_mask()
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def methodsTrigger(self, args):
         """Trigger methods defined in __calls"""
@@ -1033,57 +1076,60 @@ class CircuitInputer(QWidget):
         Called by: doAfterMouseRelease
         ------------------------------------------------------------------------------------------------------
         """
-        # Even if there are two elements in a same square, only one will be identified
-        # Bus has high priority
-        # After, lines and trafo have equal priority
-        bus = self.getBusFromGridPos(self._currElementCoords)
-        lt = self.getLtFromGridPos(self._currElementCoords)
-        trafo = self.getTrafoFromGridPos(self._currElementCoords)
-        if bus is not None:
-            # Show bus inspect
-            self.hideSpacer()
-            self.setLayoutHidden(self.InputNewLineType, True)
-            self.setLayoutHidden(self.LtOrTrafoLayout, True)
-            self.setLayoutHidden(self.BarLayout, False)
-            self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
-        elif lt is not None:
-            # Show line inspect
-            assert trafo is None
-            self.hideSpacer()
-            self.setLayoutHidden(self.InputNewLineType, True)
-            self.setLayoutHidden(self.BarLayout, True)
-            self.setLayoutHidden(self.LtOrTrafoLayout, False)
-            self.chooseLt.setChecked(True)
-            self.setLayoutHidden(self.choosedTrafoFormLayout, True)
-            self.setLayoutHidden(self.choosedLtFormLayout, False)
-            self.trafoSubmitPushButton.setHidden(True)
-            self.removeTrafoPushButton.setHidden(True)
-            self.removeLTPushButton.setHidden(False)
-            self.updateLtModelOptions()
-            self.updateLtInspector()
-            self.updateTrafoInspector()
-        elif trafo is not None:
-            # Show trafo inspect
-            assert lt is None
-            self.setLayoutHidden(self.InputNewLineType, True)
-            self.hideSpacer()
-            self.setLayoutHidden(self.BarLayout, True)
-            self.setLayoutHidden(self.LtOrTrafoLayout, False)
-            self.chooseTrafo.setChecked(True)
-            self.setLayoutHidden(self.choosedTrafoFormLayout, False)
-            self.setLayoutHidden(self.choosedLtFormLayout, True)
-            self.trafoSubmitPushButton.setHidden(False)
-            self.removeTrafoPushButton.setHidden(False)
-            self.removeLTPushButton.setHidden(True)
-            self.ltSubmitByModelPushButton.setHidden(True)
-            self.ltSubmitByImpedancePushButton.setHidden(True)
-            self.updateTrafoInspector()
-        else:
-            # No element case
-            self.setLayoutHidden(self.BarLayout, True)
-            self.setLayoutHidden(self.LtOrTrafoLayout, True)
-            self.setLayoutHidden(self.InputNewLineType, True)
-            self.showSpacer()
+        try:
+            # Even if there are two elements in a same square, only one will be identified
+            # Bus has high priority
+            # After, lines and trafo have equal priority
+            bus = self.getBusFromGridPos(self._currElementCoords)
+            lt = self.getLtFromGridPos(self._currElementCoords)
+            trafo = self.getTrafoFromGridPos(self._currElementCoords)
+            if bus is not None:
+                # Show bus inspect
+                self.hideSpacer()
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.setLayoutHidden(self.BarLayout, False)
+                self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
+            elif lt is not None:
+                # Show line inspect
+                assert trafo is None
+                self.hideSpacer()
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.setLayoutHidden(self.BarLayout, True)
+                self.setLayoutHidden(self.LtOrTrafoLayout, False)
+                self.chooseLt.setChecked(True)
+                self.setLayoutHidden(self.choosedTrafoFormLayout, True)
+                self.setLayoutHidden(self.choosedLtFormLayout, False)
+                self.trafoSubmitPushButton.setHidden(True)
+                self.removeTrafoPushButton.setHidden(True)
+                self.removeLTPushButton.setHidden(False)
+                self.updateLtModelOptions()
+                self.updateLtInspector()
+                self.updateTrafoInspector()
+            elif trafo is not None:
+                # Show trafo inspect
+                assert lt is None
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.hideSpacer()
+                self.setLayoutHidden(self.BarLayout, True)
+                self.setLayoutHidden(self.LtOrTrafoLayout, False)
+                self.chooseTrafo.setChecked(True)
+                self.setLayoutHidden(self.choosedTrafoFormLayout, False)
+                self.setLayoutHidden(self.choosedLtFormLayout, True)
+                self.trafoSubmitPushButton.setHidden(False)
+                self.removeTrafoPushButton.setHidden(False)
+                self.removeLTPushButton.setHidden(True)
+                self.ltSubmitByModelPushButton.setHidden(True)
+                self.ltSubmitByImpedancePushButton.setHidden(True)
+                self.updateTrafoInspector()
+            else:
+                # No element case
+                self.setLayoutHidden(self.BarLayout, True)
+                self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.showSpacer()
+        except Exception:
+            logging.error(traceback.format_exc())
 
     @staticmethod
     def resequence_buses(buses):
@@ -1096,42 +1142,48 @@ class CircuitInputer(QWidget):
                 buses[i - 1].barra_id = i
 
     def add_bus(self):
-        global GRID_BUSES, ID, BUSES, BUSES_PIXMAP
-        COORDS = self._currElementCoords
-        possible_lt, possible_trafo = self.getLtFromGridPos(COORDS), self.getTrafoFromGridPos(COORDS)
-        if not isinstance(GRID_BUSES[COORDS], Barra) and not (possible_lt or possible_trafo):
-            if 0 not in [bus.barra_id for bus in BUSES] or np.size(BUSES) == 0:
-                # first add, or add after bus' exclusion
-                SLACK = Barra(barra_id=0, posicao=COORDS)
-                BUSES.insert(0, SLACK)
-                self.resequence_buses(BUSES)
-                GRID_BUSES[COORDS] = SLACK
-            elif 0 in [bus.barra_id for bus in BUSES]:
-                # sequenced bus insert
-                BUS = Barra(barra_id=len(BUSES) + 1, posicao=COORDS)
-                GRID_BUSES[COORDS] = BUS
-                BUSES.append(BUS)
-                self.resequence_buses(BUSES)
-            print('add: ', [bus.barra_id for bus in BUSES])
-            self._statusMsg.emit_sig('Added bus')
-            # self.LayoutManager()
-        else:
-            self.Scene.removeItem(BUSES_PIXMAP[COORDS])
-            self._statusMsg.emit_sig('There\'s an element in this position!')
+        try:
+            global GRID_BUSES, ID, BUSES, BUSES_PIXMAP
+            COORDS = self._currElementCoords
+            possible_lt, possible_trafo = self.getLtFromGridPos(COORDS), self.getTrafoFromGridPos(COORDS)
+            if not isinstance(GRID_BUSES[COORDS], Barra) and not (possible_lt or possible_trafo):
+                if 0 not in [bus.barra_id for bus in BUSES] or np.size(BUSES) == 0:
+                    # first add, or add after bus' exclusion
+                    SLACK = Barra(barra_id=0, posicao=COORDS)
+                    BUSES.insert(0, SLACK)
+                    self.resequence_buses(BUSES)
+                    GRID_BUSES[COORDS] = SLACK
+                elif 0 in [bus.barra_id for bus in BUSES]:
+                    # sequenced bus insert
+                    BUS = Barra(barra_id=len(BUSES) + 1, posicao=COORDS)
+                    GRID_BUSES[COORDS] = BUS
+                    BUSES.append(BUS)
+                    self.resequence_buses(BUSES)
+                print('add: ', [bus.barra_id for bus in BUSES])
+                self._statusMsg.emit_sig('Added bus')
+                # self.LayoutManager()
+            else:
+                self.Scene.removeItem(BUSES_PIXMAP[COORDS])
+                self._statusMsg.emit_sig('There\'s an element in this position!')
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def remove_bus(self):
         global ID, BUSES, GRID_BUSES, BUSES_PIXMAP
-        if GRID_BUSES[self._currElementCoords]:
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            self.removeElementsLinked2Bus(BUS)
-            BUSES.remove(BUS)
-            self.resequence_buses(BUSES)
-            print('remove: ', [bus.barra_id for bus in BUSES])
-            self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
-            BUSES_PIXMAP[self._currElementCoords] = 0
-            GRID_BUSES[self._currElementCoords] = 0
-            # self.LayoutManager()
-            update_mask()
+        try:
+            if GRID_BUSES[self._currElementCoords]:
+                BUS = self.getBusFromGridPos(self._currElementCoords)
+                self.removeElementsLinked2Bus(BUS)
+                BUSES.remove(BUS)
+                self.resequence_buses(BUSES)
+                print('remove: ', [bus.barra_id for bus in BUSES])
+                self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
+                BUSES_PIXMAP[self._currElementCoords] = 0
+                GRID_BUSES[self._currElementCoords] = 0
+                # self.LayoutManager()
+                update_mask()
+        except Exception:
+            logging.error(traceback.format_exc())
 
     @staticmethod
     def getBusFromGridPos(COORDS):
@@ -1179,16 +1231,19 @@ class CircuitInputer(QWidget):
         -----
         QPushButton Add generation (__init__)
         """
-        global BUSES
-        BUS = self.getBusFromGridPos(self._currElementCoords)
-        self.BarV_Value.setEnabled(True)
-        if BUS.barra_id != 0:
-            self.PgInput.setEnabled(True)
-            self.XdLineEdit.setEnabled(True)
-        self.AddGenerationButton.setText('OK')
-        self._statusMsg.emit_sig('Input generation data...')
-        self.AddGenerationButton.disconnect()
-        self.AddGenerationButton.pressed.connect(self.submit_gen)
+        try:
+            global BUSES
+            BUS = self.getBusFromGridPos(self._currElementCoords)
+            self.BarV_Value.setEnabled(True)
+            if BUS.barra_id != 0:
+                self.PgInput.setEnabled(True)
+                self.XdLineEdit.setEnabled(True)
+            self.AddGenerationButton.setText('OK')
+            self._statusMsg.emit_sig('Input generation data...')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.submit_gen)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def submit_gen(self):
         """Updates bus parameters with the user input in bus inspector
@@ -1245,13 +1300,16 @@ class CircuitInputer(QWidget):
         -----
         QPushButton Add load (__init__)
         """
-        global BUSES
-        self.PlInput.setEnabled(True)
-        self.QlInput.setEnabled(True)
-        self.AddLoadButton.setText('OK')
-        self._statusMsg.emit_sig('Input load data...')
-        self.AddLoadButton.disconnect()
-        self.AddLoadButton.pressed.connect(self.submit_load)
+        try:
+            global BUSES
+            self.PlInput.setEnabled(True)
+            self.QlInput.setEnabled(True)
+            self.AddLoadButton.setText('OK')
+            self._statusMsg.emit_sig('Input load data...')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.submit_load)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def submit_load(self):
         """
@@ -1260,32 +1318,38 @@ class CircuitInputer(QWidget):
         add_load (button rebind)
         """
         global GRID_BUSES, BUSES
-        if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            BUS.pl = float(self.PlInput.text())
-            BUS.ql = float(self.QlInput.text())
-            GRID_BUSES[self._currElementCoords].pl = BUS.pl
-            GRID_BUSES[self._currElementCoords].ql = BUS.ql
-            self.PlInput.setEnabled(False)
-            self.QlInput.setEnabled(False)
-            self.AddLoadButton.setText('-')
-            self.AddLoadButton.disconnect()
-            self.AddLoadButton.pressed.connect(self.remove_load)
-            self._statusMsg.emit_sig('Added load')
+        try:
+            if isinstance(GRID_BUSES[self._currElementCoords], Barra):
+                BUS = self.getBusFromGridPos(self._currElementCoords)
+                BUS.pl = float(self.PlInput.text())
+                BUS.ql = float(self.QlInput.text())
+                GRID_BUSES[self._currElementCoords].pl = BUS.pl
+                GRID_BUSES[self._currElementCoords].ql = BUS.ql
+                self.PlInput.setEnabled(False)
+                self.QlInput.setEnabled(False)
+                self.AddLoadButton.setText('-')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.remove_load)
+                self._statusMsg.emit_sig('Added load')
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def remove_load(self):
-        global GRID_BUSES, BUSES
-        if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            BUS.pl = 0
-            BUS.ql = 0
-            GRID_BUSES[self._currElementCoords].pl = 0
-            GRID_BUSES[self._currElementCoords].ql = 0
-            self.updateBusInspector(BUS)
-            self.AddLoadButton.setText('+')
-            self.AddLoadButton.disconnect()
-            self.AddLoadButton.pressed.connect(self.add_load)
-            self._statusMsg.emit_sig('Removed load')
+        try:
+            global GRID_BUSES, BUSES
+            if isinstance(GRID_BUSES[self._currElementCoords], Barra):
+                BUS = self.getBusFromGridPos(self._currElementCoords)
+                BUS.pl = 0
+                BUS.ql = 0
+                GRID_BUSES[self._currElementCoords].pl = 0
+                GRID_BUSES[self._currElementCoords].ql = 0
+                self.updateBusInspector(BUS)
+                self.AddLoadButton.setText('+')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.add_load)
+                self._statusMsg.emit_sig('Removed load')
+        except Exception:
+            logging.error(traceback.format_exc())
 
 
 class Aspy(QMainWindow):
@@ -1333,33 +1397,36 @@ class Aspy(QMainWindow):
         self.show()
 
     def generateReport(self):
-        global LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
-        self.displayStatusMsg("Generating report...")
-        create_report(BUSES, np.array(LINES)[:, 0], np.array(TRANSFORMERS)[:, 0], GRID_BUSES)
+        try:
+            global LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
+            self.displayStatusMsg("Generating report...")
+            create_report(BUSES, np.array(LINES)[:, 0], np.array(TRANSFORMERS)[:, 0], GRID_BUSES)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args, msecs=10000)
 
     def saveSession(self):
-        sessions_dir = getSessionsDir()
-        with shelve.open(os.path.join(sessions_dir, './db')) as db:
-            db = storeData(db)
+        try:
+            sessions_dir = getSessionsDir()
+            with shelve.open(os.path.join(sessions_dir, './db')) as db:
+                db = storeData(db)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def loadSession(self):
-        sessions_dir = getSessionsDir()
-        with shelve.open(os.path.join(sessions_dir, './db')) as db:
-            createLocalData(db)
-        createSchematic(self.CircuitInputer.Scene)
+        try:
+            sessions_dir = getSessionsDir()
+            with shelve.open(os.path.join(sessions_dir, './db')) as db:
+                createLocalData(db)
+            createSchematic(self.CircuitInputer.Scene)
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def report(self):
-        if len(LINES) > 0:
-            linhas = np.array(LINES)[:, 0]
-        else:
-            linhas = np.array([])
-        if len(TRANSFORMERS) > 0:
-            trafos = np.array(TRANSFORMERS)[:, 0]
-        else:
-            trafos = np.array([])
+        linhas = np.array(LINES)[:, 0]
+        trafos = np.array(TRANSFORMERS)[:, 0]
         grid = GRID_BUSES
         barras = BUSES
         create_report(barras, linhas, trafos, grid)
@@ -1391,7 +1458,6 @@ def update_mask():
     MASK = np.zeros(len(BUSES), bool)
     MASK[list(neighbors)] = True
     good_ids = [b.barra_id for b in np.array(BUSES)[MASK]]
-    rank = nx.shortest_path_length(G, source=0)
     if len(LINES) > 0:
         mask_linhas = np.ones(len(LINES), bool)
         for i in range(len(LINES)):
@@ -1420,7 +1486,6 @@ def update_mask():
         b.delta = np.angle(V[hsh[b.barra_id]])
         b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
         b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
-        b.rank = rank[b.barra_id]
     for lt in linhas:
         node1 = hsh[GRID_BUSES[lt.origin].barra_id]
         node2 = hsh[GRID_BUSES[lt.destiny].barra_id]
@@ -1435,8 +1500,7 @@ def update_mask():
     for b in barras:
         b.iTPG = If[hsh[b.barra_id], 0, 0]
         b.iSLG = If[hsh[b.barra_id], 1, 0]
-        b.iDLGb = If[hsh[b.barra_id], 2, 1]
-        b.iDLGc = If[hsh[b.barra_id], 2, 2]
+        b.iDLG = If[hsh[b.barra_id], 2, 1]
         b.iLL = If[hsh[b.barra_id], 3, 1]
 
 
