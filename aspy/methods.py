@@ -16,7 +16,7 @@ def update_flow(barras, linhas, trafos, grid, hsh=None):
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=25)
+    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=20)
     I = np.dot(Y, V)
     Scalc = V * np.conjugate(I)
     S0 = np.zeros_like(S)
@@ -97,7 +97,8 @@ def Yseq(barras, linhas, trafos, grid, hsh=None):
     for b in barras:
         node = hsh[b.barra_id]
         Y1[node, node] += 1 / b.Z
-        Y1[node, node] += 1 / b.xd
+        if np.isfinite(b.xd):
+            Y1[node, node] += 1 / (b.xd * 1j)
     for lt in linhas:
         node1 = hsh[grid[lt.origin].barra_id]
         node2 = hsh[grid[lt.destiny].barra_id]
