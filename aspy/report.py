@@ -83,17 +83,18 @@ def create_report(barras, linhas, trafos, grid):
         with doc.create(Subsection('Estudo de Curto-Circuito')):
             with doc.create(Table(position='h')) as table:
                 doc.append(NoEscape('\\centering'))
-                with doc.create(Tabular('c|cccccccc')) as tbl:
+                with doc.create(Tabular('c|cccccccccc')) as tbl:
                     tbl.add_hline()
                     tbl.add_row((MultiRow(2, data='Barra'),
                                  MultiColumn(2, align='c', data=NoEscape('TPG')),
                                  MultiColumn(2, align='c', data=NoEscape('SLG')),
-                                 MultiColumn(2, align='c', data=NoEscape('DLG')),
+                                 MultiColumn(4, align='c', data=NoEscape('DLG')),
                                  MultiColumn(2, align='c', data=NoEscape('LL'))))
-                    tbl.add_hline(2, 9)
+                    tbl.add_hline(2, 11)
                     tbl.add_row(('', NoEscape('$I_A$ (pu)'), NoEscape('$\\delta_A$ (deg)'),
                                  NoEscape('$I_A$ (pu)'), NoEscape('$\\delta_A$ (deg)'),
                                  NoEscape('$I_B$ (pu)'), NoEscape('$\\delta_B$ (deg)'),
+                                 NoEscape('$I_C$ (pu)'), NoEscape('$\\delta_C$ (deg)'),
                                  NoEscape('$I_B$ (pu)'), NoEscape('$\\delta_B$ (deg)')))
                     tbl.add_hline()
                     for i, b in enumerate(barras):
@@ -106,8 +107,10 @@ def create_report(barras, linhas, trafos, grid):
                                      NoEscape('${:.02f}$'.format(np.angle(b.iTPG) * 180 / np.pi)),
                                      NoEscape('{:.04f}'.format(np.abs(b.iSLG))),
                                      NoEscape('${:.02f}$'.format(np.angle(b.iSLG) * 180 / np.pi)),
-                                     NoEscape('{:.04f}'.format(np.abs(b.iDLG))),
-                                     NoEscape('${:.02f}$'.format(np.angle(b.iDLG) * 180 / np.pi)),
+                                     NoEscape('{:.04f}'.format(np.abs(b.iDLGb))),
+                                     NoEscape('${:.02f}$'.format(np.angle(b.iDLGb) * 180 / np.pi)),
+                                     NoEscape('{:.04f}'.format(np.abs(b.iDLGc))),
+                                     NoEscape('${:.02f}$'.format(np.angle(b.iDLGc) * 180 / np.pi)),
                                      NoEscape('{:.04f}'.format(np.abs(b.iLL))),
                                      NoEscape('${:.02f}$'.format(np.angle(b.iLL) * 180 / np.pi))),
                                     color=color)
@@ -137,8 +140,8 @@ def create_report(barras, linhas, trafos, grid):
                                  NoEscape('{:.04f}'.format(lt.Ypu.imag * 100)),
                                  NoEscape('{:.02f}'.format(lt.Sper.real * 100)),
                                  NoEscape('{:.02f}'.format(lt.Sper.imag * 100)),
-                                 NoEscape('{:.02f}'.format(lt.Spu.real * 100)),
-                                 NoEscape('{:.02f}'.format(lt.Spu.imag * 100)),
+                                 NoEscape('{:.02f}'.format(lt.S2.real * 100)),
+                                 NoEscape('{:.02f}'.format(lt.S2.imag * 100)),
                                  NoEscape('{:.02f}'.format(np.abs(lt.I) / lt.imax * 100))),
                                 color=color)
                 tbl.add_hline()
@@ -174,7 +177,7 @@ def create_report(barras, linhas, trafos, grid):
                 tbl.add_hline()
     filename = next(tempfile._get_candidate_names())
     sessions_dir = getSessionsDir()
-    doc.generate_pdf(sessions_dir + '/' + filename, clean_tex=False)
+    doc.generate_pdf(sessions_dir + '/' + filename, clean_tex=True)
 
 
 if __name__ == '__main__':
