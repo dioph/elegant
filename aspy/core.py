@@ -10,7 +10,7 @@ EPS = 8.854e-12
 
 class Barra(object):
     def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
-                 xd=np.inf, iTPG=None, iSLG=None, iDLG=None, iLL=None):
+                 xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None, rank=np.inf):
         self.barra_id = barra_id
         self.v = v
         self.i = i
@@ -23,8 +23,10 @@ class Barra(object):
         self.xd = xd
         self.iTPG = iTPG
         self.iSLG = iSLG
-        self.iDLG = iDLG
+        self.iDLGb = iDLGb
+        self.iDLGc = iDLGc
         self.iLL = iLL
+        self.rank = rank
 
     @property
     def P(self):
@@ -171,11 +173,29 @@ class LT(object):
 
     @property
     def Sper(self):
-        return self.Zpu * np.abs(self.Ipu) ** 2 - self.Ypu
+        return self.S1 - self.S2
 
     @property
-    def Spu(self):
-        return self.v2 * self.Ipu.conjugate()
+    def S1(self):
+        v1 = np.abs(self.v1)
+        v2 = np.abs(self.v2)
+        d12 = np.angle(self.v1) - np.angle(self.v2)
+        z = np.abs(self.Zpu)
+        dz = np.angle(self.Zpu)
+        P1 = v1**2/z * np.cos(dz) - v1*v2/z * np.cos(d12+dz)
+        Q1 = v1**2/z * np.sin(dz) - v1*v2/z * np.sin(d12+dz) - v1**2*np.abs(self.Ypu)/2
+        return P1 + 1j * Q1
+
+    @property
+    def S2(self):
+        v1 = np.abs(self.v1)
+        v2 = np.abs(self.v2)
+        d12 = np.angle(self.v1) - np.angle(self.v2)
+        z = np.abs(self.Zpu)
+        dz = np.angle(self.Zpu)
+        P2 = -v2 ** 2 / z * np.cos(dz) + v1 * v2 / z * np.cos(-d12 + dz)
+        Q2 = -v2 ** 2 / z * np.sin(dz) + v1 * v2 / z * np.sin(-d12 + dz) + v2 ** 2 * np.abs(self.Ypu) / 2
+        return P2 + 1j * Q2
 
 
 class Trafo(object):

@@ -1352,8 +1352,14 @@ class Aspy(QMainWindow):
         createSchematic(self.CircuitInputer.Scene)
 
     def report(self):
-        linhas = np.array(LINES)[:, 0]
-        trafos = np.array(TRANSFORMERS)[:, 0]
+        if len(LINES) > 0:
+            linhas = np.array(LINES)[:, 0]
+        else:
+            linhas = np.array([])
+        if len(TRANSFORMERS) > 0:
+            trafos = np.array(TRANSFORMERS)[:, 0]
+        else:
+            trafos = np.array([])
         grid = GRID_BUSES
         barras = BUSES
         create_report(barras, linhas, trafos, grid)
@@ -1385,6 +1391,7 @@ def update_mask():
     MASK = np.zeros(len(BUSES), bool)
     MASK[list(neighbors)] = True
     good_ids = [b.barra_id for b in np.array(BUSES)[MASK]]
+    rank = nx.shortest_path_length(G, source=0)
     if len(LINES) > 0:
         mask_linhas = np.ones(len(LINES), bool)
         for i in range(len(LINES)):
@@ -1413,6 +1420,7 @@ def update_mask():
         b.delta = np.angle(V[hsh[b.barra_id]])
         b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
         b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
+        b.rank = rank[b.barra_id]
     for lt in linhas:
         node1 = hsh[GRID_BUSES[lt.origin].barra_id]
         node2 = hsh[GRID_BUSES[lt.destiny].barra_id]
@@ -1427,7 +1435,8 @@ def update_mask():
     for b in barras:
         b.iTPG = If[hsh[b.barra_id], 0, 0]
         b.iSLG = If[hsh[b.barra_id], 1, 0]
-        b.iDLG = If[hsh[b.barra_id], 2, 1]
+        b.iDLGb = If[hsh[b.barra_id], 2, 1]
+        b.iDLGc = If[hsh[b.barra_id], 2, 2]
         b.iLL = If[hsh[b.barra_id], 3, 1]
 
 
