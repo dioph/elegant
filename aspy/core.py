@@ -43,22 +43,6 @@ class Barra(object):
         return np.inf
 
 
-class BarraPQ(Barra):
-    def __init__(self, barra_id=0, pg=0., qg=0., pl=0., ql=0.):
-        super(BarraPQ, self).__init__(barra_id=barra_id, v=np.nan, delta=np.nan, pg=pg, qg=qg, pl=pl, ql=ql)
-
-
-class BarraPV(Barra):
-    def __init__(self, barra_id=0, v=1e3, pg=0., pl=0., ql=0.):
-        super(BarraPV, self).__init__(barra_id=barra_id, v=v, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=ql)
-
-
-class BarraSL(Barra):
-    def __init__(self, barra_id=0, v=1e3, delta=0., pl=0., ql=0.):
-        super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=pl, ql=ql)
-        self.vbase = 1e3
-
-
 class LT(object):
     def __init__(self, l=32e3, r=2.5e-2, d12=3.0, d23=4.5, d31=7.5, d=0.4, rho=1.78e-8, m=2, vbase=1e4,
                  imax=None, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
@@ -182,8 +166,8 @@ class LT(object):
         d12 = np.angle(self.v1) - np.angle(self.v2)
         z = np.abs(self.Zpu)
         dz = np.angle(self.Zpu)
-        P1 = v1**2/z * np.cos(dz) - v1*v2/z * np.cos(d12+dz)
-        Q1 = v1**2/z * np.sin(dz) - v1*v2/z * np.sin(d12+dz) - v1**2*np.abs(self.Ypu)/2
+        P1 = v1 ** 2 / z * np.cos(dz) - v1 * v2 / z * np.cos(d12 + dz)
+        Q1 = v1 ** 2 / z * np.sin(dz) - v1 * v2 / z * np.sin(d12 + dz) - v1 ** 2 * np.abs(self.Ypu) / 2
         return P1 + 1j * Q1
 
     @property
