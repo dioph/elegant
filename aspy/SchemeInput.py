@@ -640,13 +640,14 @@ class CircuitInputer(QWidget):
         """
         global LINE_TYPES
         try:
-            line_parameters_val = list(LINE.__dict__.values())[:8]
-            if all(line_parameters_val == np.ones((8,)) * -1):
+            line_parameters_name = ['rho', 'r', 'd12', 'd23', 'd31', 'm', 'd']
+            line_parameters_val = [LINE.__getattribute__(key) for key in line_parameters_name]
+            print(line_parameters_val)
+            if line_parameters_val == list(np.ones((7,)) * -1):
                 return "No model"
             else:
                 for line_type in LINE_TYPES:
-                    if all(tuple(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
-                                 line_type[1].keys())):
+                    if ([LINE.__getattribute__(LINE_TYPES_HSH[key])] == line_type[1].get(key) for key in line_type[1].keys()):
                         return line_type[0]
                 return "No model"
         except Exception:
@@ -773,9 +774,10 @@ class CircuitInputer(QWidget):
         line.Z, line.Y = Z * zbase, Y / zbase
         line.l = l
         line.vbase = vbase
-        for key in list(line.__dict__.keys())[:8]:
-            if key is not 'l':
-                line.__setattr__(key, -1)
+        line_parameters_name = ['rho', 'r', 'd12', 'd23', 'd31', 'm', 'd']
+        updating_line_dict = {key: -1 for key in line_parameters_name}
+        line.__dict__.update(updating_line_dict)
+
 
     def trafoProcessing(self):
         """
