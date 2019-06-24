@@ -6,6 +6,7 @@ from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand
 from pylatex.base_classes import CommandBase
 
+
 class Wye(CommandBase):
     _latex_name = 'wye'
 
@@ -23,7 +24,7 @@ def get_scheme(tr):
 
 
 def create_report(barras, linhas, trafos, grid):
-    from .SchemeInput import getSessionsDir
+    from aspy.SchemeInput import getSessionsDir
 
     geometry_options = {"tmargin": "2cm", "lmargin": "2cm", "rmargin": "2cm", "bmargin": "2cm"}
     doc = Document(geometry_options=geometry_options)
@@ -179,12 +180,3 @@ def create_report(barras, linhas, trafos, grid):
     sessions_dir = getSessionsDir()
     doc.generate_pdf(sessions_dir + '/' + filename, clean_tex=True)
 
-
-if __name__ == '__main__':
-    geometry_options = {"tmargin": "1cm", "lmargin": "10cm"}
-    doc = Document(geometry_options=geometry_options)
-    doc.preamble.append(Command('usepackage', 'cmbright'))
-    with doc.create(Section('Testing')):
-        doc.append('Teeest')
-
-    doc.generate_pdf('report_tests/test', clean_tex=False)

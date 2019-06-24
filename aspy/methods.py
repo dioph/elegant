@@ -430,4 +430,3 @@ def update_V(deltaPQ, N, V0, Y):
         V0[i] = vAdj[vAdj_counter] * np.exp(1j * vAdj[vAdj_counter - N])
         vAdj_counter += 1
     return V0
-

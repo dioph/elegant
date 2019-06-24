@@ -93,7 +93,7 @@ class SchemeInputer(QGraphicsScene):
         -------
         : distance between point and interface_point
         """
-        return np.hypot(interface_point[0] - point.x(), interface_point[1]-point.y())
+        return np.hypot(interface_point[0] - point.x(), interface_point[1] - point.y())
 
     def Point_pos(self, central_point):
         """
@@ -626,9 +626,9 @@ class CircuitInputer(QWidget):
             line_model = self.findParametersSetFromLt(line)
             self.EllLineEdit.setText('{:.03g}'.format(line.l))
             self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase))
-            self.LtYLineEdit.setText('{number.imag:.03f}j'.format(number=line.Ypu*100))
+            self.LtYLineEdit.setText('{number.imag:.03f}j'.format(number=line.Ypu * 100))
             self.LtZLineEdit.setText('{number.real:.03f}{sgn}{number.imag:.03f}j'.format(
-                number=line.Zpu*100, sgn='+' if np.sign(line.Zpu.imag) > 0 else ''))
+                number=line.Zpu * 100, sgn='+' if np.sign(line.Zpu.imag) > 0 else ''))
             self.chooseLtModel.setCurrentText(line_model)
         except Exception:
             logging.error(traceback.format_exc())
@@ -647,7 +647,8 @@ class CircuitInputer(QWidget):
                 return "No model"
             else:
                 for line_type in LINE_TYPES:
-                    if ([LINE.__getattribute__(LINE_TYPES_HSH[key])] == line_type[1].get(key) for key in line_type[1].keys()):
+                    if ([LINE.__getattribute__(LINE_TYPES_HSH[key])] == line_type[1].get(key) for key in
+                        line_type[1].keys()):
                         return line_type[0]
                 return "No model"
         except Exception:
@@ -703,7 +704,7 @@ class CircuitInputer(QWidget):
                 elif mode == 'impedance':
                     # Current selected element is a line
                     # Update using impedance and admittance
-                    Z, Y = complex(self.LtZLineEdit.text())/100, complex(self.LtYLineEdit.text())/100
+                    Z, Y = complex(self.LtZLineEdit.text()) / 100, complex(self.LtYLineEdit.text()) / 100
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
                     self.updateLineWithImpedances(line, Z, Y, l, vbase)
@@ -727,7 +728,7 @@ class CircuitInputer(QWidget):
                     else:
                         self._statusMsg.emit_sig('You have to choose a valid model')
                 elif mode == 'impedance':
-                    Z, Y = complex(self.LtZLineEdit.text())/100, complex(self.LtYLineEdit.text())/100
+                    Z, Y = complex(self.LtZLineEdit.text()) / 100, complex(self.LtYLineEdit.text()) / 100
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
                     self.updateLineWithImpedances(new_line, Z, Y, l, vbase)
@@ -777,7 +778,6 @@ class CircuitInputer(QWidget):
         line_parameters_name = ['rho', 'r', 'd12', 'd23', 'd31', 'm', 'd']
         updating_line_dict = {key: -1 for key in line_parameters_name}
         line.__dict__.update(updating_line_dict)
-
 
     def trafoProcessing(self):
         """
