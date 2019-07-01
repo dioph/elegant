@@ -642,7 +642,6 @@ class CircuitInputer(QWidget):
         try:
             line_parameters_name = ['rho', 'r', 'd12', 'd23', 'd31', 'm', 'd']
             line_parameters_val = [LINE.__getattribute__(key) for key in line_parameters_name]
-            print(line_parameters_val)
             if line_parameters_val == list(np.ones((7,)) * -1):
                 return "No model"
             else:
@@ -689,7 +688,6 @@ class CircuitInputer(QWidget):
                 line = LINE[0]
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
-                    print('update na linha com: ', param_values)
                     # Current selected element is a line
                     # Update using properties
                     # Z and Y are obtained from the updated properties
@@ -839,9 +837,6 @@ class CircuitInputer(QWidget):
             titles = new_values[:2]
             par_names = new_values[2::2]
             par_values = list(map(lambda x: float(x), new_values[3::2]))
-            print('titles: ', titles)
-            print('par_names: ', par_names)
-            print('par_values: ', par_values)
             if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
                 self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
                 return
@@ -854,7 +849,6 @@ class CircuitInputer(QWidget):
             else:
                 LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
                 self._statusMsg.emit_sig('The model has been stored')
-            print(LINE_TYPES)
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -884,26 +878,20 @@ class CircuitInputer(QWidget):
             self._ltorigin = self._currElementCoords
 
     def add_line(self):
-        # args = [(i, j), line]
-        # LINES = [[LINES, lines, coordinates, bool ToExclude, ]
         global LINES
         try:
             if self._startNewLT:
-                print('Colocando nova linha\n')
                 NEW_LINES = LT(origin=self._ltorigin)
                 if not self.checkLineAndTrafoCrossing():
                     LINES.append([NEW_LINES, [], [], False])
                 else:
-                    print('Linha cruzou na saída\n')
                     LINES.append([NEW_LINES, [], [], True])
                 LINES[-1][1].append(self._temp)
                 LINES[-1][2].append(self._ltorigin)
                 LINES[-1][2].append(self._currElementCoords)
             else:
-                print('Continuando linha\n')
                 if self.checkLineAndTrafoCrossing():
                     LINES[-1][3] = True
-                    print('Linha cruzou com alguma outra já existente\n')
                 LINES[-1][1].append(self._temp)
                 LINES[-1][2].append(self._currElementCoords)
                 if isinstance(GRID_BUSES[self._currElementCoords], Barra):
@@ -1160,7 +1148,6 @@ class CircuitInputer(QWidget):
                     GRID_BUSES[COORDS] = BUS
                     BUSES.append(BUS)
                     self.resequence_buses(BUSES)
-                print('add: ', [bus.barra_id for bus in BUSES])
                 self._statusMsg.emit_sig('Added bus')
                 # self.LayoutManager()
             else:
@@ -1177,11 +1164,9 @@ class CircuitInputer(QWidget):
                 self.removeElementsLinked2Bus(BUS)
                 BUSES.remove(BUS)
                 self.resequence_buses(BUSES)
-                print('remove: ', [bus.barra_id for bus in BUSES])
                 self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
                 BUSES_PIXMAP[self._currElementCoords] = 0
                 GRID_BUSES[self._currElementCoords] = 0
-                # self.LayoutManager()
                 update_mask()
         except Exception:
             logging.error(traceback.format_exc())
@@ -1287,8 +1272,6 @@ class CircuitInputer(QWidget):
             GRID_BUSES[self._currElementCoords].v = BUS.v
             GRID_BUSES[self._currElementCoords].pg = BUS.pg
             GRID_BUSES[self._currElementCoords].xd = BUS.xd
-            print('Geração removida')
-            print('V da barra: {0}, Pg da barra: {1}'.format(BUS.v, BUS.pg))
             self.updateBusInspector(BUS)
             self.AddGenerationButton.setText('+')
             self.AddGenerationButton.disconnect()
@@ -1362,6 +1345,11 @@ class Aspy(QMainWindow):
         self.displayStatusMsg('Ready')
 
         # Actions
+
+        newSys = QAction('Start new system', self)
+        newSys.setShortcut('Ctrl+N')
+        newSys.triggered.connect(self.startNewSession)
+
         saveAct = QAction('Save current session', self)
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(self.saveSession)
@@ -1371,6 +1359,7 @@ class Aspy(QMainWindow):
         loadAct.triggered.connect(self.loadSession)
 
         createReport = QAction('Generate report', self)
+        createReport.setShortcut('Ctrl+R')
         createReport.triggered.connect(self.report)
 
         addLineAct = QAction('Add line type', self)
@@ -1394,6 +1383,7 @@ class Aspy(QMainWindow):
         filemenu.addAction(saveAct)
         filemenu.addAction(loadAct)
         filemenu.addAction(createReport)
+        filemenu.addAction(newSys)
 
         linemenu = menubar.addMenu('&Lines')
         linemenu.addAction(addLineAct)
@@ -1431,17 +1421,8 @@ class Aspy(QMainWindow):
             logging.error(traceback.format_exc())
 
     def report(self):
-        if len(LINES) > 0:
-            linhas = np.array(LINES)[:, 0]
-        else:
-            linhas = np.array([])
-        if len(TRANSFORMERS) > 0:
-            trafos = np.array(TRANSFORMERS)[:, 0]
-        else:
-            trafos = np.array([])
-        grid = GRID_BUSES
-        barras = BUSES
-        create_report(barras, linhas, trafos, grid)
+        global BUSES, LINES, TRANSFORMERS, GRID_BUSES
+        create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES)
 
     def addLineType(self):
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.InputNewLineType, False)
@@ -1452,6 +1433,28 @@ class Aspy(QMainWindow):
     def editLineType(self):
         print('edit line type')
 
+    def startNewSession(self):
+        global LINES, TRANSFORMERS, BUSES, GRID_BUSES, BUSES_PIXMAP
+        self.clear_interface()
+        reset_system_state_variables()
+        self.CircuitInputer.doAfterMouseRelease()
+
+    def clear_interface(self):
+        global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
+        for line in LINES:
+            for graphic in line[1]:
+                self.CircuitInputer.Scene.removeItem(graphic)
+        for trafo in TRANSFORMERS:
+            for graphic in trafo[1]:
+                self.CircuitInputer.Scene.removeItem(graphic)
+        for bus in BUSES:
+            self.CircuitInputer.Scene.removeItem(BUSES_PIXMAP[bus.posicao])
+
+def reset_system_state_variables():
+    global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
+    LINES, BUSES, TRANSFORMERS = [], [], []
+    GRID_BUSES = np.zeros((N, N), object)
+    BUSES_PIXMAP = np.zeros((N, N), object)
 
 def update_mask():
     G = nx.Graph()
@@ -1548,12 +1551,10 @@ def createLocalData(db):
     return LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
 
 
-def coordpairs(coords, squarel):
-    k = 0
-    while k < len(coords) - 1:
+def interface_coordpairs(coords, squarel):
+    for k in range(len(coords)-1):
         yield (np.array([[squarel / 2 + squarel * coords[k][1], squarel / 2 + squarel * coords[k][0]],
                          [squarel / 2 + squarel * coords[k + 1][1], squarel / 2 + squarel * coords[k + 1][0]]]))
-        k += 1
 
 
 def createSchematic(scene):
@@ -1564,11 +1565,11 @@ def createSchematic(scene):
         drawbus = scene.drawBus(point)
         BUSES_PIXMAP[bus.posicao] = drawbus
     for pos, line in enumerate(LINES):
-        for pairs in coordpairs(line[2], squarel):
+        for pairs in interface_coordpairs(line[2], squarel):
             drawline = scene.drawLine(pairs)
             LINES[pos][1].append(drawline)
     for pos, trafo in enumerate(TRANSFORMERS):
-        for pairs in coordpairs(trafo[2], squarel):
+        for pairs in interface_coordpairs(trafo[2], squarel):
             drawline = scene.drawLine(pairs, color='r')
             TRANSFORMERS[pos][1].append(drawline)
 
