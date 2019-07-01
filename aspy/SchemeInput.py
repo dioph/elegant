@@ -646,7 +646,7 @@ class CircuitInputer(QWidget):
                 return "No model"
             else:
                 for line_type in LINE_TYPES:
-                    if ([LINE.__getattribute__(LINE_TYPES_HSH[key])] == line_type[1].get(key) for key in
+                    if all(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
                         line_type[1].keys()):
                         return line_type[0]
                 return "No model"
