@@ -116,7 +116,30 @@ def annotate_lines_flux_data(ax, glines, lines):
 
 
 def annotate_trafos_flux_data(ax, gtrafos, trafos):
-    pass
+    for gentty, lentty in zip(gtrafos, trafos):
+        gtrafo, trafo = gentty[0], lentty[0]
+        real_line_data = collect_line_data(ax, gtrafo)
+        sslope, eslope = get_line_slopes(real_line_data)
+        x, y = gtrafo.get_data()
+        dist = 0.6
+        sx, sy = x[0] + dist * np.cos(np.deg2rad(sslope)), y[0] + dist * np.sin(np.deg2rad(sslope))
+        ex, ey = x[-1] - dist * np.cos(np.deg2rad(eslope)), y[-1] - dist * np.sin(np.deg2rad(eslope))
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 5}
+        ax.annotate('{:.1f}'.format((trafo.Spu - trafo.Sper) * 100),
+                    xy=(sx, sy),
+                    horizontalalignment='left',
+                    verticalalignment='bottom',
+                    rotation=sslope,
+                    color='b',
+                    **common_config)
+        ax.annotate("{:.1f}".format(trafo.Spu * 100),
+                    xy=(ex, ey),
+                    horizontalalignment='right',
+                    verticalalignment='bottom',
+                    rotation=eslope,
+                    color='b',
+                    **common_config)
+
 
 def make_system_schematic(data, sessions_dir, filename, ext='pdf', testing=False):
     ax = plt.gca()
