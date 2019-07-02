@@ -127,7 +127,7 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf', testing=False
     img = os.path.join(sessions_dir, filename) + '_i.' + ext
     if not testing:
         plt.savefig(img)
-        return img
+        return img.split(os.sep)[-1]
     plt.show()
 
 
@@ -296,5 +296,11 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                                  NoEscape('{:.02f}'.format(np.abs(tr.Spu) * 1e8 / tr.snom * 100))),
                                 color=color)
                 tbl.add_hline()
+    data = BUSES, LINES, TRANSFORMERS
+    img = make_system_schematic(data, sessions_dir, filename)
+    with doc.create(Section('Sistema')):
+        doc.append(NoEscape('\\centering'))
+        with doc.create(Figure(position='h!')) as system_pic:
+            system_pic.add_image(img)
     doc.generate_pdf(sessions_dir + '/' + filename, clean_tex=True)
 
