@@ -360,10 +360,18 @@ class CircuitInputer(QWidget):
         self.QgInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.QgInput.setEnabled(False)
 
+        # Combo box for generation connection
+        self.GenConn = QComboBox()
+        self.GenConn.addItem('gY')
+        self.GenConn.addItem('Y')
+        self.GenConn.addItem('\u0394')
+        self.GenConn.setDisabled(True)
+
         # Adding Pg, Qg to add generation FormLayout
         self.AddGenerationFormLayout.addRow('x\'d (pu)', self.XdLineEdit)
         self.AddGenerationFormLayout.addRow('Qg (pu)', self.QgInput)
         self.AddGenerationFormLayout.addRow('Pg (pu)', self.PgInput)
+        self.AddGenerationFormLayout.addRow('Con.', self.GenConn)
 
         # Label with 'Carga'
         self.AddLoadLabel = QLabel('Carga')
@@ -381,9 +389,18 @@ class CircuitInputer(QWidget):
         self.PlInput.setEnabled(False)
         self.QlInput.setEnabled(False)
 
+        # Combo box to load connection
+        self.LoadConn = QComboBox()
+        self.LoadConn.addItem('gY')
+        self.LoadConn.addItem('Y')
+        self.LoadConn.addItem('\u0394')
+        self.LoadConn.setDisabled(True)
+
         # Adding Pl and Ql to add load FormLayout
         self.AddLoadFormLayout.addRow('Ql (pu)', self.QlInput)
         self.AddLoadFormLayout.addRow('Pl (pu)', self.PlInput)
+        self.AddLoadFormLayout.addRow('Con.', self.LoadConn)
+
         self.RemoveBus = QPushButton('Remove bus')
         self.RemoveBus.pressed.connect(self.remove_bus)
 
@@ -1004,10 +1021,18 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, remove_gen, remove_load
         """
-        to_be_desactivated = [self.PgInput, self.PlInput, self.QlInput, self.BarV_Value, self.XdLineEdit]
+        code = {0: 'gY', 1: 'Y', 2: '\u0394'}
+        to_be_desactivated = [self.PgInput,
+                              self.PlInput,
+                              self.QlInput,
+                              self.BarV_Value,
+                              self.XdLineEdit,
+                              self.LoadConn,
+                              self.GenConn]
         for item in to_be_desactivated:
-            item.setEnabled(False)
+            item.setDisabled(True)
         if BUS:
+            print('gen: {0}, load: {1}'.format(code[BUS.gen_conn], code[BUS.load_conn]))
             if BUS.barra_id == 0:
                 self.BarTitle.setText('Barra Slack')
             else:
@@ -1035,6 +1060,8 @@ class CircuitInputer(QWidget):
             self.QlInput.setText('{:.3g}'.format(BUS.ql))
             self.PlInput.setText('{:.3g}'.format(BUS.pl))
             self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
+            self.GenConn.setCurrentText(code[BUS.gen_conn])
+            self.LoadConn.setCurrentText(code[BUS.load_conn])
         else:
             self.AddLoadButton.setText('+')
             self.AddLoadButton.disconnect()
@@ -1225,6 +1252,7 @@ class CircuitInputer(QWidget):
                 self.PgInput.setEnabled(True)
                 self.XdLineEdit.setEnabled(True)
             self.AddGenerationButton.setText('OK')
+            self.GenConn.setEnabled(True)
             self._statusMsg.emit_sig('Input generation data...')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.submit_gen)
@@ -1240,9 +1268,11 @@ class CircuitInputer(QWidget):
         """
         global GRID_BUSES, BUSES
         if isinstance(GRID_BUSES[self._currElementCoords], Barra):
+            gen_code = {'gY': 0, 'Y': 1, '\u0394': 2}
             BUS = self.getBusFromGridPos(self._currElementCoords)
             BUS.v = float(self.BarV_Value.text())
             BUS.pg = float(self.PgInput.text())
+            BUS.gen_conn = gen_code[self.GenConn.currentText()]
             if self.XdLineEdit.text() == '\u221E':
                 BUS.xd = np.inf
             else:
@@ -1250,9 +1280,11 @@ class CircuitInputer(QWidget):
             GRID_BUSES[self._currElementCoords].v = BUS.v
             GRID_BUSES[self._currElementCoords].pg = BUS.pg
             GRID_BUSES[self._currElementCoords].xd = BUS.xd
+            GRID_BUSES[self._currElementCoords].gen_conn = BUS.gen_conn
             self.BarV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
             self.XdLineEdit.setEnabled(False)
+            self.GenConn.setDisabled(True)
             self.AddGenerationButton.disconnect()
             if BUS.barra_id:
                 self.AddGenerationButton.setText('-')
@@ -1269,9 +1301,11 @@ class CircuitInputer(QWidget):
             BUS.v = 1
             BUS.pg = 0
             BUS.xd = np.inf
+            BUS.gen_conn = 0
             GRID_BUSES[self._currElementCoords].v = BUS.v
             GRID_BUSES[self._currElementCoords].pg = BUS.pg
             GRID_BUSES[self._currElementCoords].xd = BUS.xd
+            GRID_BUSES[self._currElementCoords].gen_conn = 0
             self.updateBusInspector(BUS)
             self.AddGenerationButton.setText('+')
             self.AddGenerationButton.disconnect()
@@ -1290,6 +1324,7 @@ class CircuitInputer(QWidget):
             self.QlInput.setEnabled(True)
             self.AddLoadButton.setText('OK')
             self._statusMsg.emit_sig('Input load data...')
+            self.LoadConn.setEnabled(True)
             self.AddLoadButton.disconnect()
             self.AddLoadButton.pressed.connect(self.submit_load)
         except Exception:
@@ -1304,13 +1339,17 @@ class CircuitInputer(QWidget):
         global GRID_BUSES, BUSES
         try:
             if isinstance(GRID_BUSES[self._currElementCoords], Barra):
+                load_code = {'gY': 0, 'Y': 1, '\u0394': 2}
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 BUS.pl = float(self.PlInput.text())
                 BUS.ql = float(self.QlInput.text())
+                BUS.load_conn = load_code[self.LoadConn.currentText()]
                 GRID_BUSES[self._currElementCoords].pl = BUS.pl
                 GRID_BUSES[self._currElementCoords].ql = BUS.ql
+                GRID_BUSES[self._currElementCoords].load_conn = BUS.load_conn
                 self.PlInput.setEnabled(False)
                 self.QlInput.setEnabled(False)
+                self.LoadConn.setEnabled(False)
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.remove_load)
@@ -1325,8 +1364,10 @@ class CircuitInputer(QWidget):
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 BUS.pl = 0
                 BUS.ql = 0
+                BUS.load_conn = 0
                 GRID_BUSES[self._currElementCoords].pl = 0
                 GRID_BUSES[self._currElementCoords].ql = 0
+                GRID_BUSES[self._currElementCoords].load_conn = 0
                 self.updateBusInspector(BUS)
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
