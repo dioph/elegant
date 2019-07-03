@@ -50,6 +50,8 @@ LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31
                            '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': 1000}]]
 LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
+NMAX = 1
+OP_MODE = 0
 
 
 class GenericSignal(QObject):
@@ -455,6 +457,35 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
         self.InputNewLineType.addStretch()
 
+        # Layout for simulation control panel
+        self.ControlPanelLayout = QVBoxLayout()
+
+        self.SimulationControlHbox = QHBoxLayout()
+        self.RealTimeRadioButton = QRadioButton()
+        self.RealTimeRadioButton.toggled.connect(lambda: self.setOperationMode(0))
+        self.InsertionModeRadioButton = QRadioButton()
+        self.InsertionModeRadioButton.toggled.connect(lambda: self.setOperationMode(1))
+        self.SimulationControlHbox.addWidget(QLabel('Insertion mode'))
+        self.SimulationControlHbox.addWidget(self.InsertionModeRadioButton)
+        self.SimulationControlHbox.addWidget(QLabel('Real-time'))
+        self.SimulationControlHbox.addWidget(self.RealTimeRadioButton)
+
+        self.NmaxHbox = QHBoxLayout()
+        self.NmaxSlider = QSlider()
+        self.NmaxSlider.setMinimum(1)
+        self.NmaxSlider.setMaximum(20)
+        self.NmaxSlider.setOrientation(Qt.Horizontal)
+        self.NmaxLabel = QLabel('Nmax: 0{Nmax}'.format(Nmax=NMAX))
+        self.NmaxSlider.valueChanged.connect(lambda: self.setNmaxValue(self.NmaxSlider.value()))
+        self.NmaxSlider.valueChanged.connect(lambda: self.updateNmaxLabel(self.NmaxSlider.value()))
+        self.NmaxHbox.addWidget(self.NmaxSlider)
+        self.NmaxHbox.addWidget(self.NmaxLabel)
+
+        self.ControlPanelLayout.addStretch()
+        self.ControlPanelLayout.addLayout(self.SimulationControlHbox)
+        self.ControlPanelLayout.addLayout(self.NmaxHbox)
+        self.ControlPanelLayout.addStretch()
+
         # General Layout for LT case
         self.LtOrTrafoLayout = QVBoxLayout()
 
@@ -576,13 +607,41 @@ class CircuitInputer(QWidget):
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
         self.TopLayout.addLayout(self.InputNewLineType)
+        self.TopLayout.addLayout(self.ControlPanelLayout)
         self.setLayout(self.TopLayout)
 
         # All layouts hidden at first moment
         self.setLayoutHidden(self.BarLayout, True)
         self.setLayoutHidden(self.LtOrTrafoLayout, True)
         self.setLayoutHidden(self.InputNewLineType, True)
+        self.setLayoutHidden(self.ControlPanelLayout, True)
         self.showSpacer()
+
+
+    def updateNmaxLabel(self, nmax):
+        if nmax < 10:
+            self.NmaxLabel.setText('Nmax: 0{nmax}'.format(nmax=nmax))
+        else:
+            self.NmaxLabel.setText('Nmax: {nmax}'.format(nmax=nmax))
+
+
+    def setNmaxValue(self, nmax):
+        global NMAX
+        NMAX = nmax
+
+
+    def setOperationMode(self, mode):
+        global OP_MODE
+        OP_MODE = mode
+        if mode:
+            self.NmaxSlider.setValue(0)
+            self.updateNmaxLabel(0)
+            self.setNmaxValue(0)
+        else:
+            self.NmaxSlider.setValue(1)
+            self.updateNmaxLabel(1)
+            self.setNmaxValue(1)
+
 
     def defineLtOrTrafoVisibility(self):
         """Show line or trafo options in adding line/trafo section"""
@@ -987,7 +1046,7 @@ class CircuitInputer(QWidget):
         self._startNewLT = True
         try:
             if LINES:
-                if len(LINES[-1][2]) == 2:  # If the line has two points only
+                if len(LINES[-1][2]) <= 2:  # If the line has two points only
                     LINES[-1][3] = True  # Remove
                 else:  # If the line has more than two points
                     if LINES[-1][0].destiny is None:  # If line has not destiny bus
@@ -1143,6 +1202,7 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.BarLayout, True)
                 self.setLayoutHidden(self.LtOrTrafoLayout, True)
                 self.setLayoutHidden(self.InputNewLineType, True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
                 self.showSpacer()
         except Exception:
             logging.error(traceback.format_exc())
@@ -1176,7 +1236,6 @@ class CircuitInputer(QWidget):
                     BUSES.append(BUS)
                     self.resequence_buses(BUSES)
                 self._statusMsg.emit_sig('Added bus')
-                # self.LayoutManager()
             else:
                 self.Scene.removeItem(BUSES_PIXMAP[COORDS])
                 self._statusMsg.emit_sig('There\'s an element in this position!')
@@ -1386,7 +1445,6 @@ class Aspy(QMainWindow):
         self.displayStatusMsg('Ready')
 
         # Actions
-
         newSys = QAction('Start new system', self)
         newSys.setShortcut('Ctrl+N')
         newSys.triggered.connect(self.startNewSession)
@@ -1409,8 +1467,8 @@ class Aspy(QMainWindow):
         editLineAct = QAction('Edit line type', self)
         editLineAct.triggered.connect(self.editLineType)
 
-        setDefaultLineAct = QAction('Set default line type', self)
-        setDefaultLineAct.triggered.connect(self.setDefaultLineType)
+        configure_simulation = QAction('Configure simulation', self)
+        configure_simulation.triggered.connect(self.configureSimulation)
 
         # Central widget
         self.CircuitInputer = CircuitInputer()
@@ -1431,15 +1489,15 @@ class Aspy(QMainWindow):
         linemenu.addAction(editLineAct)
 
         settings = menubar.addMenu('&Settings')
-        settings.addAction(setDefaultLineAct)
+        settings.addAction(configure_simulation)
 
         self.setWindowTitle('ASPy')
         self.setGeometry(50, 50, 1000, 600)
         self.setMinimumWidth(1000)
         self.show()
 
-    def setDefaultLineType(self):
-        pass
+    def configureSimulation(self):
+        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.ControlPanelLayout, False)
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args, msecs=10000)
@@ -1497,7 +1555,16 @@ def reset_system_state_variables():
     GRID_BUSES = np.zeros((N, N), object)
     BUSES_PIXMAP = np.zeros((N, N), object)
 
+def custom_run(f):
+    def wrapper(*args, **kwargs):
+        global OP_MODE
+        if not OP_MODE:
+            f(*args, **kwargs)
+    return wrapper
+
+@custom_run
 def update_mask():
+    global NMAX
     G = nx.Graph()
     for b in BUSES:
         G.add_node(b.barra_id)
@@ -1540,7 +1607,7 @@ def update_mask():
     hsh = {}
     for j, i in enumerate(good_ids):
         hsh[i] = j
-    V, S0 = update_flow(barras, linhas, trafos, GRID_BUSES, hsh)
+    V, S0 = update_flow(barras, linhas, trafos, GRID_BUSES, NMAX, hsh)
     for b in barras:
         b.v = np.abs(V[hsh[b.barra_id]])
         b.delta = np.angle(V[hsh[b.barra_id]])
