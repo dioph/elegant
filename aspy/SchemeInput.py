@@ -462,6 +462,7 @@ class CircuitInputer(QWidget):
 
         self.SimulationControlHbox = QHBoxLayout()
         self.RealTimeRadioButton = QRadioButton()
+        self.RealTimeRadioButton.setChecked(True)
         self.RealTimeRadioButton.toggled.connect(lambda: self.setOperationMode(0))
         self.InsertionModeRadioButton = QRadioButton()
         self.InsertionModeRadioButton.toggled.connect(lambda: self.setOperationMode(1))
@@ -477,7 +478,6 @@ class CircuitInputer(QWidget):
         self.NmaxSlider.setOrientation(Qt.Horizontal)
         self.NmaxLabel = QLabel('Nmax: 0{Nmax}'.format(Nmax=NMAX))
         self.NmaxSlider.valueChanged.connect(lambda: self.setNmaxValue(self.NmaxSlider.value()))
-        self.NmaxSlider.valueChanged.connect(lambda: self.updateNmaxLabel(self.NmaxSlider.value()))
         self.NmaxHbox.addWidget(self.NmaxSlider)
         self.NmaxHbox.addWidget(self.NmaxLabel)
 
@@ -618,29 +618,42 @@ class CircuitInputer(QWidget):
         self.showSpacer()
 
 
-    def updateNmaxLabel(self, nmax):
-        if nmax < 10:
-            self.NmaxLabel.setText('Nmax: 0{nmax}'.format(nmax=nmax))
+    def updateRealOrInsertionRadio(self, op_mode):
+        if not op_mode:
+            self.RealTimeRadioButton.setChecked(True)
         else:
-            self.NmaxLabel.setText('Nmax: {nmax}'.format(nmax=nmax))
+            self.InsertionModeRadioButton.setChecked(True)
+
+
+    def updateNmaxLabel(self, nmax, op_mode):
+        if not op_mode:
+            if nmax < 10:
+                self.NmaxLabel.setText('Nmax: 0{nmax}'.format(nmax=nmax))
+            else:
+                self.NmaxLabel.setText('Nmax: {nmax}'.format(nmax=nmax))
+        else:
+            self.NmaxLabel.setText('Nmax: --')
+
+
+    def updateNmaxSlider(self, nmax, op_mode):
+        if not op_mode:
+            self.NmaxSlider.setEnabled(True)
+            self.NmaxSlider.setValue(nmax)
+        else:
+            self.NmaxSlider.setDisabled(True)
 
 
     def setNmaxValue(self, nmax):
-        global NMAX
+        global NMAX, OP_MODE
         NMAX = nmax
+        self.updateNmaxLabel(NMAX, OP_MODE)
 
 
     def setOperationMode(self, mode):
-        global OP_MODE
+        global OP_MODE, NMAX
         OP_MODE = mode
-        if mode:
-            self.NmaxSlider.setValue(0)
-            self.updateNmaxLabel(0)
-            self.setNmaxValue(0)
-        else:
-            self.NmaxSlider.setValue(1)
-            self.updateNmaxLabel(1)
-            self.setNmaxValue(1)
+        self.updateNmaxSlider(NMAX, OP_MODE)
+        self.updateNmaxLabel(NMAX, OP_MODE)
 
 
     def defineLtOrTrafoVisibility(self):
@@ -1163,6 +1176,7 @@ class CircuitInputer(QWidget):
                 self.hideSpacer()
                 self.setLayoutHidden(self.InputNewLineType, True)
                 self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
                 self.setLayoutHidden(self.BarLayout, False)
                 self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
             elif lt is not None:
@@ -1177,6 +1191,7 @@ class CircuitInputer(QWidget):
                 self.setLayoutHidden(self.choosedLtFormLayout, False)
                 self.trafoSubmitPushButton.setHidden(True)
                 self.removeTrafoPushButton.setHidden(True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
                 self.removeLTPushButton.setHidden(False)
                 self.updateLtModelOptions()
                 self.updateLtInspector()
@@ -1196,6 +1211,7 @@ class CircuitInputer(QWidget):
                 self.removeLTPushButton.setHidden(True)
                 self.ltSubmitByModelPushButton.setHidden(True)
                 self.ltSubmitByImpedancePushButton.setHidden(True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
                 self.updateTrafoInspector()
             else:
                 # No element case
@@ -1497,7 +1513,13 @@ class Aspy(QMainWindow):
         self.show()
 
     def configureSimulation(self):
+        global NMAX, OP_MODE
+        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, True)
+        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.LtOrTrafoLayout, True)
         self.CircuitInputer.setLayoutHidden(self.CircuitInputer.ControlPanelLayout, False)
+        self.CircuitInputer.updateNmaxSlider(NMAX, OP_MODE)
+        self.CircuitInputer.updateNmaxLabel(NMAX, OP_MODE)
+        self.CircuitInputer.updateRealOrInsertionRadio(OP_MODE)
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args, msecs=10000)
