@@ -172,17 +172,15 @@ def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=2, disth=0.2, distv=0
                     **common_config)
 
 
-def make_system_schematic(data, sessions_dir, filename, ext='pdf', testing=False):
+def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     ax = plt.gca()
     buses, lines, trafos = data
     glines, gtrafos = draw_rep_scheme(data)
     annotate_lines_flux_data(ax, glines, lines)
     annotate_trafos_flux_data(ax, gtrafos, trafos)
     img = os.path.join(sessions_dir, filename) + '_i.' + ext
-    if not testing:
-        plt.savefig(img)
-        return img.split(os.sep)[-1]
-    plt.show()
+    plt.savefig(img)
+    return img.split(os.sep)[-1]
 
 
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
