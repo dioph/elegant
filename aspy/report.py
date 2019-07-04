@@ -1,6 +1,7 @@
 import datetime
 import os
 import tempfile
+import logging, traceback
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,6 +12,15 @@ from pylatex.base_classes import CommandBase
 
 class Wye(CommandBase):
     _latex_name = 'wye'
+
+
+def debug(f):
+    def wrapper(*args,**kwargs):
+        try:
+            f(*args, **kwargs)
+        except Exception:
+            logging.error(traceback.format_exc())
+    return wrapper
 
 
 def test_inf(x):
@@ -56,8 +66,8 @@ def collect_line_data(ax, line):
 
 def get_line_slopes(line_data):
     r_p1, r_p2, r_pbl, r_pl = line_data
-    start_slope = np.arctan2(r_p2[1] - r_p1[1], r_p2[0] - r_p1[0])
-    end_slope = np.arctan2(r_pl[1] - r_pbl[1], r_pl[0] - r_pbl[0])
+    start_slope = np.arctan2(np.abs(r_p2[1] - r_p1[1]), np.abs(r_p2[0] - r_p1[0]))
+    end_slope = np.arctan2(np.abs(r_pl[1] - r_pbl[1]), np.abs(r_pl[0] - r_pbl[0]))
     return np.rad2deg(start_slope), np.rad2deg(end_slope)
 
 
@@ -90,55 +100,75 @@ def draw_rep_scheme(data):
     return glines, gtrafos
 
 
-def annotate_lines_flux_data(ax, glines, lines):
+def get_entity_extremities(entity):
+    oy, ox = entity.origin
+    dy, dx = entity.destiny
+    return ox, -oy, dx, -dy
+
+
+def direction_based_correction(ox, oy, dx, dy):
+    if dx > ox:
+        if dy < oy:
+            return {0: [1, -1], 1: [-1, 1], 2: -1}
+        else:
+            return {0: [1, 1], 1: [-1, -1], 2: 1}
+    else:
+        if dy < oy:
+            return {0: [-1, -1], 1: [1, 1], 2: 1}
+        else:
+            return {0: [-1, 1], 1: [1, -1], 2: -1}
+
+
+def annotate_lines_flux_data(ax, glines, lines, sfactor=2, disth=0.2, distv=0.25):
     for gentty, lentty in zip(glines, lines):
         gline, line = gentty[0], lentty[0]
-        real_line_data = collect_line_data(ax, gline)
-        sslope, eslope = get_line_slopes(real_line_data)
-        x, y = gline.get_data()
-        dist = 0.6
-        sx, sy = x[0] + dist * np.cos(np.deg2rad(sslope)), y[0] + dist * np.sin(np.deg2rad(sslope))
-        ex, ey = x[-1] - dist * np.cos(np.deg2rad(eslope)), y[-1] - dist * np.sin(np.deg2rad(eslope))
-        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 5}
+        real_gline_data = collect_line_data(ax, gline)
+        sslope, eslope = get_line_slopes(real_gline_data)
+        ox, oy, dx, dy = get_entity_extremities(line)
+        corr = direction_based_correction(ox, oy, dx, dy)
+        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
+        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
+        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
+        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
+        hmask = {1: 'left', -1: 'right'}
         ax.annotate('{:.1f}'.format(line.S1 * 100),
                     xy=(sx, sy),
-                    horizontalalignment='left',
-                    verticalalignment='bottom',
-                    rotation=sslope,
+                    horizontalalignment=hmask[corr[0][0]],
+                    rotation=sslope * corr[2],
                     color='b',
                     **common_config)
         ax.annotate("{:.1f}".format(line.S2 * 100),
                     xy=(ex, ey),
-                    horizontalalignment='right',
-                    verticalalignment='bottom',
-                    rotation=eslope,
-                    color='b',
+                    horizontalalignment=hmask[corr[1][0]],
+                    rotation=eslope * corr[2],
+                    color='r',
                     **common_config)
 
-
-def annotate_trafos_flux_data(ax, gtrafos, trafos):
-    for gentty, lentty in zip(gtrafos, trafos):
-        gtrafo, trafo = gentty[0], lentty[0]
-        real_line_data = collect_line_data(ax, gtrafo)
-        sslope, eslope = get_line_slopes(real_line_data)
-        x, y = gtrafo.get_data()
-        dist = 0.6
-        sx, sy = x[0] + dist * np.cos(np.deg2rad(sslope)), y[0] + dist * np.sin(np.deg2rad(sslope))
-        ex, ey = x[-1] - dist * np.cos(np.deg2rad(eslope)), y[-1] - dist * np.sin(np.deg2rad(eslope))
-        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 5}
-        ax.annotate('{:.1f}'.format((trafo.Spu - trafo.Sper) * 100),
+def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=2, disth=0.2, distv=0.25):
+    for gentty, tentty in zip(gtrafos, trafos):
+        gtrafo, trafo = gentty[0], tentty[0]
+        real_gtrafo_data = collect_line_data(ax, gtrafo)
+        sslope, eslope = get_line_slopes(real_gtrafo_data)
+        ox, oy, dx, dy = get_entity_extremities(trafo)
+        corr = direction_based_correction(ox, oy, dx, dy)
+        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
+        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
+        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
+        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
+        hmask = {1: 'left', -1: 'right'}
+        ax.annotate('{:.1f}'.format((trafo.Spu + trafo.Sper) * 100),
                     xy=(sx, sy),
-                    horizontalalignment='left',
-                    verticalalignment='bottom',
-                    rotation=sslope,
+                    horizontalalignment=hmask[corr[0][0]],
+                    rotation=sslope * corr[2],
                     color='b',
                     **common_config)
         ax.annotate("{:.1f}".format(trafo.Spu * 100),
                     xy=(ex, ey),
-                    horizontalalignment='right',
-                    verticalalignment='bottom',
-                    rotation=eslope,
-                    color='b',
+                    horizontalalignment=hmask[corr[1][0]],
+                    rotation=eslope * corr[2],
+                    color='r',
                     **common_config)
 
 
