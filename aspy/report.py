@@ -82,6 +82,7 @@ def draw_rep_trafos(ax, trafos, linewidth=1):
 def draw_rep_scheme(data):
     buses, lines, trafos = data
     ax = plt.gca()
+    ax.clear()
     glines = draw_rep_lines(ax, lines)
     gtrafos = draw_rep_trafos(ax, trafos)
     draw_rep_buses(ax, buses)
