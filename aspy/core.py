@@ -186,7 +186,7 @@ class LT(object):
 
 
 class Trafo(object):
-    def __init__(self, snom=1e8, jx0=0.0, jx1=0.0, primary=0, secondary=0, origin=None, destiny=None, v1=0., v2=0.):
+    def __init__(self, snom=1e8, jx0=0.5, jx1=0.5, primary=0, secondary=0, origin=None, destiny=None, v1=0., v2=0.):
         self.snom = snom
         self.jx0 = jx0
         self.jx1 = jx1
