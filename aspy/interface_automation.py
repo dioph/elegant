@@ -30,9 +30,9 @@ def move(sequence):
 
 
 def step_move(sequence, duration=0.15):
-    tms = 1
     commands = sequence.split(' ')
     for command in commands:
+        tms = 1
         if command[0].isdigit():
             tms = int(command[0])
             command = command[1:]
@@ -77,6 +77,26 @@ def get_commands_from_seq(sequence):
 
 
 def sequence_to_line(grand_sequence, duration=0.15):
+    """Transform an string sequence in interface automated movements
+
+    Parameters
+    ----------
+    grand_sequence: string containing the sequence that generates interface movements
+
+    Example
+    -------
+    grand_sequence = '<2u r>(2dr)'\n
+    <2u r>: draw line moving cursor two squares upper and one square to the right\n
+    (2dr): move the cursor in down-right diagonal direction by two squares
+
+    Notes
+    -----
+    'r', 'u', 'l' and 'd' means 'to right one square', 'upper one square', 'to left one square' and 'down one square'\n
+    It is possible to mix movements in different directions (diagonal movements) with 'ur', 'ul', 'dr', 'dl'\n
+    If a number N is written before the commands (e.g.: Nr), the command will be repeated N times\n
+    One should use "<>" to indicate line to be drawn while the movement is performed or "()" to indicate a move\n
+    **Spaces should be expressly avoided in any movement code**
+    """
     parsed_sequence = get_commands_from_seq(grand_sequence)
     for sequence in parsed_sequence:
         print(sequence)
