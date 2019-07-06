@@ -16,7 +16,7 @@ _TRANSLATOR_ = {
 }
 
 
-def move(sequence):
+def _move(sequence):
     commands = sequence.split(' ')
     offset = {'x': 0, 'y': 0}
     for command in commands:
@@ -29,7 +29,7 @@ def move(sequence):
     pyautogui.moveRel(offset['x'], offset['y'], duration=0)
 
 
-def step_move(sequence, duration=0.15):
+def _step_move(sequence, duration=0.15):
     commands = sequence.split(' ')
     for command in commands:
         tms = 1
@@ -40,7 +40,7 @@ def step_move(sequence, duration=0.15):
             pyautogui.moveRel(*_TRANSLATOR_[command], duration=duration)
 
 
-def parse_drag(sequence):
+def _parse_drag(sequence):
     pos = 0
     drag = str()
     while sequence[pos] != '>':
@@ -50,7 +50,7 @@ def parse_drag(sequence):
     return pos + 1, drag
 
 
-def parse_move(sequence):
+def _parse_move(sequence):
     pos = 0
     move = str()
     while sequence[pos] != ')':
@@ -60,15 +60,15 @@ def parse_move(sequence):
     return pos + 1, move
 
 
-def get_commands_from_seq(sequence):
+def _get_commands_from_seq(sequence):
     pos = 0
     commands = []
     while pos < len(sequence):
         char = sequence[pos]
         if char == '<':
-            pos_inc, nxt_evnt = parse_drag(sequence[pos:])
+            pos_inc, nxt_evnt = _parse_drag(sequence[pos:])
         elif char == '(':
-            pos_inc, nxt_evnt = parse_move(sequence[pos:])
+            pos_inc, nxt_evnt = _parse_move(sequence[pos:])
         else:
             raise Exception('Hit invalid key-character')
         commands.append(nxt_evnt)
@@ -98,17 +98,17 @@ def sequence_to_line(grand_sequence, duration=0.15):
     without line drawing\n
     **Spaces should be expressly avoided in any movement code**
     """
-    parsed_sequence = get_commands_from_seq(grand_sequence)
+    parsed_sequence = _get_commands_from_seq(grand_sequence)
     for sequence in parsed_sequence:
         print(sequence)
         start = sequence[0]
         sequence = sequence[1: -1]
         if start == '<':
             pyautogui.mouseDown()
-            step_move(sequence, duration=duration)
+            _step_move(sequence, duration=duration)
             pyautogui.mouseUp()
         elif start == '(':
-            move(sequence)
+            _move(sequence)
         else:
             raise Exception('Invalid start key-character found')
 
@@ -119,4 +119,4 @@ def sequence_to_bus(sequence):
         if command == '.':
             pyautogui.doubleClick()
         else:
-            move(command)
+            _move(command)
