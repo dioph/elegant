@@ -94,7 +94,8 @@ def sequence_to_line(grand_sequence, duration=0.15):
     'r', 'u', 'l' and 'd' means 'to right one square', 'upper one square', 'to left one square' and 'down one square'\n
     It is possible to mix movements in different directions (diagonal movements) with 'ur', 'ul', 'dr', 'dl'\n
     If a number N is written before the commands (e.g.: Nr), the command will be repeated N times\n
-    One should use "<>" to indicate line to be drawn while the movement is performed or "()" to indicate a move\n
+    One should use "<>" to indicate line to be drawn while the movement is performed or "()" to indicate a move
+    without line drawing\n
     **Spaces should be expressly avoided in any movement code**
     """
     parsed_sequence = get_commands_from_seq(grand_sequence)
