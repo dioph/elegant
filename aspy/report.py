@@ -9,6 +9,9 @@ from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, Figure
 from pylatex.base_classes import CommandBase
 
+_S_FACTOR_ = 3
+_DIST_H = 0.2
+_DIST_V = 0.25
 
 class Wye(CommandBase):
     _latex_name = 'wye'
@@ -35,13 +38,13 @@ def get_scheme(tr):
     return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
 
 
-def matplotlib_coordpairs(entity, sfactor=2):
+def matplotlib_coordpairs(entity, sfactor=_S_FACTOR_):
     coords = np.array(entity[2])
     x, y = list(coords[:, i] for i in range(np.shape(coords)[1] - 1, -1, -1))
     return sfactor * x, sfactor * -y
 
 
-def draw_rep_buses(ax, buses, size=250, sfactor=2):
+def draw_rep_buses(ax, buses, size=250, sfactor=_S_FACTOR_):
     for bus in buses:
         x, y = bus.__getattribute__('posicao')[::-1]
         plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
@@ -101,31 +104,78 @@ def draw_rep_scheme(data):
 
 
 def get_entity_extremities(entity):
-    oy, ox = entity.origin
-    dy, dx = entity.destiny
-    return ox, -oy, dx, -dy
+    core_obj = entity[0]
+    oy, ox = core_obj.origin
+    post_oy, post_ox = entity[2][1]
+    dy, dx = core_obj.destiny
+    pre_dy, pre_dx = entity[2][-2]
+    return ox, -oy, post_ox, -post_oy, dx, -dy, pre_dx, -pre_dy
 
 
-def direction_based_correction(ox, oy, dx, dy):
-    if dx > ox:
-        if dy < oy:
-            return {0: [1, -1], 1: [-1, 1], 2: -1}
-        else:
-            return {0: [1, 1], 1: [-1, -1], 2: 1}
+def corr_origin(ox, post_ox, oy, post_oy):
+    if post_ox >= ox:
+        corr_ox = 1
     else:
-        if dy < oy:
-            return {0: [-1, -1], 1: [1, 1], 2: 1}
+        corr_ox = -1
+    if post_oy <= oy:
+        corr_oy = -1
+    else:
+        corr_oy = 1
+    return corr_ox, corr_oy
+
+
+def corr_destiny(pre_dx, dx, pre_dy, dy):
+    if pre_dx >= dx:
+        corr_dx = 1
+    else:
+        corr_dx = -1
+    if pre_dy <= dy:
+        corr_dy = -1
+    else:
+        corr_dy = 1
+    return corr_dx, corr_dy
+
+
+def corr_slopes(ox, oy, post_ox, post_oy, dx, dy, pre_dx, pre_dy):
+    if post_ox >= ox:
+        if post_oy <= oy:
+            corr_sslope = -1
         else:
-            return {0: [-1, 1], 1: [1, -1], 2: -1}
+            corr_sslope = 1
+    else:
+        if post_oy <= oy:
+            corr_sslope = 1
+        else:
+            corr_sslope = -1
+    if pre_dx >= dx:
+        if pre_dy <= dy:
+            corr_eslope = -1
+        else:
+            corr_eslope = 1
+    else:
+        if pre_dy <= dy:
+            corr_eslope = 1
+        else:
+            corr_eslope = -1
+    return corr_sslope, corr_eslope
 
 
-def annotate_lines_flux_data(ax, glines, lines, sfactor=2, disth=0.2, distv=0.25):
+def direction_based_correction(extremities):
+    ox, oy, post_ox, post_oy, dx, dy, pre_dx, pre_dy = extremities
+    corr_ox, corr_oy = corr_origin(ox, post_ox, oy, post_oy)
+    corr_dx, corr_dy = corr_destiny(pre_dx, dx, pre_dy, dy)
+    corr_sslope, corr_eslope = corr_slopes(*extremities)
+    return {0: [corr_ox, corr_oy], 1: [corr_dx, corr_dy], 2: [corr_sslope, corr_eslope]}
+
+
+def annotate_lines_flux_data(ax, glines, lines, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
     for gentty, lentty in zip(glines, lines):
         gline, line = gentty[0], lentty[0]
         real_gline_data = collect_line_data(ax, gline)
         sslope, eslope = get_line_slopes(real_gline_data)
-        ox, oy, dx, dy = get_entity_extremities(line)
-        corr = direction_based_correction(ox, oy, dx, dy)
+        extremities = get_entity_extremities(lentty)
+        corr = direction_based_correction(extremities)
+        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
         sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
         sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
         ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
@@ -135,39 +185,41 @@ def annotate_lines_flux_data(ax, glines, lines, sfactor=2, disth=0.2, distv=0.25
         ax.annotate('{:.1f}'.format(line.S1 * 100),
                     xy=(sx, sy),
                     horizontalalignment=hmask[corr[0][0]],
-                    rotation=sslope * corr[2],
+                    rotation=sslope * corr[2][0],
                     color='b',
                     **common_config)
         ax.annotate("{:.1f}".format(line.S2 * 100),
                     xy=(ex, ey),
                     horizontalalignment=hmask[corr[1][0]],
-                    rotation=eslope * corr[2],
+                    rotation=eslope * corr[2][1],
                     color='r',
                     **common_config)
 
-def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=2, disth=0.2, distv=0.25):
+
+def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
     for gentty, tentty in zip(gtrafos, trafos):
         gtrafo, trafo = gentty[0], tentty[0]
         real_gtrafo_data = collect_line_data(ax, gtrafo)
         sslope, eslope = get_line_slopes(real_gtrafo_data)
-        ox, oy, dx, dy = get_entity_extremities(trafo)
-        corr = direction_based_correction(ox, oy, dx, dy)
+        extremities = get_entity_extremities(tentty)
+        corr = direction_based_correction(extremities)
+        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
         sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
         sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
         ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
         ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
         common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
-        ax.annotate('{:.1f}'.format((trafo.Spu + trafo.Sper) * 100),
+        ax.annotate('{:.1f}'.format(trafo.Spu * 100),
                     xy=(sx, sy),
                     horizontalalignment=hmask[corr[0][0]],
-                    rotation=sslope * corr[2],
+                    rotation=sslope * corr[2][0],
                     color='b',
                     **common_config)
-        ax.annotate("{:.1f}".format(trafo.Spu * 100),
+        ax.annotate("{:.1f}".format((trafo.Spu - trafo.Sper) * 100),
                     xy=(ex, ey),
                     horizontalalignment=hmask[corr[1][0]],
-                    rotation=eslope * corr[2],
+                    rotation=eslope * corr[2][1],
                     color='r',
                     **common_config)
 
@@ -181,7 +233,6 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     img = os.path.join(sessions_dir, filename) + '_i.' + ext
     plt.savefig(img)
     return img.split(os.sep)[-1]
-
 
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
     if len(LINES) > 0:
