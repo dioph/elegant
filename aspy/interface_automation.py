@@ -1,5 +1,7 @@
 import pyautogui
 
+__all__ = ['sequence_to_line', 'sequence_to_bus']
+
 _TRANSLATOR_ = {
     'l': (-50, 0),
     'u': (0, -50),
@@ -14,7 +16,6 @@ _TRANSLATOR_ = {
     'rd': (50, 50),
     'dr': (50, 50)
 }
-
 
 def _move(sequence):
     commands = sequence.split(' ')
@@ -70,13 +71,39 @@ def _get_commands_from_seq(sequence):
         elif char == '(':
             pos_inc, nxt_evnt = _parse_move(sequence[pos:])
         else:
-            raise Exception('Hit invalid key-character')
+            raise Exception('Hit non key-character')
         commands.append(nxt_evnt)
         pos += pos_inc
     return commands
 
 
-def sequence_to_line(grand_sequence, duration=0.15):
+def _in_event(char, curr):
+    if char in ('<', '('):
+        return True
+    elif char in ('>', ')'):
+        return False
+    else:
+        return curr
+
+
+def _strip_outside_event_spaces(sequence):
+    sequence = list(sequence)
+    in_evnt = False
+    pos = 0
+    while pos < len(sequence):
+        in_evnt = _in_event(sequence[pos], in_evnt)
+        if not in_evnt and sequence[pos] == ' ':
+            sequence.pop(pos)
+        else:
+            pos += 1
+    return "".join(sequence)
+
+
+def _strip_inside_event_spaces(sequence):
+    pass
+
+
+def sequence_to_line(grand_sequence: str, duration=0.15):
     """Transform an string sequence in interface automated movements
 
     Parameters
@@ -98,6 +125,7 @@ def sequence_to_line(grand_sequence, duration=0.15):
     without line drawing\n
     **Spaces should be expressly avoided in any movement code**
     """
+    grand_sequence = _strip_outside_event_spaces(grand_sequence)
     parsed_sequence = _get_commands_from_seq(grand_sequence)
     for sequence in parsed_sequence:
         print(sequence)
