@@ -1,13 +1,14 @@
 import shelve
 
-from ..SchemeInput import createLocalData
+from ..SchemeInput import createLocalData, getSessionsDir
 from ..report import *
 
-with shelve.open('aspy/data/testdb') as db:
-    tipos, linhas, barras, trafos, grid = createLocalData(db)
-    linhas = np.array(linhas)[:, 0]
-    trafos = np.array(trafos)[:, 0]
+_SESSIONS_DIR_ = getSessionsDir()
 
+with shelve.open(_SESSIONS_DIR_ + 'db') as db:
+    tipos, linhas, barras, trafos, grid = createLocalData(db)
+    isolinhas = np.array(linhas)[:, 0]
+    isotrafos = np.array(trafos)[:, 0]
 
 def test_create_report():
-    assert create_report(barras, linhas, trafos, grid)
+    assert create_report(barras, isolinhas, isotrafos, grid)
