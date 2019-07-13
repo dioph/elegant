@@ -11,7 +11,8 @@ from PyQt5.QtWidgets import *
 
 from aspy.core import *
 from aspy.methods import update_flow, update_short
-from aspy.report import create_report
+
+from aspy.report import *
 
 """
 # ----------------------------------------------------------------------------------------------------
@@ -47,7 +48,7 @@ BUSES = []
 LINES = []
 TRANSFORMERS = []
 LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31 (m)': 7.5, 'd (m)': 0.4,
-                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': 1000}]]
+                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': np.inf}]]
 LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
 NMAX = 1
@@ -738,7 +739,6 @@ class CircuitInputer(QWidget):
                     if all(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
                         line_type[1].keys()):
                         return line_type[0]
-                return "No model"
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1606,7 +1606,6 @@ def update_mask():
     MASK = np.zeros(len(BUSES), bool)
     MASK[list(neighbors)] = True
     good_ids = [b.barra_id for b in np.array(BUSES)[MASK]]
-    rank = nx.shortest_path_length(G, source=0)
     if len(LINES) > 0:
         mask_linhas = np.ones(len(LINES), bool)
         for i in range(len(LINES)):
@@ -1635,7 +1634,6 @@ def update_mask():
         b.delta = np.angle(V[hsh[b.barra_id]])
         b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
         b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
-        b.rank = rank[b.barra_id]
     for lt in linhas:
         node1 = hsh[GRID_BUSES[lt.origin].barra_id]
         node2 = hsh[GRID_BUSES[lt.destiny].barra_id]
@@ -1650,8 +1648,7 @@ def update_mask():
     for b in barras:
         b.iTPG = If[hsh[b.barra_id], 0, 0]
         b.iSLG = If[hsh[b.barra_id], 1, 0]
-        b.iDLGb = If[hsh[b.barra_id], 2, 1]
-        b.iDLGc = If[hsh[b.barra_id], 2, 2]
+        b.iDLG = If[hsh[b.barra_id], 2, 1]
         b.iLL = If[hsh[b.barra_id], 3, 1]
 
 

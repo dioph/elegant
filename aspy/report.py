@@ -369,6 +369,7 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                                  NoEscape('{:.02f}'.format(np.abs(lt.I) / lt.imax * 100))),
                                 color=color)
                 tbl.add_hline()
+    doc.append(NewPage())
     with doc.create(Section('Trafos')):
         with doc.create(Table(position='h')) as table:
             doc.append(NoEscape('\\centering'))
