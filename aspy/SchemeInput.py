@@ -3,7 +3,6 @@ import os
 import shelve
 import sys
 import traceback
-import numpy as np
 
 import networkx as nx
 from PyQt5.QtCore import *
@@ -12,8 +11,7 @@ from PyQt5.QtWidgets import *
 
 from aspy.core import *
 from aspy.methods import update_flow, update_short
-
-from aspy.report import *
+from aspy.report import create_report
 
 """
 # ----------------------------------------------------------------------------------------------------
@@ -41,7 +39,6 @@ from aspy.report import *
 # ----------------------------------------------------------------------------------------------------
 """
 
-MASK = []
 N = 20
 GRID_BUSES = np.zeros((N, N), object)
 BUSES_PIXMAP = np.zeros((N, N), object)
@@ -52,7 +49,7 @@ LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31
                            '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': np.inf}]]
 LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
-NMAX = 20
+NMAX = 1
 OP_MODE = 0
 
 
@@ -365,17 +362,14 @@ class CircuitInputer(QWidget):
         self.QgInput.setEnabled(False)
 
         # Combo box for generation connection
-        self.GenConn = QComboBox()
-        self.GenConn.addItem('gY')
-        self.GenConn.addItem('Y')
-        self.GenConn.addItem('\u0394')
-        self.GenConn.setDisabled(True)
+        self.GenGround = QCheckBox("\u23DA")
+        self.GenGround.setEnabled(False)
 
         # Adding Pg, Qg to add generation FormLayout
         self.AddGenerationFormLayout.addRow('x\'d (pu)', self.XdLineEdit)
-        self.AddGenerationFormLayout.addRow('Qg (pu)', self.QgInput)
-        self.AddGenerationFormLayout.addRow('Pg (pu)', self.PgInput)
-        self.AddGenerationFormLayout.addRow('Con.', self.GenConn)
+        self.AddGenerationFormLayout.addRow('Q<sub>G</sub> (pu)', self.QgInput)
+        self.AddGenerationFormLayout.addRow('P<sub>G</sub> (pu)', self.PgInput)
+        self.AddGenerationFormLayout.addRow('Y', self.GenGround)
 
         # Label with 'Carga'
         self.AddLoadLabel = QLabel('Carga')
@@ -393,17 +387,14 @@ class CircuitInputer(QWidget):
         self.PlInput.setEnabled(False)
         self.QlInput.setEnabled(False)
 
-        # Combo box to load connection
-        self.LoadConn = QComboBox()
-        self.LoadConn.addItem('gY')
-        self.LoadConn.addItem('Y')
-        self.LoadConn.addItem('\u0394')
-        self.LoadConn.setDisabled(True)
+        # Check box to load ground
+        self.LoadGround = QCheckBox("\u23DA")
+        self.LoadGround.setEnabled(False)
 
         # Adding Pl and Ql to add load FormLayout
-        self.AddLoadFormLayout.addRow('Ql (pu)', self.QlInput)
-        self.AddLoadFormLayout.addRow('Pl (pu)', self.PlInput)
-        self.AddLoadFormLayout.addRow('Con.', self.LoadConn)
+        self.AddLoadFormLayout.addRow('Q<sub>L</sub> (pu)', self.QlInput)
+        self.AddLoadFormLayout.addRow('P<sub>L</sub> (pu)', self.PlInput)
+        self.AddLoadFormLayout.addRow('Y', self.LoadGround)
 
         self.RemoveBus = QPushButton('Remove bus')
         self.RemoveBus.pressed.connect(self.remove_bus)
@@ -441,7 +432,7 @@ class CircuitInputer(QWidget):
         self.imaxLineEdit = QLineEdit()
         self.imaxLineEdit.setValidator(QIntValidator(1, 1000))
 
-        self.InputNewLineTypeFormLayout.addRow('Nome', self.ModelName)
+        self.InputNewLineTypeFormLayout.addRow('Name', self.ModelName)
         self.InputNewLineTypeFormLayout.addRow('\u03C1 (\u03A9m)', self.RhoLineEdit)
         self.InputNewLineTypeFormLayout.addRow('r (m)', self.rLineEdit)
         self.InputNewLineTypeFormLayout.addRow('d12 (m)', self.d12LineEdit)
@@ -454,7 +445,7 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addStretch()
         self.InputNewLineType.addLayout(self.InputNewLineTypeFormLayout)
         self.SubmitNewLineTypePushButton = QPushButton('Submit')
-        self.SubmitNewLineTypePushButton.setMinimumWidth(200.0)
+        self.SubmitNewLineTypePushButton.setMinimumWidth(200)
         self.SubmitNewLineTypePushButton.pressed.connect(self.addNewLineType)
         self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
         self.InputNewLineType.addStretch()
@@ -468,7 +459,7 @@ class CircuitInputer(QWidget):
         self.RealTimeRadioButton.toggled.connect(lambda: self.setOperationMode(0))
         self.InsertionModeRadioButton = QRadioButton()
         self.InsertionModeRadioButton.toggled.connect(lambda: self.setOperationMode(1))
-        self.SimulationControlHbox.addWidget(QLabel('Insertion mode'))
+        self.SimulationControlHbox.addWidget(QLabel('Insertion'))
         self.SimulationControlHbox.addWidget(self.InsertionModeRadioButton)
         self.SimulationControlHbox.addWidget(QLabel('Real-time'))
         self.SimulationControlHbox.addWidget(self.RealTimeRadioButton)
@@ -512,13 +503,14 @@ class CircuitInputer(QWidget):
         self.VbaseLineEdit = QLineEdit()
         self.VbaseLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
 
-        imp_expr_val = QRegExp("^\d{1,3}\.\d{1,3}[+,-]\d{1,3}\.\d{1,3}\j$")
-        self.LtZLineEdit = QLineEdit()
-        self.LtZLineEdit.setValidator(QRegExpValidator(imp_expr_val))
+        self.LtRLineEdit = QLineEdit()
+        self.LtRLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
 
-        adm_expr_val = QRegExp("^\d{1,1}\.\d{1,3}e[+,-]\d{1,2}j")
+        self.LtXLineEdit = QLineEdit()
+        self.LtXLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+
         self.LtYLineEdit = QLineEdit()
-        self.LtYLineEdit.setValidator(QRegExpValidator(adm_expr_val))
+        self.LtYLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
 
         self.ltSubmitByImpedancePushButton = QPushButton('Submit by impedance')
         self.ltSubmitByImpedancePushButton.setMinimumWidth(200)
@@ -531,11 +523,12 @@ class CircuitInputer(QWidget):
         self.choosedLtFormLayout.addRow('Model', self.chooseLtModel)
         self.choosedLtFormLayout.addRow('\u2113 (m)', self.EllLineEdit)
         self.choosedLtFormLayout.addRow('Vbase (V)', self.VbaseLineEdit)
-        self.choosedLtFormLayout.addRow('Z (%pu)', self.LtZLineEdit)
+        self.choosedLtFormLayout.addRow('R (%pu)', self.LtRLineEdit)
+        self.choosedLtFormLayout.addRow('X<sub>L</sub> (%pu)', self.LtXLineEdit)
         self.choosedLtFormLayout.addRow('Y (%pu)', self.LtYLineEdit)
 
         self.removeLTPushButton = QPushButton('Remove LT')
-        self.removeLTPushButton.setMinimumWidth(200.0)
+        self.removeLTPushButton.setMinimumWidth(200)
         self.removeLTPushButton.pressed.connect(self.remove_selected_line)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
@@ -554,11 +547,11 @@ class CircuitInputer(QWidget):
 
         self.TrafoPrimary = QComboBox()
         self.TrafoPrimary.addItem('Y')
-        self.TrafoPrimary.addItem('Yg')
+        self.TrafoPrimary.addItem('Y\u23DA')
         self.TrafoPrimary.addItem('\u0394')
         self.TrafoSecondary = QComboBox()
         self.TrafoSecondary.addItem('Y')
-        self.TrafoSecondary.addItem('Yg')
+        self.TrafoSecondary.addItem('Y\u23DA')
         self.TrafoSecondary.addItem('\u0394')
 
         self.trafoSubmitPushButton = QPushButton('Submit trafo')
@@ -619,13 +612,11 @@ class CircuitInputer(QWidget):
         self.setLayoutHidden(self.ControlPanelLayout, True)
         self.showSpacer()
 
-
     def updateRealOrInsertionRadio(self, op_mode):
         if not op_mode:
             self.RealTimeRadioButton.setChecked(True)
         else:
             self.InsertionModeRadioButton.setChecked(True)
-
 
     def updateNmaxLabel(self, nmax, op_mode):
         if not op_mode:
@@ -636,7 +627,6 @@ class CircuitInputer(QWidget):
         else:
             self.NmaxLabel.setText('Nmax: --')
 
-
     def updateNmaxSlider(self, nmax, op_mode):
         if not op_mode:
             self.NmaxSlider.setEnabled(True)
@@ -644,19 +634,16 @@ class CircuitInputer(QWidget):
         else:
             self.NmaxSlider.setDisabled(True)
 
-
     def setNmaxValue(self, nmax):
         global NMAX, OP_MODE
         NMAX = nmax
         self.updateNmaxLabel(NMAX, OP_MODE)
-
 
     def setOperationMode(self, mode):
         global OP_MODE, NMAX
         OP_MODE = mode
         self.updateNmaxSlider(NMAX, OP_MODE)
         self.updateNmaxLabel(NMAX, OP_MODE)
-
 
     def defineLtOrTrafoVisibility(self):
         """Show line or trafo options in adding line/trafo section"""
@@ -686,7 +673,7 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, trafoProcessing
         """
-        trafo_code = {0: 'Y', 1: 'Yg', 2: '\u0394'}
+        trafo_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
         try:
             if self.getTrafoFromGridPos(self._currElementCoords) is not None:
                 TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
@@ -717,9 +704,9 @@ class CircuitInputer(QWidget):
             line_model = self.findParametersSetFromLt(line)
             self.EllLineEdit.setText('{:.03g}'.format(line.l))
             self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase))
-            self.LtYLineEdit.setText('{number.imag:.03f}j'.format(number=line.Ypu * 100))
-            self.LtZLineEdit.setText('{number.real:.03f}{sgn}{number.imag:.03f}j'.format(
-                number=line.Zpu * 100, sgn='+' if np.sign(line.Zpu.imag) > 0 else ''))
+            self.LtYLineEdit.setText('{number.imag:.04f}'.format(number=line.Ypu * 100))
+            self.LtRLineEdit.setText('{number.real:.04f}'.format(number=line.Zpu * 100))
+            self.LtXLineEdit.setText('{number.imag:.04f}'.format(number=line.Zpu * 100))
             self.chooseLtModel.setCurrentText(line_model)
         except Exception:
             logging.error(traceback.format_exc())
@@ -738,8 +725,9 @@ class CircuitInputer(QWidget):
             else:
                 for line_type in LINE_TYPES:
                     if all(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
-                        line_type[1].keys()):
+                           line_type[1].keys()):
                         return line_type[0]
+                return "No model"
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -792,7 +780,11 @@ class CircuitInputer(QWidget):
                 elif mode == 'impedance':
                     # Current selected element is a line
                     # Update using impedance and admittance
-                    Z, Y = complex(self.LtZLineEdit.text()) / 100, complex(self.LtYLineEdit.text()) / 100
+                    R = float(self.LtRLineEdit.text()) / 100
+                    X = float(self.LtXLineEdit.text()) / 100
+                    Y = float(self.LtYLineEdit.text()) / 100
+                    Z = R + 1j * X
+                    Y = 1j * Y
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
                     self.updateLineWithImpedances(line, Z, Y, l, vbase)
@@ -816,7 +808,11 @@ class CircuitInputer(QWidget):
                     else:
                         self._statusMsg.emit_sig('You have to choose a valid model')
                 elif mode == 'impedance':
-                    Z, Y = complex(self.LtZLineEdit.text()) / 100, complex(self.LtYLineEdit.text()) / 100
+                    R = float(self.LtRLineEdit.text()) / 100
+                    X = float(self.LtXLineEdit.text()) / 100
+                    Y = float(self.LtYLineEdit.text()) / 100
+                    Z = R + 1j * X
+                    Y = 1j * Y
                     l = float(self.EllLineEdit.text())
                     vbase = float(self.VbaseLineEdit.text())
                     self.updateLineWithImpedances(new_line, Z, Y, l, vbase)
@@ -877,7 +873,7 @@ class CircuitInputer(QWidget):
         QPushButton Submit trafo
         """
         global TRANSFORMERS
-        trafo_code = {'Y': 0, 'Yg': 1, '\u0394': 2}
+        trafo_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
         try:
             if self.getLtFromGridPos(self._currElementCoords) is not None:
                 # Transform line into a trafo
@@ -1094,18 +1090,16 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, remove_gen, remove_load
         """
-        code = {0: 'gY', 1: 'Y', 2: '\u0394'}
         to_be_desactivated = [self.PgInput,
                               self.PlInput,
                               self.QlInput,
                               self.BarV_Value,
                               self.XdLineEdit,
-                              self.LoadConn,
-                              self.GenConn]
+                              self.LoadGround,
+                              self.GenGround]
         for item in to_be_desactivated:
             item.setDisabled(True)
         if BUS:
-            print('gen: {0}, load: {1}'.format(code[BUS.gen_conn], code[BUS.load_conn]))
             if BUS.barra_id == 0:
                 self.BarTitle.setText('Barra Slack')
             else:
@@ -1133,8 +1127,8 @@ class CircuitInputer(QWidget):
             self.QlInput.setText('{:.3g}'.format(BUS.ql))
             self.PlInput.setText('{:.3g}'.format(BUS.pl))
             self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
-            self.GenConn.setCurrentText(code[BUS.gen_conn])
-            self.LoadConn.setCurrentText(code[BUS.load_conn])
+            self.GenGround.setChecked(BUS.gen_ground)
+            self.LoadGround.setChecked(BUS.load_ground)
         else:
             self.AddLoadButton.setText('+')
             self.AddLoadButton.disconnect()
@@ -1326,9 +1320,9 @@ class CircuitInputer(QWidget):
             self.BarV_Value.setEnabled(True)
             if BUS.barra_id != 0:
                 self.PgInput.setEnabled(True)
-                self.XdLineEdit.setEnabled(True)
+            self.XdLineEdit.setEnabled(True)
             self.AddGenerationButton.setText('OK')
-            self.GenConn.setEnabled(True)
+            self.GenGround.setEnabled(True)
             self._statusMsg.emit_sig('Input generation data...')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.submit_gen)
@@ -1344,11 +1338,10 @@ class CircuitInputer(QWidget):
         """
         global GRID_BUSES, BUSES
         if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-            gen_code = {'gY': 0, 'Y': 1, '\u0394': 2}
             BUS = self.getBusFromGridPos(self._currElementCoords)
             BUS.v = float(self.BarV_Value.text())
             BUS.pg = float(self.PgInput.text())
-            BUS.gen_conn = gen_code[self.GenConn.currentText()]
+            BUS.gen_ground = self.GenGround.isChecked()
             if self.XdLineEdit.text() == '\u221E':
                 BUS.xd = np.inf
             else:
@@ -1356,11 +1349,11 @@ class CircuitInputer(QWidget):
             GRID_BUSES[self._currElementCoords].v = BUS.v
             GRID_BUSES[self._currElementCoords].pg = BUS.pg
             GRID_BUSES[self._currElementCoords].xd = BUS.xd
-            GRID_BUSES[self._currElementCoords].gen_conn = BUS.gen_conn
+            GRID_BUSES[self._currElementCoords].gen_ground = BUS.gen_ground
             self.BarV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
             self.XdLineEdit.setEnabled(False)
-            self.GenConn.setDisabled(True)
+            self.GenGround.setDisabled(True)
             self.AddGenerationButton.disconnect()
             if BUS.barra_id:
                 self.AddGenerationButton.setText('-')
@@ -1377,11 +1370,11 @@ class CircuitInputer(QWidget):
             BUS.v = 1
             BUS.pg = 0
             BUS.xd = np.inf
-            BUS.gen_conn = 0
+            BUS.gen_ground = False
             GRID_BUSES[self._currElementCoords].v = BUS.v
             GRID_BUSES[self._currElementCoords].pg = BUS.pg
             GRID_BUSES[self._currElementCoords].xd = BUS.xd
-            GRID_BUSES[self._currElementCoords].gen_conn = 0
+            GRID_BUSES[self._currElementCoords].gen_ground = False
             self.updateBusInspector(BUS)
             self.AddGenerationButton.setText('+')
             self.AddGenerationButton.disconnect()
@@ -1400,7 +1393,7 @@ class CircuitInputer(QWidget):
             self.QlInput.setEnabled(True)
             self.AddLoadButton.setText('OK')
             self._statusMsg.emit_sig('Input load data...')
-            self.LoadConn.setEnabled(True)
+            self.LoadGround.setEnabled(True)
             self.AddLoadButton.disconnect()
             self.AddLoadButton.pressed.connect(self.submit_load)
         except Exception:
@@ -1415,17 +1408,16 @@ class CircuitInputer(QWidget):
         global GRID_BUSES, BUSES
         try:
             if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                load_code = {'gY': 0, 'Y': 1, '\u0394': 2}
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 BUS.pl = float(self.PlInput.text())
                 BUS.ql = float(self.QlInput.text())
-                BUS.load_conn = load_code[self.LoadConn.currentText()]
+                BUS.load_ground = self.LoadGround.isChecked()
                 GRID_BUSES[self._currElementCoords].pl = BUS.pl
                 GRID_BUSES[self._currElementCoords].ql = BUS.ql
-                GRID_BUSES[self._currElementCoords].load_conn = BUS.load_conn
+                GRID_BUSES[self._currElementCoords].load_ground = BUS.load_ground
                 self.PlInput.setEnabled(False)
                 self.QlInput.setEnabled(False)
-                self.LoadConn.setEnabled(False)
+                self.LoadGround.setEnabled(False)
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.remove_load)
@@ -1440,10 +1432,10 @@ class CircuitInputer(QWidget):
                 BUS = self.getBusFromGridPos(self._currElementCoords)
                 BUS.pl = 0
                 BUS.ql = 0
-                BUS.load_conn = 0
+                BUS.load_ground = True
                 GRID_BUSES[self._currElementCoords].pl = 0
                 GRID_BUSES[self._currElementCoords].ql = 0
-                GRID_BUSES[self._currElementCoords].load_conn = 0
+                GRID_BUSES[self._currElementCoords].load_ground = True
                 self.updateBusInspector(BUS)
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
@@ -1572,24 +1564,26 @@ class Aspy(QMainWindow):
         for bus in BUSES:
             self.CircuitInputer.Scene.removeItem(BUSES_PIXMAP[bus.posicao])
 
+
 def reset_system_state_variables():
     global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
     LINES, BUSES, TRANSFORMERS = [], [], []
     GRID_BUSES = np.zeros((N, N), object)
     BUSES_PIXMAP = np.zeros((N, N), object)
 
+
 def custom_run(f):
     def wrapper(*args, **kwargs):
         global OP_MODE
-        print(OP_MODE)
         if not OP_MODE:
             f(*args, **kwargs)
+
     return wrapper
+
 
 @custom_run
 def update_mask():
     global NMAX
-    print(NMAX)
     G = nx.Graph()
     for b in BUSES:
         G.add_node(b.barra_id)
@@ -1606,9 +1600,10 @@ def update_mask():
     for component in connected_components:
         if 0 in component:
             neighbors = component
-    MASK = np.zeros(len(BUSES), bool)
-    MASK[list(neighbors)] = True
-    good_ids = [b.barra_id for b in np.array(BUSES)[MASK]]
+    mask_buses = np.zeros(len(BUSES), bool)
+    mask_buses[list(neighbors)] = True
+    good_ids = [b.barra_id for b in np.array(BUSES)[mask_buses]]
+    rank = nx.shortest_path_length(G, source=0)
     if len(LINES) > 0:
         mask_linhas = np.ones(len(LINES), bool)
         for i in range(len(LINES)):
@@ -1627,7 +1622,7 @@ def update_mask():
         trafos = np.array(TRANSFORMERS)[mask_trafos][:, 0]
     else:
         trafos = np.array([])
-    barras = np.array(BUSES)[MASK]
+    barras = np.array(BUSES)[mask_buses]
     hsh = {}
     for j, i in enumerate(good_ids):
         hsh[i] = j
@@ -1637,6 +1632,7 @@ def update_mask():
         b.delta = np.angle(V[hsh[b.barra_id]])
         b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
         b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
+        b.rank = rank[b.barra_id]
     for lt in linhas:
         node1 = hsh[GRID_BUSES[lt.origin].barra_id]
         node2 = hsh[GRID_BUSES[lt.destiny].barra_id]
@@ -1651,7 +1647,8 @@ def update_mask():
     for b in barras:
         b.iTPG = If[hsh[b.barra_id], 0, 0]
         b.iSLG = If[hsh[b.barra_id], 1, 0]
-        b.iDLG = If[hsh[b.barra_id], 2, 1]
+        b.iDLGb = If[hsh[b.barra_id], 2, 1]
+        b.iDLGc = If[hsh[b.barra_id], 2, 2]
         b.iLL = If[hsh[b.barra_id], 3, 1]
 
 
@@ -1682,7 +1679,7 @@ def createLocalData(db):
 
 
 def interface_coordpairs(coords, squarel):
-    for k in range(len(coords)-1):
+    for k in range(len(coords) - 1):
         yield (np.array([[squarel / 2 + squarel * coords[k][1], squarel / 2 + squarel * coords[k][0]],
                          [squarel / 2 + squarel * coords[k + 1][1], squarel / 2 + squarel * coords[k + 1][0]]]))
 

@@ -1,28 +1,26 @@
 import datetime
+import logging
 import os
 import tempfile
-import logging, traceback
+import traceback
 
 import matplotlib.pyplot as plt
 import numpy as np
 from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, Figure
-from pylatex.base_classes import CommandBase
 
 _S_FACTOR_ = 3
 _DIST_H = 0.2
 _DIST_V = 0.25
 
-class Wye(CommandBase):
-    _latex_name = 'wye'
-
 
 def debug(f):
-    def wrapper(*args,**kwargs):
+    def wrapper(*args, **kwargs):
         try:
             f(*args, **kwargs)
         except Exception:
             logging.error(traceback.format_exc())
+
     return wrapper
 
 
@@ -180,7 +178,8 @@ def annotate_lines_flux_data(ax, glines, lines, sfactor=_S_FACTOR_, disth=_DIST_
         sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
         ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
         ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
-        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6,
+                         'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
         ax.annotate('{:.1f}'.format(line.S1 * 100),
                     xy=(sx, sy),
@@ -208,7 +207,8 @@ def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=_S_FACTOR_, disth=_DI
         sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
         ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
         ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
-        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6,
+                         'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
         ax.annotate('{:.1f}'.format(trafo.Spu * 100),
                     xy=(sx, sy),
@@ -233,6 +233,7 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     img = os.path.join(sessions_dir, filename) + '_i.' + ext
     plt.savefig(img)
     return img.split(os.sep)[-1]
+
 
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
     if len(LINES) > 0:
@@ -407,4 +408,3 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
         with doc.create(Figure(position='h!')) as system_pic:
             system_pic.add_image(img)
     doc.generate_pdf(sessions_dir + '/' + filename, clean_tex=True)
-
