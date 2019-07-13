@@ -1090,7 +1090,6 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, remove_gen, remove_load
         """
-        code = {0: 'gY', 1: 'Y', 2: '\u0394'}
         to_be_desactivated = [self.PgInput,
                               self.PlInput,
                               self.QlInput,
@@ -1321,7 +1320,7 @@ class CircuitInputer(QWidget):
             self.BarV_Value.setEnabled(True)
             if BUS.barra_id != 0:
                 self.PgInput.setEnabled(True)
-                self.XdLineEdit.setEnabled(True)
+            self.XdLineEdit.setEnabled(True)
             self.AddGenerationButton.setText('OK')
             self.GenGround.setEnabled(True)
             self._statusMsg.emit_sig('Input generation data...')
