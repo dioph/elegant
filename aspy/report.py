@@ -234,7 +234,7 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     plt.savefig(img)
     return img.split(os.sep)[-1]
 
-
+@debug
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
     if len(LINES) > 0:
         linhas = np.array(LINES)[:, 0]
@@ -370,7 +370,6 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                                  NoEscape('{:.02f}'.format(np.abs(lt.I) / lt.imax * 100))),
                                 color=color)
                 tbl.add_hline()
-    doc.append(NewPage())
     with doc.create(Section('Trafos')):
         with doc.create(Table(position='h')) as table:
             doc.append(NoEscape('\\centering'))
