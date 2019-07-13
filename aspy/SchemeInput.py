@@ -3,6 +3,7 @@ import os
 import shelve
 import sys
 import traceback
+import numpy as np
 
 import networkx as nx
 from PyQt5.QtCore import *
@@ -51,7 +52,7 @@ LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31
                            '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': np.inf}]]
 LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
-NMAX = 1
+NMAX = 20
 OP_MODE = 0
 
 
@@ -1580,6 +1581,7 @@ def reset_system_state_variables():
 def custom_run(f):
     def wrapper(*args, **kwargs):
         global OP_MODE
+        print(OP_MODE)
         if not OP_MODE:
             f(*args, **kwargs)
     return wrapper
@@ -1587,6 +1589,7 @@ def custom_run(f):
 @custom_run
 def update_mask():
     global NMAX
+    print(NMAX)
     G = nx.Graph()
     for b in BUSES:
         G.add_node(b.barra_id)
