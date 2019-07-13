@@ -11,7 +11,7 @@ EPS = 8.854e-12
 class Barra(object):
     def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
                  xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None, rank=np.inf,
-                 gen_conn=0, load_con=0):
+                 gen_ground=False, load_ground=True):
         self.barra_id = barra_id
         self.v = v
         self.i = i
@@ -28,8 +28,8 @@ class Barra(object):
         self.iDLGc = iDLGc
         self.iLL = iLL
         self.rank = rank
-        self.gen_conn = gen_conn
-        self.load_conn = load_con
+        self.gen_ground = gen_ground
+        self.load_ground = load_ground
 
     @property
     def P(self):
@@ -48,7 +48,7 @@ class Barra(object):
 
 class LT(object):
     def __init__(self, l=32e3, r=2.5e-2, d12=3.0, d23=4.5, d31=7.5, d=0.4, rho=1.78e-8, m=2, vbase=1e4,
-                 imax=1000, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
+                 imax=np.inf, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.l = l
         self.r = r

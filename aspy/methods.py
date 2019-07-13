@@ -117,7 +117,10 @@ def Yseq(barras, linhas, trafos, grid, hsh=None):
     Y0 = np.zeros((N, N), complex)
     for b in barras:
         node = hsh[b.barra_id]
-        Y0[node, node] += 1 / b.Z
+        if b.gen_ground and np.isfinite(b.xd):
+            Y0[node, node] += 1 / (b.xd * 1j)
+        if b.load_ground:
+            Y0[node, node] += 1 / b.Z
     for lt in linhas:
         node1 = hsh[grid[lt.origin].barra_id]
         node2 = hsh[grid[lt.destiny].barra_id]
