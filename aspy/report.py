@@ -7,8 +7,6 @@ import numpy as np
 from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, Figure
 
-from aspy.utils import debug
-
 _S_FACTOR_ = 3
 _DIST_H = 0.2
 _DIST_V = 0.25
@@ -224,7 +222,6 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     plt.savefig(img)
     return img.split(os.sep)[-1]
 
-@debug
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
     if len(LINES) > 0:
         linhas = np.array(LINES)[:, 0]
