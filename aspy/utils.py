@@ -3,10 +3,8 @@ import os
 import sys
 import traceback
 
-import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
 
-N = 20
 
 class GenericSignal(QObject):
     signal = pyqtSignal(object)
@@ -16,39 +14,6 @@ class GenericSignal(QObject):
 
     def emit_sig(self, args):
         self.signal.emit(args)
-
-
-def reset_system_state_variables():
-    global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
-    LINES, BUSES, TRANSFORMERS = [], [], []
-    GRID_BUSES = np.zeros((N, N), object)
-    BUSES_PIXMAP = np.zeros((N, N), object)
-
-
-def storeData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
-    filtered_lines = []
-    for line in LINES:
-        filtered_lines.append([line[0], [], line[2], False])
-    db['LINES'] = filtered_lines
-    db['BUSES'] = BUSES
-    db['GRID_BUSES'] = GRID_BUSES
-    filtered_trafos = []
-    for trafo in TRANSFORMERS:
-        filtered_trafos.append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
-    db['TRANSFORMERS'] = filtered_trafos
-    db['LINE_TYPES'] = LINE_TYPES
-    return db
-
-
-def createLocalData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
-    LINE_TYPES = db['LINE_TYPES']
-    LINES = db['LINES']
-    BUSES = db['BUSES']
-    TRANSFORMERS = db['TRANSFORMERS']
-    GRID_BUSES = db['GRID_BUSES']
-    return LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
 
 
 def getSessionsDir():

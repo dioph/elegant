@@ -1,6 +1,6 @@
 import shelve
 
-from aspy.utils import createLocalData
+from aspy.SchemeInput import createLocalData
 from ..core import *
 from ..methods import *
 

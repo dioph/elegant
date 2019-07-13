@@ -12,8 +12,7 @@ from PyQt5.QtWidgets import *
 from aspy.core import *
 from aspy.methods import update_flow, update_short
 from aspy.report import create_report
-from aspy.utils import GenericSignal, reset_system_state_variables, \
-    storeData, createLocalData, getSessionsDir
+from aspy.utils import GenericSignal, getSessionsDir
 
 """
 # ----------------------------------------------------------------------------------------------------
@@ -41,7 +40,6 @@ from aspy.utils import GenericSignal, reset_system_state_variables, \
 # ----------------------------------------------------------------------------------------------------
 """
 
-N = 20
 GRID_BUSES = np.zeros((N, N), object)
 BUSES_PIXMAP = np.zeros((N, N), object)
 BUSES = []
@@ -1513,7 +1511,7 @@ class Aspy(QMainWindow):
         try:
             sessions_dir = getSessionsDir()
             with shelve.open(os.path.join(sessions_dir, './db')) as db:
-                db = storeData(db)
+                storeData(db)
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -1658,6 +1656,39 @@ def createSchematic(scene):
         for pairs in interface_coordpairs(trafo[2], squarel):
             drawline = scene.drawLine(pairs, color='r')
             TRANSFORMERS[pos][1].append(drawline)
+
+
+def reset_system_state_variables():
+    global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
+    LINES, BUSES, TRANSFORMERS = [], [], []
+    GRID_BUSES = np.zeros((N, N), object)
+    BUSES_PIXMAP = np.zeros((N, N), object)
+
+
+def storeData(db):
+    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
+    filtered_lines = []
+    for line in LINES:
+        filtered_lines.append([line[0], [], line[2], False])
+    db['LINES'] = filtered_lines
+    db['BUSES'] = BUSES
+    db['GRID_BUSES'] = GRID_BUSES
+    filtered_trafos = []
+    for trafo in TRANSFORMERS:
+        filtered_trafos.append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
+    db['TRANSFORMERS'] = filtered_trafos
+    db['LINE_TYPES'] = LINE_TYPES
+    return db
+
+
+def createLocalData(db):
+    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
+    LINE_TYPES = db['LINE_TYPES']
+    LINES = db['LINES']
+    BUSES = db['BUSES']
+    TRANSFORMERS = db['TRANSFORMERS']
+    GRID_BUSES = db['GRID_BUSES']
+    return LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
 
 
 if __name__ == '__main__':

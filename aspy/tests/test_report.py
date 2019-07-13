@@ -1,6 +1,7 @@
 import shelve
 
-from aspy.utils import createLocalData, getSessionsDir
+from aspy.SchemeInput import createLocalData
+from aspy.utils import getSessionsDir
 from ..report import *
 
 _SESSIONS_DIR_ = getSessionsDir()
