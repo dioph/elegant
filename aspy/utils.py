@@ -6,8 +6,7 @@ import traceback
 import numpy as np
 from PyQt5.QtCore import QObject, pyqtSignal
 
-from aspy.SchemeInput import N
-
+N = 20
 
 class GenericSignal(QObject):
     signal = pyqtSignal(object)
@@ -72,5 +71,4 @@ def debug(f):
             f(*args, **kwargs)
         except Exception:
             logging.error(traceback.format_exc())
-
     return wrapper
