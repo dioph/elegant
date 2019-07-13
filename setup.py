@@ -1,5 +1,7 @@
-from numpy.distutils.core import Extension, setup
+from numpy.distutils.core import setup
+
 import aspy
+
 version = aspy.__version__
 
 with open("README.md", 'r') as f:

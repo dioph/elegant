@@ -1,14 +1,29 @@
 import datetime
+import os
 import tempfile
+import logging, traceback
 
+import matplotlib.pyplot as plt
 import numpy as np
 from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
-    Subsection, MultiColumn, MultiRow, UnsafeCommand, NewPage
-
+    Subsection, MultiColumn, MultiRow, UnsafeCommand, Figure
 from pylatex.base_classes import CommandBase
+
+_S_FACTOR_ = 3
+_DIST_H = 0.2
+_DIST_V = 0.25
 
 class Wye(CommandBase):
     _latex_name = 'wye'
+
+
+def debug(f):
+    def wrapper(*args,**kwargs):
+        try:
+            f(*args, **kwargs)
+        except Exception:
+            logging.error(traceback.format_exc())
+    return wrapper
 
 
 def test_inf(x):
@@ -23,14 +38,222 @@ def get_scheme(tr):
     return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
 
 
-def create_report(barras, linhas, trafos, grid):
-    from .SchemeInput import getSessionsDir
+def matplotlib_coordpairs(entity, sfactor=_S_FACTOR_):
+    coords = np.array(entity[2])
+    x, y = list(coords[:, i] for i in range(np.shape(coords)[1] - 1, -1, -1))
+    return sfactor * x, sfactor * -y
 
+
+def draw_rep_buses(ax, buses, size=250, sfactor=_S_FACTOR_):
+    for bus in buses:
+        x, y = bus.__getattribute__('posicao')[::-1]
+        plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
+        ax.annotate(bus.barra_id,
+                    xy=(sfactor * x, sfactor * -y),
+                    color='w',
+                    fontfamily='monospace',
+                    horizontalalignment='center',
+                    verticalalignment='center')
+
+
+def collect_line_data(ax, line):
+    x, y = line.get_data()
+    p1x, p2x, p1y, p2y = x[0], x[1], y[0], y[1]
+    pblx, plx, pbly, ply = x[-2], x[-1], y[-2], y[-1]
+    r_p1 = ax.transData.transform_point([p1x, p1y])
+    r_p2 = ax.transData.transform_point([p2x, p2y])
+    r_pbl = ax.transData.transform_point([pblx, pbly])
+    r_pl = ax.transData.transform_point([plx, ply])
+    return r_p1, r_p2, r_pbl, r_pl
+
+
+def get_line_slopes(line_data):
+    r_p1, r_p2, r_pbl, r_pl = line_data
+    start_slope = np.arctan2(np.abs(r_p2[1] - r_p1[1]), np.abs(r_p2[0] - r_p1[0]))
+    end_slope = np.arctan2(np.abs(r_pl[1] - r_pbl[1]), np.abs(r_pl[0] - r_pbl[0]))
+    return np.rad2deg(start_slope), np.rad2deg(end_slope)
+
+
+def draw_rep_lines(ax, lines, linewidth=1):
+    glines = []
+    for line in lines:
+        coords = matplotlib_coordpairs(line)
+        gline = ax.plot(*coords, linewidth=linewidth, color='b')
+        glines.append(gline)
+    return glines
+
+
+def draw_rep_trafos(ax, trafos, linewidth=1):
+    gtrafos = []
+    for trafo in trafos:
+        coords = matplotlib_coordpairs(trafo)
+        gtrafo = ax.plot(*coords, linewidth=linewidth, color='r')
+        gtrafos.append(gtrafo)
+    return gtrafos
+
+
+def draw_rep_scheme(data):
+    buses, lines, trafos = data
+    ax = plt.gca()
+    ax.clear()
+    glines = draw_rep_lines(ax, lines)
+    gtrafos = draw_rep_trafos(ax, trafos)
+    draw_rep_buses(ax, buses)
+    ax.set_axis_off()
+    return glines, gtrafos
+
+
+def get_entity_extremities(entity):
+    core_obj = entity[0]
+    oy, ox = core_obj.origin
+    post_oy, post_ox = entity[2][1]
+    dy, dx = core_obj.destiny
+    pre_dy, pre_dx = entity[2][-2]
+    return ox, -oy, post_ox, -post_oy, dx, -dy, pre_dx, -pre_dy
+
+
+def corr_origin(ox, post_ox, oy, post_oy):
+    if post_ox >= ox:
+        corr_ox = 1
+    else:
+        corr_ox = -1
+    if post_oy <= oy:
+        corr_oy = -1
+    else:
+        corr_oy = 1
+    return corr_ox, corr_oy
+
+
+def corr_destiny(pre_dx, dx, pre_dy, dy):
+    if pre_dx >= dx:
+        corr_dx = 1
+    else:
+        corr_dx = -1
+    if pre_dy <= dy:
+        corr_dy = -1
+    else:
+        corr_dy = 1
+    return corr_dx, corr_dy
+
+
+def corr_slopes(ox, oy, post_ox, post_oy, dx, dy, pre_dx, pre_dy):
+    if post_ox >= ox:
+        if post_oy <= oy:
+            corr_sslope = -1
+        else:
+            corr_sslope = 1
+    else:
+        if post_oy <= oy:
+            corr_sslope = 1
+        else:
+            corr_sslope = -1
+    if pre_dx >= dx:
+        if pre_dy <= dy:
+            corr_eslope = -1
+        else:
+            corr_eslope = 1
+    else:
+        if pre_dy <= dy:
+            corr_eslope = 1
+        else:
+            corr_eslope = -1
+    return corr_sslope, corr_eslope
+
+
+def direction_based_correction(extremities):
+    ox, oy, post_ox, post_oy, dx, dy, pre_dx, pre_dy = extremities
+    corr_ox, corr_oy = corr_origin(ox, post_ox, oy, post_oy)
+    corr_dx, corr_dy = corr_destiny(pre_dx, dx, pre_dy, dy)
+    corr_sslope, corr_eslope = corr_slopes(*extremities)
+    return {0: [corr_ox, corr_oy], 1: [corr_dx, corr_dy], 2: [corr_sslope, corr_eslope]}
+
+
+def annotate_lines_flux_data(ax, glines, lines, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
+    for gentty, lentty in zip(glines, lines):
+        gline, line = gentty[0], lentty[0]
+        real_gline_data = collect_line_data(ax, gline)
+        sslope, eslope = get_line_slopes(real_gline_data)
+        extremities = get_entity_extremities(lentty)
+        corr = direction_based_correction(extremities)
+        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
+        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
+        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
+        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
+        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
+        hmask = {1: 'left', -1: 'right'}
+        ax.annotate('{:.1f}'.format(line.S1 * 100),
+                    xy=(sx, sy),
+                    horizontalalignment=hmask[corr[0][0]],
+                    rotation=sslope * corr[2][0],
+                    color='b',
+                    **common_config)
+        ax.annotate("{:.1f}".format(line.S2 * 100),
+                    xy=(ex, ey),
+                    horizontalalignment=hmask[corr[1][0]],
+                    rotation=eslope * corr[2][1],
+                    color='r',
+                    **common_config)
+
+
+def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
+    for gentty, tentty in zip(gtrafos, trafos):
+        gtrafo, trafo = gentty[0], tentty[0]
+        real_gtrafo_data = collect_line_data(ax, gtrafo)
+        sslope, eslope = get_line_slopes(real_gtrafo_data)
+        extremities = get_entity_extremities(tentty)
+        corr = direction_based_correction(extremities)
+        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
+        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
+        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
+        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
+        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
+        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6, 'verticalalignment': 'bottom'}
+        hmask = {1: 'left', -1: 'right'}
+        ax.annotate('{:.1f}'.format(trafo.Spu * 100),
+                    xy=(sx, sy),
+                    horizontalalignment=hmask[corr[0][0]],
+                    rotation=sslope * corr[2][0],
+                    color='b',
+                    **common_config)
+        ax.annotate("{:.1f}".format((trafo.Spu - trafo.Sper) * 100),
+                    xy=(ex, ey),
+                    horizontalalignment=hmask[corr[1][0]],
+                    rotation=eslope * corr[2][1],
+                    color='r',
+                    **common_config)
+
+
+def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
+    ax = plt.gca()
+    buses, lines, trafos = data
+    glines, gtrafos = draw_rep_scheme(data)
+    annotate_lines_flux_data(ax, glines, lines)
+    annotate_trafos_flux_data(ax, gtrafos, trafos)
+    img = os.path.join(sessions_dir, filename) + '_i.' + ext
+    plt.savefig(img)
+    return img.split(os.sep)[-1]
+
+def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
+    if len(LINES) > 0:
+        linhas = np.array(LINES)[:, 0]
+    else:
+        linhas = np.array([])
+    if len(TRANSFORMERS) > 0:
+        trafos = np.array(TRANSFORMERS)[:, 0]
+    else:
+        trafos = np.array([])
+    grid = GRID_BUSES
+    barras = BUSES
+    from aspy.SchemeInput import getSessionsDir
+    sessions_dir = getSessionsDir()
+    filename = next(tempfile._get_candidate_names())
     geometry_options = {"tmargin": "2cm", "lmargin": "2cm", "rmargin": "2cm", "bmargin": "2cm"}
     doc = Document(geometry_options=geometry_options)
     doc.preamble.append(Command('usepackage', 'cmbright'))
     doc.preamble.append(Command('usepackage', 'tikz'))
     doc.preamble.append(Command('usepackage', 'amsmath'))
+    doc.preamble.append(Command('usepackage', 'graphicx'))
     now = datetime.datetime.now()
     doc.append('Relatório gerado automaticamente em '
                '{:02d}/{:02d}/{:02d} {:02d}:{:02d}:{:02d} usando ASPy'.format(
@@ -177,16 +400,11 @@ def create_report(barras, linhas, trafos, grid):
                                  NoEscape('{:.02f}'.format(np.abs(tr.Spu) * 1e8 / tr.snom * 100))),
                                 color=color)
                 tbl.add_hline()
-    filename = next(tempfile._get_candidate_names())
-    sessions_dir = getSessionsDir()
+    data = BUSES, LINES, TRANSFORMERS
+    img = make_system_schematic(data, sessions_dir, filename)
+    with doc.create(Section('Sistema')):
+        doc.append(NoEscape('\\centering'))
+        with doc.create(Figure(position='h!')) as system_pic:
+            system_pic.add_image(img)
     doc.generate_pdf(sessions_dir + '/' + filename, clean_tex=True)
 
-
-if __name__ == '__main__':
-    geometry_options = {"tmargin": "1cm", "lmargin": "10cm"}
-    doc = Document(geometry_options=geometry_options)
-    doc.preamble.append(Command('usepackage', 'cmbright'))
-    with doc.create(Section('Testing')):
-        doc.append('Teeest')
-
-    doc.generate_pdf('report_tests/test', clean_tex=False)

@@ -10,7 +10,8 @@ EPS = 8.854e-12
 
 class Barra(object):
     def __init__(self, barra_id=0, posicao=None, v=1.0, i=0.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
-                 xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None, rank=np.inf):
+                 xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None, rank=np.inf,
+                 gen_conn=0, load_con=0):
         self.barra_id = barra_id
         self.v = v
         self.i = i
@@ -27,6 +28,8 @@ class Barra(object):
         self.iDLGc = iDLGc
         self.iLL = iLL
         self.rank = rank
+        self.gen_conn = gen_conn
+        self.load_conn = load_con
 
     @property
     def P(self):
@@ -43,25 +46,9 @@ class Barra(object):
         return np.inf
 
 
-class BarraPQ(Barra):
-    def __init__(self, barra_id=0, pg=0., qg=0., pl=0., ql=0.):
-        super(BarraPQ, self).__init__(barra_id=barra_id, v=np.nan, delta=np.nan, pg=pg, qg=qg, pl=pl, ql=ql)
-
-
-class BarraPV(Barra):
-    def __init__(self, barra_id=0, v=1e3, pg=0., pl=0., ql=0.):
-        super(BarraPV, self).__init__(barra_id=barra_id, v=v, delta=np.nan, pg=pg, qg=np.nan, pl=pl, ql=ql)
-
-
-class BarraSL(Barra):
-    def __init__(self, barra_id=0, v=1e3, delta=0., pl=0., ql=0.):
-        super(BarraSL, self).__init__(barra_id=barra_id, v=v, delta=delta, pg=np.nan, qg=np.nan, pl=pl, ql=ql)
-        self.vbase = 1e3
-
-
 class LT(object):
     def __init__(self, l=32e3, r=2.5e-2, d12=3.0, d23=4.5, d31=7.5, d=0.4, rho=1.78e-8, m=2, vbase=1e4,
-                 imax=None, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
+                 imax=1000, v1=0., v2=0., Z=None, Y=None, origin=None, destiny=None):
         self.rho = rho
         self.r = r
         self.d12 = d12
@@ -182,8 +169,8 @@ class LT(object):
         d12 = np.angle(self.v1) - np.angle(self.v2)
         z = np.abs(self.Zpu)
         dz = np.angle(self.Zpu)
-        P1 = v1**2/z * np.cos(dz) - v1*v2/z * np.cos(d12+dz)
-        Q1 = v1**2/z * np.sin(dz) - v1*v2/z * np.sin(d12+dz) - v1**2*np.abs(self.Ypu)/2
+        P1 = v1 ** 2 / z * np.cos(dz) - v1 * v2 / z * np.cos(d12 + dz)
+        Q1 = v1 ** 2 / z * np.sin(dz) - v1 * v2 / z * np.sin(d12 + dz) - v1 ** 2 * np.abs(self.Ypu) / 2
         return P1 + 1j * Q1
 
     @property
@@ -199,7 +186,7 @@ class LT(object):
 
 
 class Trafo(object):
-    def __init__(self, snom=1e8, jx0=0.0, jx1=0.0, primary=0, secondary=0, origin=None, destiny=None, v1=0., v2=0.):
+    def __init__(self, snom=1e8, jx0=0.5, jx1=0.5, primary=0, secondary=0, origin=None, destiny=None, v1=0., v2=0.):
         self.snom = snom
         self.jx0 = jx0
         self.jx1 = jx1

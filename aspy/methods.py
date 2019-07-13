@@ -5,7 +5,7 @@ def singular_matrix(matrix):
         return False
     return True
 
-def update_flow(barras, linhas, trafos, grid, hsh=None, method=1):
+def update_flow(barras, linhas, trafos, grid, Nmax, hsh=None):
     N = len(barras)
     Y = Ybus(barras, linhas, trafos, grid, hsh)
     V0 = np.zeros(N, complex)
@@ -20,7 +20,7 @@ def update_flow(barras, linhas, trafos, grid, hsh=None, method=1):
         else:
             V0[i] = 1.0
             S[i] = np.array([-barras[i].pl, -barras[i].ql])
-    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=20)
+    niter, delta, V = newton_raphson(Y, V0, S, eps=1e-12, Nmax=Nmax)
     I = np.dot(Y, V)
     Scalc = V * np.conjugate(I)
     S0 = np.zeros_like(S)
@@ -434,4 +434,3 @@ def update_V(deltaPQ, N, V0, Y):
         V0[i] = vAdj[vAdj_counter] * np.exp(1j * vAdj[vAdj_counter - N])
         vAdj_counter += 1
     return V0
-
