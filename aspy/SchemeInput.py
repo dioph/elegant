@@ -12,6 +12,8 @@ from PyQt5.QtWidgets import *
 from aspy.core import *
 from aspy.methods import update_flow, update_short
 from aspy.report import create_report
+from aspy.utils import GenericSignal, reset_system_state_variables, \
+    storeData, createLocalData, getSessionsDir
 
 """
 # ----------------------------------------------------------------------------------------------------
@@ -51,16 +53,6 @@ LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd2
                   'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
 NMAX = 1
 OP_MODE = 0
-
-
-class GenericSignal(QObject):
-    signal = pyqtSignal(object)
-
-    def __init__(self):
-        super(GenericSignal, self).__init__()
-
-    def emit_sig(self, args):
-        self.signal.emit(args)
 
 
 class SchemeInputer(QGraphicsScene):
@@ -1565,13 +1557,6 @@ class Aspy(QMainWindow):
             self.CircuitInputer.Scene.removeItem(BUSES_PIXMAP[bus.posicao])
 
 
-def reset_system_state_variables():
-    global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
-    LINES, BUSES, TRANSFORMERS = [], [], []
-    GRID_BUSES = np.zeros((N, N), object)
-    BUSES_PIXMAP = np.zeros((N, N), object)
-
-
 def custom_run(f):
     def wrapper(*args, **kwargs):
         global OP_MODE
@@ -1652,32 +1637,6 @@ def update_mask():
         b.iLL = If[hsh[b.barra_id], 3, 1]
 
 
-def storeData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
-    filtered_lines = []
-    for line in LINES:
-        filtered_lines.append([line[0], [], line[2], False])
-    db['LINES'] = filtered_lines
-    db['BUSES'] = BUSES
-    db['GRID_BUSES'] = GRID_BUSES
-    filtered_trafos = []
-    for trafo in TRANSFORMERS:
-        filtered_trafos.append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
-    db['TRANSFORMERS'] = filtered_trafos
-    db['LINE_TYPES'] = LINE_TYPES
-    return db
-
-
-def createLocalData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
-    LINE_TYPES = db['LINE_TYPES']
-    LINES = db['LINES']
-    BUSES = db['BUSES']
-    TRANSFORMERS = db['TRANSFORMERS']
-    GRID_BUSES = db['GRID_BUSES']
-    return LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
-
-
 def interface_coordpairs(coords, squarel):
     for k in range(len(coords) - 1):
         yield (np.array([[squarel / 2 + squarel * coords[k][1], squarel / 2 + squarel * coords[k][0]],
@@ -1699,20 +1658,6 @@ def createSchematic(scene):
         for pairs in interface_coordpairs(trafo[2], squarel):
             drawline = scene.drawLine(pairs, color='r')
             TRANSFORMERS[pos][1].append(drawline)
-
-
-def getSessionsDir():
-    if sys.platform in ('win32', 'win64'):
-        home_dir = os.getenv('userprofile')
-        sessions_dir = os.path.join(home_dir, 'Documents\\aspy')
-    elif sys.platform == 'linux':
-        home_dir = os.getenv('HOME')
-        sessions_dir = os.path.join(home_dir, 'aspy')
-    else:
-        sessions_dir = '.'
-    if not os.path.exists(sessions_dir):
-        os.mkdir(sessions_dir)
-    return sessions_dir
 
 
 if __name__ == '__main__':
