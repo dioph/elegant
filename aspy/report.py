@@ -1,8 +1,6 @@
 import datetime
-import logging
 import os
 import tempfile
-import traceback
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,16 +10,6 @@ from pylatex import Document, Section, Command, Tabular, Table, NoEscape, \
 _S_FACTOR_ = 3
 _DIST_H = 0.2
 _DIST_V = 0.25
-
-
-def debug(f):
-    def wrapper(*args, **kwargs):
-        try:
-            f(*args, **kwargs)
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    return wrapper
 
 
 def test_inf(x):
@@ -234,7 +222,6 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     plt.savefig(img)
     return img.split(os.sep)[-1]
 
-
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
     if len(LINES) > 0:
         linhas = np.array(LINES)[:, 0]
@@ -246,7 +233,7 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
         trafos = np.array([])
     grid = GRID_BUSES
     barras = BUSES
-    from aspy.SchemeInput import getSessionsDir
+    from aspy.utils import getSessionsDir
     sessions_dir = getSessionsDir()
     filename = next(tempfile._get_candidate_names())
     geometry_options = {"tmargin": "2cm", "lmargin": "2cm", "rmargin": "2cm", "bmargin": "2cm"}

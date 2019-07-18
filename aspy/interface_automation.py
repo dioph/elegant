@@ -1,6 +1,7 @@
 import pyautogui
+import autoit
 
-__all__ = ['sequence_to_line', 'sequence_to_bus']
+__all__ = ['sequence_to_line', 'sequence_to_bus', 'move_to_initial_position']
 
 _TRANSLATOR_ = {
     'l': (-50, 0),
@@ -16,6 +17,12 @@ _TRANSLATOR_ = {
     'rd': (50, 50),
     'dr': (50, 50)
 }
+
+
+def move_to_initial_position(win_name='ASPy'):
+    left_upper_corner = autoit.win_get_pos(win_name)
+    pyautogui.moveTo(left_upper_corner[0] + 272, left_upper_corner[1] + 298)
+
 
 def _move(sequence):
     commands = sequence.split(' ')

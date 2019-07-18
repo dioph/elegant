@@ -9,7 +9,3 @@ def test_buses():
     pass
 
 sys.exit(app.exec_())
-
-
-
-
