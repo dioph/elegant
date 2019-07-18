@@ -14,7 +14,6 @@ STAR = 0
 EARTH = 1
 DELTA = 2
 
-
 class Bus(object):
     def __init__(self, bus_id, v=1.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
                  xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None,
@@ -65,7 +64,6 @@ class TL(object):
         self.m = m
         self.z = z
         self.y = y
-
         self.vbase = vbase
         self.imax = imax
         self.v1 = v1
