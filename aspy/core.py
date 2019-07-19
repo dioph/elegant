@@ -14,6 +14,7 @@ STAR = 0
 EARTH = 1
 DELTA = 2
 
+
 class Bus(object):
     def __init__(self, bus_id, v=1.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
                  xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None,
@@ -50,7 +51,7 @@ class Bus(object):
 
 
 class TL(object):
-    def __init__(self, orig, dest, ell=32e3, r=2.5e-2, d12=3, d23=3, d31=3, d=0.5, rho=1.78e-8, m=1,
+    def __init__(self, orig, dest, ell=10e3, r=1e-2, d12=1, d23=1, d31=1, d=0.5, rho=1.78e-8, m=1,
                  vbase=1e4, imax=np.inf, v1=0., v2=0., z=None, y=None):
         self.orig = orig
         self.dest = dest
@@ -234,7 +235,7 @@ class PowerSystem(object):
         self.buses = []
         self.lines = []
         self.xfmrs = []
-        self.graph = nx.Graph()
+        self.graph = nx.MultiGraph()
         self.status = ""
 
     def add_bus(self):
@@ -248,13 +249,19 @@ class PowerSystem(object):
         self.sort_buses()
         self.graph.add_node(bus.bus_id)
 
-    def add_line(self, line):
+    def add_line(self, line, key=None):
+        if (line.orig, line.dest, key) in self.graph.edges:
+            self.status = "key already exists!"
+            return
         self.lines.append(line)
-        self.graph.add_edge(line.orig, line.dest)
+        self.graph.add_edge(line.orig, line.dest, key)
 
-    def add_xfmr(self, xfmr):
+    def add_xfmr(self, xfmr, key=None):
+        if (xfmr.orig, xfmr.dest, key) in self.graph.edges:
+            self.status = "key already exists!"
+            return
         self.xfmrs.append(xfmr)
-        self.graph.add_edge(xfmr.orig, xfmr.dest)
+        self.graph.add_edge(xfmr.orig, xfmr.dest, key)
 
     def remove_bus(self, n):
         bus = self.buses[n]
@@ -262,12 +269,20 @@ class PowerSystem(object):
         self.buses.remove(bus)
         self.sort_buses()
 
-    def remove_line(self, line):
+    def remove_line(self, line, key=None):
+        if key is not None and (line.orig, line.dest, key) not in self.graph.edges:
+            self.status = "key does not exist!"
+            return
         self.lines.remove(line)
+        self.graph.remove_edge(line.orig, line.dest, key)
         self.status = "removed line"
 
-    def remove_xfmr(self, xfmr):
+    def remove_xfmr(self, xfmr, key=None):
+        if key is not None and (xfmr.orig, xfmr.dest, key) not in self.graph.edges:
+            self.status = "key does not exist!"
+            return
         self.xfmrs.remove(xfmr)
+        self.graph.remove_edge(xfmr.orig, xfmr.dest, key)
         self.status = "removed transformer"
 
     def sort_buses(self):
