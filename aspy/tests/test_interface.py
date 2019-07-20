@@ -1,4 +1,4 @@
-from aspy.SchemeInput import ASPy
+from aspy.interface import ASPy
 from PyQt5.QtWidgets import QApplication
 import sys
 
