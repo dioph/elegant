@@ -1,4 +1,5 @@
 import logging
+import os
 import shelve
 import sys
 import traceback
@@ -7,6 +8,7 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+from aspy import PACKAGEDIR
 from aspy.core import *
 from aspy.report import create_report
 from aspy.utils import GenericSignal, getSessionsDir
@@ -128,7 +130,7 @@ class SchemeInputer(QGraphicsScene):
         -------
         QRect: drawn bus (PyQt5 object)
         """
-        pixmap = QPixmap('./data/icons/DOT.jpg')
+        pixmap = QPixmap(os.path.join(PACKAGEDIR, './data/icons/DOT.jpg'))
         pixmap = pixmap.scaled(self._oneSquareSideLength, self._oneSquareSideLength, Qt.KeepAspectRatio)
         sceneItem = self.addPixmap(pixmap)
         pixmap_coords = coordinates[0] - self._oneSquareSideLength / 2, coordinates[1] - self._oneSquareSideLength / 2
