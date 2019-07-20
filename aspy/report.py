@@ -34,7 +34,7 @@ def draw_rep_buses(ax, buses, size=250, sfactor=_S_FACTOR_):
     for bus in buses:
         x, y = bus.__getattribute__('posicao')[::-1]
         plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
-        ax.annotate(bus.barra_id,
+        ax.annotate(bus.bus_id,
                     xy=(sfactor * x, sfactor * -y),
                     color='w',
                     fontfamily='monospace',
@@ -91,9 +91,9 @@ def draw_rep_scheme(data):
 
 def get_entity_extremities(entity):
     core_obj = entity[0]
-    oy, ox = core_obj.origin
+    oy, ox = core_obj.orig
     post_oy, post_ox = entity[2][1]
-    dy, dx = core_obj.destiny
+    dy, dx = core_obj.dest
     pre_dy, pre_dx = entity[2][-2]
     return ox, -oy, post_ox, -post_oy, dx, -dy, pre_dx, -pre_dy
 
@@ -222,13 +222,14 @@ def make_system_schematic(data, sessions_dir, filename, ext='pdf'):
     plt.savefig(img)
     return img.split(os.sep)[-1]
 
+
 def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
     if len(LINES) > 0:
-        linhas = np.array(LINES)[:, 0]
+        linhas = np.array(LINES)
     else:
         linhas = np.array([])
     if len(TRANSFORMERS) > 0:
-        trafos = np.array(TRANSFORMERS)[:, 0]
+        trafos = np.array(TRANSFORMERS)
     else:
         trafos = np.array([])
     grid = GRID_BUSES
@@ -282,7 +283,7 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                             color = 'lightgray'
                         else:
                             color = None
-                        tbl.add_row((b.barra_id,
+                        tbl.add_row((b.bus_id,
                                      NoEscape('{:.04f}'.format(b.v)),
                                      NoEscape('${:.02f}$'.format(b.delta * 180 / np.pi)),
                                      NoEscape('{:.02f}'.format(b.pg * 100)),
@@ -314,7 +315,7 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                             color = 'lightgray'
                         else:
                             color = None
-                        tbl.add_row((b.barra_id,
+                        tbl.add_row((b.bus_id,
                                      NoEscape('{:.04f}'.format(np.abs(b.iTPG))),
                                      NoEscape('${:.02f}$'.format(np.angle(b.iTPG) * 180 / np.pi)),
                                      NoEscape('{:.04f}'.format(np.abs(b.iSLG))),
@@ -346,7 +347,7 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                         color = 'lightgray'
                     else:
                         color = None
-                    tbl.add_row((NoEscape('{} -- {}'.format(grid[lt.origin].barra_id, grid[lt.destiny].barra_id)),
+                    tbl.add_row((NoEscape('{} -- {}'.format(lt.orig.bus_id, lt.dest.bus_id)),
                                  NoEscape('{:.04f}'.format(lt.Zpu.real * 100)),
                                  NoEscape('{:.04f}'.format(lt.Zpu.imag * 100)),
                                  NoEscape('{:.04f}'.format(lt.Ypu.imag * 100)),
@@ -376,7 +377,7 @@ def create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES):
                         color = 'lightgray'
                     else:
                         color = None
-                    tbl.add_row((NoEscape('{} -- {}'.format(grid[tr.origin].barra_id, grid[tr.destiny].barra_id)),
+                    tbl.add_row((NoEscape('{} -- {}'.format(tr.orig.bus_id, tr.dest.bus_id)),
                                  NoEscape('{:.02f}'.format(tr.Z1.imag * 100)),
                                  NoEscape('{:.02f}'.format(tr.Z0.imag * 100)),
                                  get_scheme(tr),

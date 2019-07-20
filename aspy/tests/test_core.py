@@ -48,3 +48,31 @@ def test_remove_line():
     assert len(system.lines) == 1
     assert system.M == system.N == 2
 
+
+def test_modifying_added_bus():
+    system = PowerSystem()
+    bus = system.add_bus()
+    system.buses[0].v = 10
+    assert bus.v == 10
+
+
+def test():
+    system = PowerSystem()
+    slack = system.add_bus()
+    pv = system.add_bus()
+    pq = system.add_bus()
+    line = TL(2, 1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
+    Y = np.array([[1 / .12j, 0, -1 / .12j],
+                  [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
+                  [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])
+    system.add_line(line)
+    xfmr = Transformer(0, 2, jx0=0.12, jx1=0.12, secondary=DELTA)
+    system.add_xfmr(xfmr)
+    slack.v = 1.01
+    pv.pg = 0.08
+    pv.v = 1.02
+    pq.pl = 0.12
+    pq.ql = 0.076
+    assert np.allclose(system.Y, Y)
+    system.update()
+    assert np.isclose(pv.delta * 180 / np.pi, 48.125, atol=1e-5)

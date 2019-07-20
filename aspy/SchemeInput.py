@@ -1,76 +1,44 @@
 import logging
-import os
 import shelve
 import sys
 import traceback
 
-import networkx as nx
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from aspy.core import *
-from aspy.methods import update_flow, update_short
 from aspy.report import create_report
 from aspy.utils import GenericSignal, getSessionsDir
 
-"""
-# ----------------------------------------------------------------------------------------------------
-# The global variables are being used to specify the current state of the system    
-# ----------------------------------------------------------------------------------------------------
-# ----------------------------------------------------------------------------------------------------
-# N: graphical grid dimension (N x N - used to initializate the SchemeInputer class)
-# ----------------------------------------------------------------------------------------------------
-# GRID_BUSES: N X N numpy array that holds core.aspy.Barra elements. It is used 
-# to link the SchemeInput graphical interface to the data arrays manipulation
-# ----------------------------------------------------------------------------------------------------
-# BUSES_PIXMAP: N x N numpy array that holds PyQt5.QtGui.QPixMap items representing
-# the buses drawings on SchemeInputer
-# ----------------------------------------------------------------------------------------------------
-# BUSES: numpy array that holds core.aspy.Barra elements. Each element has the following
-# form: [aspy.core.Barra Bus]
-# ----------------------------------------------------------------------------------------------------
-# LINES: list that holds transmission line elements. Each element has the following form:
-# [[aspy.core.LT lines, [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates], bool remove]]
-# ----------------------------------------------------------------------------------------------------
-# TRANSFORMERS: list that holds transformer elements. Each element has the following form:
-# [[aspy.core.Trafo], [PyQt5.QtWidgets.QGraphicsLineItem dlines], [tuple coordinates]]
-# ----------------------------------------------------------------------------------------------------
-# LINE_TYPES: dictionaries that holds the line parameters to be put into lines
-# ----------------------------------------------------------------------------------------------------
-"""
-
-GRID_BUSES = np.zeros((N, N), object)
-BUSES_PIXMAP = np.zeros((N, N), object)
-BUSES = []
-LINES = []
-TRANSFORMERS = []
-LINE_TYPES = [['Default', {'r (m)': 2.5e-2, 'd12 (m)': 3.0, 'd23 (m)': 4.5, 'd31 (m)': 7.5, 'd (m)': 0.4,
-                           '\u03C1 (\u03A9m)': 1.78e-8, 'm': 2, 'Imax (A)': np.inf}]]
-LINE_TYPES_HSH = {'r (m)': 'r', '\u03C1 (\u03A9m)': 'rho', 'd12 (m)': 'd12', 'd23 (m)': 'd23', 'd31 (m)': 'd31',
-                  'd (m)': 'd', 'm': 'm', 'Imax (A)': 'imax'}
-NMAX = 1
-OP_MODE = 0
-
 
 class SchemeInputer(QGraphicsScene):
-    def __init__(self, n=N, length=50, *args, **kwargs):
-        super(SchemeInputer, self).__init__(*args, **kwargs)
-        self.n = n
+    def __init__(self, n=20, length=50):
+        super(SchemeInputer, self).__init__()
+        self.N = n
+        # system state variables
+        self.pixmap = np.zeros((self.N, self.N), object)
+        self.grid = np.zeros((self.N, self.N), object)
         self._oneSquareSideLength = length
         self._moveHistory = np.ones((2, 2)) * -1
         self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
         self._lastRetainer, self._firstRetainer = False, True
-        self._pointerSignal = GenericSignal()
-        self._methodSignal = GenericSignal()
-        self._dataSignal = GenericSignal()
+
+        self.pointerSignal = GenericSignal()
+        self.methodSignal = GenericSignal()
+        self.dataSignal = GenericSignal()
+        # Visible portion of Scene to View
         self.selector_radius = length / 2
-        self.setSceneRect(0, 0, self._oneSquareSideLength * self.n,
-                          self._oneSquareSideLength * self.n)  # Visible portion of Scene to View
+        self.setSceneRect(0,
+                          0,
+                          self._oneSquareSideLength * self.N,
+                          self._oneSquareSideLength * self.N)
         self.quantizedInterface = self.getQuantizedInterface()
         self.showQuantizedInterface()
-        self.setSceneRect(-2 * self._oneSquareSideLength, -2 * self._oneSquareSideLength,
-                          self._oneSquareSideLength * (self.n + 4), self._oneSquareSideLength * (self.n + 4))
+        self.setSceneRect(self._oneSquareSideLength * -2,
+                          self._oneSquareSideLength * -2,
+                          self._oneSquareSideLength * (self.N + 4),
+                          self._oneSquareSideLength * (self.N + 4))
 
     @staticmethod
     def distance(interface_point, point):
@@ -104,20 +72,22 @@ class SchemeInputer(QGraphicsScene):
         self._moveHistory[:, :] = -1
         self._lastRetainer = False
         self._firstRetainer = True
-        self._methodSignal.emit_sig(3)
+        self.methodSignal.emit_sig(3)
 
     def drawLine(self, coordinates, color='b'):
         """
         Parameters
         ----------
         coordinates: coordinates that guide line drawing
+        color:  'b' = blue pen (line)
+                'r' = red pen (xfmr)
 
         Returns
         -------
         line: drawn line (PyQt5 object)
         """
         pen = QPen()
-        pen.setWidth(2.5)
+        pen.setWidthF(2.5)
         if color == 'b':
             pen.setColor(Qt.blue)
         elif color == 'r':
@@ -141,8 +111,8 @@ class SchemeInputer(QGraphicsScene):
         brush.setColor(Qt.yellow)
         brush.setStyle(Qt.Dense7Pattern)
         x, y = coordinates
-        QRect = self.addRect(x, y, self._oneSquareSideLength, self._oneSquareSideLength, pen, brush)
-        return QRect
+        rect = self.addRect(x, y, self._oneSquareSideLength, self._oneSquareSideLength, pen, brush)
+        return rect
 
     def clearSquare(self, oldQRect):
         if oldQRect is not None:
@@ -167,16 +137,15 @@ class SchemeInputer(QGraphicsScene):
 
     def mouseDoubleClickEvent(self, event):
         """This method allows buses additions"""
-        global BUSES_PIXMAP
         try:
             double_pressed = event.scenePos().x(), event.scenePos().y()
             for central_point in self.quantizedInterface.flatten():
                 if self.distance(double_pressed, central_point) <= self.selector_radius:
                     i, j = self.Point_pos(central_point)
                     sceneItem = self.drawBus((central_point.x(), central_point.y()))
-                    BUSES_PIXMAP[(i, j)] = sceneItem
-                    self._pointerSignal.emit_sig((i, j))
-                    self._methodSignal.emit_sig(0)
+                    self.pixmap[(i, j)] = sceneItem
+                    self.pointerSignal.emit_sig((i, j))
+                    self.methodSignal.emit_sig(0)
                     return
         except Exception:
             logging.error(traceback.format_exc())
@@ -194,9 +163,9 @@ class SchemeInputer(QGraphicsScene):
                         self._selectorHistory[1] = central_point.x() - self._oneSquareSideLength / 2
                         self._selectorHistory[2] = central_point.y() - self._oneSquareSideLength / 2
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
-                        self._pointerSignal.emit_sig((i, j))
-                        self._methodSignal.emit_sig(4)
-                        self._methodSignal.emit_sig(2)
+                        self.pointerSignal.emit_sig((i, j))
+                        self.methodSignal.emit_sig(4)
+                        self.methodSignal.emit_sig(2)
                         return
         except Exception:
             logging.error(traceback.format_exc())
@@ -212,32 +181,32 @@ class SchemeInputer(QGraphicsScene):
                         if np.all(self._moveHistory[0] < 0):  # Set source
                             self._moveHistory[0, 0] = central_point.x()
                             self._moveHistory[0, 1] = central_point.y()
-                            if isinstance(GRID_BUSES[i, j], Barra):  # Asserts the start was from a bus
+                            if isinstance(self.grid[i, j], Bus):  # Asserts the start was from a bus
                                 self._firstRetainer = False
                         if central_point.x() != self._moveHistory[0, 0] \
-                                or central_point.y() != self._moveHistory[0, 1]:  # Set destiny
+                                or central_point.y() != self._moveHistory[0, 1]:  # Set destination
                             self._moveHistory[1, 0] = central_point.x()
                             self._moveHistory[1, 1] = central_point.y()
                         if (np.all(self._moveHistory > 0)) and \
                                 (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
                             # DRAW LINE #
                             try:
-                                if isinstance(GRID_BUSES[i, j], Barra) and not self._firstRetainer:
+                                if isinstance(self.grid[i, j], Bus) and not self._firstRetainer:
                                     # when a bus is achieved
                                     line = self.drawLine(self._moveHistory)
                                     self._moveHistory[:, :] = -1
                                     self._lastRetainer = True  # Prevent the user for put line outside last bus
-                                    self._pointerSignal.emit_sig((i, j))
-                                    self._dataSignal.emit_sig(line)
-                                    self._methodSignal.emit_sig(1)
-                                elif not isinstance(GRID_BUSES[i, j], Barra) and not (
+                                    self.pointerSignal.emit_sig((i, j))
+                                    self.dataSignal.emit_sig(line)
+                                    self.methodSignal.emit_sig(1)
+                                elif not isinstance(self.grid[i, j], Bus) and not (
                                         self._lastRetainer or self._firstRetainer):
                                     # started from a bus
                                     line = self.drawLine(self._moveHistory)
                                     self._moveHistory[:, :] = -1
-                                    self._pointerSignal.emit_sig((i, j))
-                                    self._dataSignal.emit_sig(line)
-                                    self._methodSignal.emit_sig(1)
+                                    self.pointerSignal.emit_sig((i, j))
+                                    self.dataSignal.emit_sig(line)
+                                    self.methodSignal.emit_sig(1)
                             except Exception:
                                 logging.error(traceback.format_exc())
                         return
@@ -250,23 +219,23 @@ class SchemeInputer(QGraphicsScene):
         -------
         quantizedInterface: numpy array that holds PyQt QPoint objects with quantized interface coordinates
         """
-        quantizedInterface = np.zeros((self.n, self.n), tuple)
+        quantizedInterface = np.zeros((self.N, self.N), tuple)
         width, height = self.width(), self.height()
-        for i in range(self.n):
-            for j in range(self.n):
+        for i in range(self.N):
+            for j in range(self.N):
                 quantizedInterface[i, j] = \
-                    QPoint(width / (2 * self.n) + i * width / self.n, height / (2 * self.n) + j * height / self.n)
+                    QPoint(width / (2 * self.N) + i * width / self.N, height / (2 * self.N) + j * height / self.N)
         return quantizedInterface
 
     def showQuantizedInterface(self):
         """Display the quantized interface guidelines"""
         width, height = self.width(), self.height()
-        spacing_x, spacing_y = width / self.n, height / self.n
+        spacing_x, spacing_y = width / self.N, height / self.N
         quantized_x, quantized_y = np.arange(0, width, spacing_x), np.arange(0, height, spacing_y)
         pen = QPen()
         pen.setColor(Qt.lightGray)
         pen.setStyle(Qt.DashDotDotLine)
-        for k in range(self.n):
+        for k in range(self.N):
             # Horizontal lines
             self.addLine(0.0, quantized_y[k], width, quantized_y[k], pen)
             # Vertical lines
@@ -275,57 +244,73 @@ class SchemeInputer(QGraphicsScene):
         self.addLine(self.width(), 0.0, self.width(), height, pen)
 
 
+class LineSegment(object):
+    def __init__(self, obj, coords, dlines, remove=False):
+        super(LineSegment, self).__init__()
+        self.coords = coords
+        self.dlines = dlines
+        self.obj = obj
+        self.remove = remove
+
+
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
         # General initializations
         super(CircuitInputer, self).__init__(parent)
+        self.system = PowerSystem()
+        self.line_types = {'Default': TL(orig=None, dest=None)}
+        self.curves = []
+        self.nmax = 1
+        self.op_mode = 0
+
         self.Scene = SchemeInputer()
+
         self.View = QGraphicsView(self.Scene)
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.View)
         self._currElementCoords = None  # Coordinates to current object being manipuled
-        self._startNewLT = True
-        self._ltorigin = None
+        self._startNewTL = True
+        self._line_origin = None
         self._temp = None
-        self._statusMsg = GenericSignal()
+        self.statusMsg = GenericSignal()
         self.__calls = {0: self.add_bus,
-                        1: self.add_line,
+                        1: self.add_segment,
                         2: self.LayoutManager,
                         3: self.doAfterMouseRelease,
-                        4: self.storeOriginAddLt}
-        self.Scene._pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
-        self.Scene._dataSignal.signal.connect(lambda args: self.setTemp(args))
-        self.Scene._methodSignal.signal.connect(lambda args: self.methodsTrigger(args))
+                        4: self.storeOriginAddLine}
+        self.Scene.pointerSignal.signal.connect(lambda args: self.setCurrentObject(args))
+        self.Scene.dataSignal.signal.connect(lambda args: self.setTemp(args))
+        self.Scene.methodSignal.signal.connect(lambda args: self.methodsTrigger(args))
 
         # Inspectors
         self.InspectorLayout = QVBoxLayout()
 
-        # Layout for general bar case
-        self.BarLayout = QVBoxLayout()
+        # Layout for general bus case
+        self.BusLayout = QVBoxLayout()
 
         # Bus title
-        self.BarTitle = QLabel('Bar title')
-        self.BarTitle.setAlignment(Qt.AlignCenter)
-        self.BarTitle.setMinimumWidth(200)
+        self.BusTitle = QLabel('Bus title')
+        self.BusTitle.setAlignment(Qt.AlignCenter)
+        self.BusTitle.setMinimumWidth(200)
 
         # Bus voltage
-        self.BarV_Value = QLineEdit('0.0')
-        self.BarV_Value.setEnabled(False)
-        self.BarV_Value.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.BusV_Value = QLineEdit('0.0')
+        self.BusV_Value.setEnabled(False)
+        self.BusV_Value.setValidator(QDoubleValidator(0.0, 100.0, 3))
 
         # Bus angle
-        self.BarAngle_Value = QLineEdit('0.0')
-        self.BarAngle_Value.setEnabled(False)
+        self.BusAngle_Value = QLineEdit('0.0')
+        self.BusAngle_Value.setEnabled(False)
 
         # FormLayout to hold bus data
-        self.BarDataFormLayout = QFormLayout()
+        self.BusDataFormLayout = QFormLayout()
 
         # Adding bus voltage and bus angle to bus data FormLayout
-        self.BarDataFormLayout.addRow('|V| (pu)', self.BarV_Value)
-        self.BarDataFormLayout.addRow('\u03b4 (\u00B0)', self.BarAngle_Value)
+        self.BusDataFormLayout.addRow('|V| (pu)', self.BusV_Value)
+        self.BusDataFormLayout.addRow('\u03b4 (\u00B0)', self.BusAngle_Value)
 
-        # Label with 'Geração'
-        self.AddGenerationLabel = QLabel('Geração')
+        # Label with 'Generation'
+        self.AddGenerationLabel = QLabel('Generation')
         self.AddGenerationLabel.setAlignment(Qt.AlignCenter)
 
         # Button to add generation
@@ -351,18 +336,18 @@ class CircuitInputer(QWidget):
         self.QgInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
         self.QgInput.setEnabled(False)
 
-        # Combo box for generation connection
+        # Check box for generation ground
         self.GenGround = QCheckBox("\u23DA")
         self.GenGround.setEnabled(False)
 
         # Adding Pg, Qg to add generation FormLayout
         self.AddGenerationFormLayout.addRow('x\'d (pu)', self.XdLineEdit)
-        self.AddGenerationFormLayout.addRow('Q<sub>G</sub> (pu)', self.QgInput)
         self.AddGenerationFormLayout.addRow('P<sub>G</sub> (pu)', self.PgInput)
+        self.AddGenerationFormLayout.addRow('Q<sub>G</sub> (pu)', self.QgInput)
         self.AddGenerationFormLayout.addRow('Y', self.GenGround)
 
-        # Label with 'Carga'
-        self.AddLoadLabel = QLabel('Carga')
+        # Label with 'Load'
+        self.AddLoadLabel = QLabel('Load')
         self.AddLoadLabel.setAlignment(Qt.AlignCenter)
 
         # PushButton that binds to three different methods
@@ -382,22 +367,22 @@ class CircuitInputer(QWidget):
         self.LoadGround.setEnabled(False)
 
         # Adding Pl and Ql to add load FormLayout
-        self.AddLoadFormLayout.addRow('Q<sub>L</sub> (pu)', self.QlInput)
         self.AddLoadFormLayout.addRow('P<sub>L</sub> (pu)', self.PlInput)
+        self.AddLoadFormLayout.addRow('Q<sub>L</sub> (pu)', self.QlInput)
         self.AddLoadFormLayout.addRow('Y', self.LoadGround)
 
         self.RemoveBus = QPushButton('Remove bus')
         self.RemoveBus.pressed.connect(self.remove_bus)
 
-        self.BarLayout.addWidget(self.BarTitle)
-        self.BarLayout.addLayout(self.BarDataFormLayout)
-        self.BarLayout.addWidget(self.AddGenerationLabel)
-        self.BarLayout.addWidget(self.AddGenerationButton)
-        self.BarLayout.addLayout(self.AddGenerationFormLayout)
-        self.BarLayout.addWidget(self.AddLoadLabel)
-        self.BarLayout.addWidget(self.AddLoadButton)
-        self.BarLayout.addLayout(self.AddLoadFormLayout)
-        self.BarLayout.addWidget(self.RemoveBus)
+        self.BusLayout.addWidget(self.BusTitle)
+        self.BusLayout.addLayout(self.BusDataFormLayout)
+        self.BusLayout.addWidget(self.AddGenerationLabel)
+        self.BusLayout.addWidget(self.AddGenerationButton)
+        self.BusLayout.addLayout(self.AddGenerationFormLayout)
+        self.BusLayout.addWidget(self.AddLoadLabel)
+        self.BusLayout.addWidget(self.AddLoadButton)
+        self.BusLayout.addLayout(self.AddLoadFormLayout)
+        self.BusLayout.addWidget(self.RemoveBus)
 
         # Layout for input new type of line
         self.InputNewLineType = QVBoxLayout()
@@ -423,8 +408,8 @@ class CircuitInputer(QWidget):
         self.imaxLineEdit.setValidator(QIntValidator(1, 1000))
 
         self.InputNewLineTypeFormLayout.addRow('Name', self.ModelName)
-        self.InputNewLineTypeFormLayout.addRow('\u03C1 (\u03A9m)', self.RhoLineEdit)
-        self.InputNewLineTypeFormLayout.addRow('r (m)', self.rLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('\u03C1 (n\u03A9m)', self.RhoLineEdit)
+        self.InputNewLineTypeFormLayout.addRow('r (mm)', self.rLineEdit)
         self.InputNewLineTypeFormLayout.addRow('d12 (m)', self.d12LineEdit)
         self.InputNewLineTypeFormLayout.addRow('d23 (m)', self.d23LineEdit)
         self.InputNewLineTypeFormLayout.addRow('d31 (m)', self.d31LineEdit)
@@ -449,17 +434,17 @@ class CircuitInputer(QWidget):
         self.RealTimeRadioButton.toggled.connect(lambda: self.setOperationMode(0))
         self.InsertionModeRadioButton = QRadioButton()
         self.InsertionModeRadioButton.toggled.connect(lambda: self.setOperationMode(1))
-        self.SimulationControlHbox.addWidget(QLabel('Insertion'))
+        self.SimulationControlHbox.addWidget(QLabel('INSERTION'))
         self.SimulationControlHbox.addWidget(self.InsertionModeRadioButton)
-        self.SimulationControlHbox.addWidget(QLabel('Real-time'))
+        self.SimulationControlHbox.addWidget(QLabel('REAL-TIME'))
         self.SimulationControlHbox.addWidget(self.RealTimeRadioButton)
 
         self.NmaxHbox = QHBoxLayout()
         self.NmaxSlider = QSlider()
-        self.NmaxSlider.setMinimum(1)
-        self.NmaxSlider.setMaximum(20)
+        self.NmaxSlider.setMinimum(0)
+        self.NmaxSlider.setMaximum(50)
         self.NmaxSlider.setOrientation(Qt.Horizontal)
-        self.NmaxLabel = QLabel('Nmax: 0{Nmax}'.format(Nmax=NMAX))
+        self.NmaxLabel = QLabel('Nmax: {:02d}'.format(self.nmax))
         self.NmaxSlider.valueChanged.connect(lambda: self.setNmaxValue(self.NmaxSlider.value()))
         self.NmaxHbox.addWidget(self.NmaxSlider)
         self.NmaxHbox.addWidget(self.NmaxLabel)
@@ -469,23 +454,23 @@ class CircuitInputer(QWidget):
         self.ControlPanelLayout.addLayout(self.NmaxHbox)
         self.ControlPanelLayout.addStretch()
 
-        # General Layout for LT case
-        self.LtOrTrafoLayout = QVBoxLayout()
+        # General Layout for TL case
+        self.LineOrXfmrLayout = QVBoxLayout()
 
-        self.chooseLt = QRadioButton('LT')
-        self.chooseTrafo = QRadioButton('Trafo')
-        self.chooseLt.toggled.connect(self.defineLtOrTrafoVisibility)
-        self.chooseTrafo.toggled.connect(self.defineLtOrTrafoVisibility)
+        self.chooseLine = QRadioButton('TL')
+        self.chooseXfmr = QRadioButton('XFMR')
+        self.chooseLine.toggled.connect(self.defineLineOrXfmrVisibility)
+        self.chooseXfmr.toggled.connect(self.defineLineOrXfmrVisibility)
 
-        self.chooseLtOrTrafo = QHBoxLayout()
-        self.chooseLtOrTrafo.addWidget(QLabel('LT/Trafo:'))
-        self.chooseLtOrTrafo.addWidget(self.chooseLt)
-        self.chooseLtOrTrafo.addWidget(self.chooseTrafo)
+        self.chooseLineOrXfmr = QHBoxLayout()
+        self.chooseLineOrXfmr.addWidget(QLabel('TL/XFMR:'))
+        self.chooseLineOrXfmr.addWidget(self.chooseLine)
+        self.chooseLineOrXfmr.addWidget(self.chooseXfmr)
 
-        self.choosedLtFormLayout = QFormLayout()
+        self.chosenLineFormLayout = QFormLayout()
 
-        self.chooseLtModel = QComboBox()
-        self.chooseLtModel.addItem('No model')
+        self.chooseLineModel = QComboBox()
+        self.chooseLineModel.addItem('No model')
 
         self.EllLineEdit = QLineEdit()
         self.EllLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
@@ -493,95 +478,95 @@ class CircuitInputer(QWidget):
         self.VbaseLineEdit = QLineEdit()
         self.VbaseLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
 
-        self.LtRLineEdit = QLineEdit()
-        self.LtRLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+        self.TlRLineEdit = QLineEdit()
+        self.TlRLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
 
-        self.LtXLineEdit = QLineEdit()
-        self.LtXLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+        self.TlXLineEdit = QLineEdit()
+        self.TlXLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
 
-        self.LtYLineEdit = QLineEdit()
-        self.LtYLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+        self.TlYLineEdit = QLineEdit()
+        self.TlYLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
 
-        self.ltSubmitByImpedancePushButton = QPushButton('Submit by impedance')
-        self.ltSubmitByImpedancePushButton.setMinimumWidth(200)
-        self.ltSubmitByImpedancePushButton.pressed.connect(lambda: self.lineProcessing('impedance'))
+        self.tlSubmitByImpedancePushButton = QPushButton('Submit by impedance')
+        self.tlSubmitByImpedancePushButton.setMinimumWidth(200)
+        self.tlSubmitByImpedancePushButton.pressed.connect(lambda: self.lineProcessing('impedance'))
 
-        self.ltSubmitByModelPushButton = QPushButton('Submit by model')
-        self.ltSubmitByModelPushButton.pressed.connect(lambda: self.lineProcessing('parameters'))
-        self.ltSubmitByModelPushButton.setMinimumWidth(200)
+        self.tlSubmitByModelPushButton = QPushButton('Submit by model')
+        self.tlSubmitByModelPushButton.pressed.connect(lambda: self.lineProcessing('parameters'))
+        self.tlSubmitByModelPushButton.setMinimumWidth(200)
 
-        self.choosedLtFormLayout.addRow('Model', self.chooseLtModel)
-        self.choosedLtFormLayout.addRow('\u2113 (m)', self.EllLineEdit)
-        self.choosedLtFormLayout.addRow('Vbase (V)', self.VbaseLineEdit)
-        self.choosedLtFormLayout.addRow('R (%pu)', self.LtRLineEdit)
-        self.choosedLtFormLayout.addRow('X<sub>L</sub> (%pu)', self.LtXLineEdit)
-        self.choosedLtFormLayout.addRow('Y (%pu)', self.LtYLineEdit)
+        self.chosenLineFormLayout.addRow('Model', self.chooseLineModel)
+        self.chosenLineFormLayout.addRow('\u2113 (km)', self.EllLineEdit)
+        self.chosenLineFormLayout.addRow('Vbase (kV)', self.VbaseLineEdit)
+        self.chosenLineFormLayout.addRow('R (%pu)', self.TlRLineEdit)
+        self.chosenLineFormLayout.addRow('X<sub>L</sub> (%pu)', self.TlXLineEdit)
+        self.chosenLineFormLayout.addRow('Y (%pu)', self.TlYLineEdit)
 
-        self.removeLTPushButton = QPushButton('Remove LT')
-        self.removeLTPushButton.setMinimumWidth(200)
-        self.removeLTPushButton.pressed.connect(self.remove_selected_line)
+        self.removeTLPushButton = QPushButton('Remove TL')
+        self.removeTLPushButton.setMinimumWidth(200)
+        self.removeTLPushButton.pressed.connect(self.remove_line)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
-        #     The layout should disappear only when a line or trafo is excluded.
-        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
+        #     The layout should disappear only when a line or xfmr is excluded.
+        #     The conversion xfmr <-> line calls the method remove_selected_(line/xfmr)
         """
-        self.removeLTPushButton.pressed.connect(self.LayoutManager)
+        self.removeTLPushButton.pressed.connect(self.LayoutManager)
 
-        self.choosedTrafoFormLayout = QFormLayout()
-        self.SNomTrafoLineEdit = QLineEdit()
-        self.SNomTrafoLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
-        self.XZeroSeqTrafoLineEdit = QLineEdit()
-        self.XZeroSeqTrafoLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
-        self.XPosSeqTrafoLineEdit = QLineEdit()
-        self.XPosSeqTrafoLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
+        self.chosenXfmrFormLayout = QFormLayout()
+        self.SNomXfmrLineEdit = QLineEdit()
+        self.SNomXfmrLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
+        self.XZeroSeqXfmrLineEdit = QLineEdit()
+        self.XZeroSeqXfmrLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
+        self.XPosSeqXfmrLineEdit = QLineEdit()
+        self.XPosSeqXfmrLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
 
-        self.TrafoPrimary = QComboBox()
-        self.TrafoPrimary.addItem('Y')
-        self.TrafoPrimary.addItem('Y\u23DA')
-        self.TrafoPrimary.addItem('\u0394')
-        self.TrafoSecondary = QComboBox()
-        self.TrafoSecondary.addItem('Y')
-        self.TrafoSecondary.addItem('Y\u23DA')
-        self.TrafoSecondary.addItem('\u0394')
+        self.XfmrPrimary = QComboBox()
+        self.XfmrPrimary.addItem('Y')
+        self.XfmrPrimary.addItem('Y\u23DA')
+        self.XfmrPrimary.addItem('\u0394')
+        self.XfmrSecondary = QComboBox()
+        self.XfmrSecondary.addItem('Y')
+        self.XfmrSecondary.addItem('Y\u23DA')
+        self.XfmrSecondary.addItem('\u0394')
 
-        self.trafoSubmitPushButton = QPushButton('Submit trafo')
-        self.trafoSubmitPushButton.pressed.connect(self.trafoProcessing)
-        self.trafoSubmitPushButton.setMinimumWidth(200)
+        self.xfmrSubmitPushButton = QPushButton('Submit xfmr')
+        self.xfmrSubmitPushButton.pressed.connect(self.xfmrProcessing)
+        self.xfmrSubmitPushButton.setMinimumWidth(200)
 
-        self.removeTrafoPushButton = QPushButton('Remove trafo')
-        self.removeTrafoPushButton.pressed.connect(self.remove_trafo)
+        self.removeXfmrPushButton = QPushButton('Remove xfmr')
+        self.removeXfmrPushButton.pressed.connect(self.remove_xfmr)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
-        #     The layout should disappear only when a line or trafo is excluded.
-        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
+        #     The layout should disappear only when a line or xfmr is excluded.
+        #     The conversion xfmr <-> line calls the method remove_selected_(line/xfmr)
         """
-        self.removeTrafoPushButton.pressed.connect(self.LayoutManager)
-        self.removeTrafoPushButton.setMinimumWidth(200)
+        self.removeXfmrPushButton.pressed.connect(self.LayoutManager)
+        self.removeXfmrPushButton.setMinimumWidth(200)
 
-        self.choosedTrafoFormLayout.addRow('Snom (VA)', self.SNomTrafoLineEdit)
-        self.choosedTrafoFormLayout.addRow('x0 (%pu)', self.XZeroSeqTrafoLineEdit)
-        self.choosedTrafoFormLayout.addRow('x+ (%pu)', self.XPosSeqTrafoLineEdit)
-        self.choosedTrafoFormLayout.addRow('Prim.', self.TrafoPrimary)
-        self.choosedTrafoFormLayout.addRow('Sec.', self.TrafoSecondary)
+        self.chosenXfmrFormLayout.addRow('Snom (MVA)', self.SNomXfmrLineEdit)
+        self.chosenXfmrFormLayout.addRow('x+ (%pu)', self.XPosSeqXfmrLineEdit)
+        self.chosenXfmrFormLayout.addRow('x0 (%pu)', self.XZeroSeqXfmrLineEdit)
+        self.chosenXfmrFormLayout.addRow('Prim.', self.XfmrPrimary)
+        self.chosenXfmrFormLayout.addRow('Sec.', self.XfmrSecondary)
 
-        self.LtOrTrafoLayout.addLayout(self.chooseLtOrTrafo)
-        self.LtOrTrafoLayout.addLayout(self.choosedLtFormLayout)
-        self.LtOrTrafoLayout.addLayout(self.choosedTrafoFormLayout)
+        self.LineOrXfmrLayout.addLayout(self.chooseLineOrXfmr)
+        self.LineOrXfmrLayout.addLayout(self.chosenLineFormLayout)
+        self.LineOrXfmrLayout.addLayout(self.chosenXfmrFormLayout)
 
         # Submit and remove buttons for line
-        self.LtOrTrafoLayout.addWidget(self.ltSubmitByModelPushButton)
-        self.LtOrTrafoLayout.addWidget(self.ltSubmitByImpedancePushButton)
-        self.LtOrTrafoLayout.addWidget(self.removeLTPushButton)
+        self.LineOrXfmrLayout.addWidget(self.tlSubmitByModelPushButton)
+        self.LineOrXfmrLayout.addWidget(self.tlSubmitByImpedancePushButton)
+        self.LineOrXfmrLayout.addWidget(self.removeTLPushButton)
 
-        # Buttons submit and remove button for trafo
-        self.LtOrTrafoLayout.addWidget(self.trafoSubmitPushButton)
-        self.LtOrTrafoLayout.addWidget(self.removeTrafoPushButton)
+        # Buttons submit and remove button for xfmr
+        self.LineOrXfmrLayout.addWidget(self.xfmrSubmitPushButton)
+        self.LineOrXfmrLayout.addWidget(self.removeXfmrPushButton)
 
         # Layout that holds bus inspector and Stretches
         self.InspectorAreaLayout = QVBoxLayout()
         self.InspectorLayout.addStretch()
-        self.InspectorLayout.addLayout(self.BarLayout)
-        self.InspectorLayout.addLayout(self.LtOrTrafoLayout)
+        self.InspectorLayout.addLayout(self.BusLayout)
+        self.InspectorLayout.addLayout(self.LineOrXfmrLayout)
         self.InspectorLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
 
@@ -596,335 +581,320 @@ class CircuitInputer(QWidget):
         self.setLayout(self.TopLayout)
 
         # All layouts hidden at first moment
-        self.setLayoutHidden(self.BarLayout, True)
-        self.setLayoutHidden(self.LtOrTrafoLayout, True)
+        self.setLayoutHidden(self.BusLayout, True)
+        self.setLayoutHidden(self.LineOrXfmrLayout, True)
         self.setLayoutHidden(self.InputNewLineType, True)
         self.setLayoutHidden(self.ControlPanelLayout, True)
         self.showSpacer()
 
     def updateRealOrInsertionRadio(self, op_mode):
-        if not op_mode:
-            self.RealTimeRadioButton.setChecked(True)
-        else:
-            self.InsertionModeRadioButton.setChecked(True)
+        self.RealTimeRadioButton.setChecked(not op_mode)
+        self.InsertionModeRadioButton.setChecked(op_mode)
 
     def updateNmaxLabel(self, nmax, op_mode):
         if not op_mode:
-            if nmax < 10:
-                self.NmaxLabel.setText('Nmax: 0{nmax}'.format(nmax=nmax))
-            else:
-                self.NmaxLabel.setText('Nmax: {nmax}'.format(nmax=nmax))
+            self.NmaxLabel.setText('Nmax: {:02d}'.format(nmax))
         else:
             self.NmaxLabel.setText('Nmax: --')
 
     def updateNmaxSlider(self, nmax, op_mode):
-        if not op_mode:
-            self.NmaxSlider.setEnabled(True)
-            self.NmaxSlider.setValue(nmax)
-        else:
-            self.NmaxSlider.setDisabled(True)
+        self.NmaxSlider.setEnabled(not op_mode)
+        self.NmaxSlider.setValue(nmax)
 
     def setNmaxValue(self, nmax):
-        global NMAX, OP_MODE
-        NMAX = nmax
-        self.updateNmaxLabel(NMAX, OP_MODE)
+        self.nmax = nmax
+        self.updateNmaxLabel(self.nmax, self.op_mode)
 
     def setOperationMode(self, mode):
-        global OP_MODE, NMAX
-        OP_MODE = mode
-        self.updateNmaxSlider(NMAX, OP_MODE)
-        self.updateNmaxLabel(NMAX, OP_MODE)
+        self.op_mode = mode
+        self.updateNmaxSlider(self.nmax, self.op_mode)
+        self.updateNmaxLabel(self.nmax, self.op_mode)
 
-    def defineLtOrTrafoVisibility(self):
-        """Show line or trafo options in adding line/trafo section"""
-        if not self.chooseLt.isHidden() and not self.chooseTrafo.isHidden():
-            if self.chooseLt.isChecked():
+    def defineLineOrXfmrVisibility(self):
+        """Show line or xfmr options in adding line/xfmr section"""
+        if not self.chooseLine.isHidden() and not self.chooseXfmr.isHidden():
+            if self.chooseLine.isChecked():
                 # Line
-                self.setLayoutHidden(self.choosedLtFormLayout, False)
-                self.setLayoutHidden(self.choosedTrafoFormLayout, True)
-                self.removeLTPushButton.setHidden(False)
-                self.ltSubmitByImpedancePushButton.setHidden(False)
-                self.ltSubmitByModelPushButton.setHidden(False)
-                self.trafoSubmitPushButton.setHidden(True)
-                self.removeTrafoPushButton.setHidden(True)
-            elif self.chooseTrafo.isChecked():
-                # Trafo
-                self.setLayoutHidden(self.choosedLtFormLayout, True)
-                self.setLayoutHidden(self.choosedTrafoFormLayout, False)
-                self.removeLTPushButton.setHidden(True)
-                self.ltSubmitByImpedancePushButton.setHidden(True)
-                self.ltSubmitByModelPushButton.setHidden(True)
-                self.trafoSubmitPushButton.setHidden(False)
-                self.removeTrafoPushButton.setHidden(False)
+                self.setLayoutHidden(self.chosenLineFormLayout, False)
+                self.setLayoutHidden(self.chosenXfmrFormLayout, True)
+                self.removeTLPushButton.setHidden(False)
+                self.tlSubmitByImpedancePushButton.setHidden(False)
+                self.tlSubmitByModelPushButton.setHidden(False)
+                self.xfmrSubmitPushButton.setHidden(True)
+                self.removeXfmrPushButton.setHidden(True)
+            elif self.chooseXfmr.isChecked():
+                # Xfmr
+                self.setLayoutHidden(self.chosenLineFormLayout, True)
+                self.setLayoutHidden(self.chosenXfmrFormLayout, False)
+                self.removeTLPushButton.setHidden(True)
+                self.tlSubmitByImpedancePushButton.setHidden(True)
+                self.tlSubmitByModelPushButton.setHidden(True)
+                self.xfmrSubmitPushButton.setHidden(False)
+                self.removeXfmrPushButton.setHidden(False)
 
-    def updateTrafoInspector(self):
-        """Update trafo inspector
+    def updateXfmrInspector(self):
+        """Update xfmr inspector
         Calls
         -----
-        LayoutManager, trafoProcessing
+        LayoutManager, xfmrProcessing
         """
-        trafo_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
+        xfmr_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
         try:
-            if self.getTrafoFromGridPos(self._currElementCoords) is not None:
-                TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
-                trafo = TRAFO[0]
-                self.SNomTrafoLineEdit.setText('{:.3g}'.format(trafo.snom))
-                self.XZeroSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx0 * 100))
-                self.XPosSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx1 * 100))
-                self.TrafoPrimary.setCurrentText(trafo_code[trafo.primary])
-                self.TrafoSecondary.setCurrentText(trafo_code[trafo.secondary])
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            if curve is not None:
+                xfmr = curve.obj
+                self.SNomXfmrLineEdit.setText('{:.3g}'.format(xfmr.snom / 1e6))
+                self.XZeroSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx0 * 100))
+                self.XPosSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx1 * 100))
+                self.XfmrPrimary.setCurrentText(xfmr_code[xfmr.primary])
+                self.XfmrSecondary.setCurrentText(xfmr_code[xfmr.secondary])
             else:
-                self.SNomTrafoLineEdit.setText('1e8')
-                self.XZeroSeqTrafoLineEdit.setText('0.0')
-                self.XPosSeqTrafoLineEdit.setText('0.0')
-                self.TrafoPrimary.setCurrentText(trafo_code[1])
-                self.TrafoSecondary.setCurrentText(trafo_code[1])
+                self.SNomXfmrLineEdit.setText('100')
+                self.XZeroSeqXfmrLineEdit.setText('0.0')
+                self.XPosSeqXfmrLineEdit.setText('0.0')
+                self.XfmrPrimary.setCurrentText(xfmr_code[1])
+                self.XfmrSecondary.setCurrentText(xfmr_code[1])
         except Exception:
             logging.error(traceback.format_exc())
 
-    def updateLtInspector(self):
+    def updateLineInspector(self):
         """Updates the line inspector
         Calls
         -----
         LayoutManager, lineProcessing
         """
         try:
-            LINE = self.getLtFromGridPos(self._currElementCoords)
-            line = LINE[0]
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            line = curve.obj
             line_model = self.findParametersSetFromLt(line)
-            self.EllLineEdit.setText('{:.03g}'.format(line.l))
-            self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase))
-            self.LtYLineEdit.setText('{number.imag:.04f}'.format(number=line.Ypu * 100))
-            self.LtRLineEdit.setText('{number.real:.04f}'.format(number=line.Zpu * 100))
-            self.LtXLineEdit.setText('{number.imag:.04f}'.format(number=line.Zpu * 100))
-            self.chooseLtModel.setCurrentText(line_model)
+            self.EllLineEdit.setText('{:.03g}'.format(line.ell / 1e3))
+            self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase / 1e3))
+            self.TlRLineEdit.setText('{number.real:.04f}'.format(number=line.Zpu * 100))
+            self.TlXLineEdit.setText('{number.imag:.04f}'.format(number=line.Zpu * 100))
+            self.TlYLineEdit.setText('{number.imag:.04f}'.format(number=line.Ypu * 100))
+            self.chooseLineModel.setCurrentText(line_model)
         except Exception:
             logging.error(traceback.format_exc())
 
-    @staticmethod
-    def findParametersSetFromLt(LINE):
+    def findParametersSetFromLt(self, line):
         """Return the name of parameters set of a existent line or
         return None if the line has been set by impedance and admittance
         """
-        global LINE_TYPES
         try:
-            line_parameters_name = ['rho', 'r', 'd12', 'd23', 'd31', 'm', 'd']
-            line_parameters_val = [LINE.__getattribute__(key) for key in line_parameters_name]
-            if line_parameters_val == list(np.ones((7,)) * -1):
-                return "No model"
-            else:
-                for line_type in LINE_TYPES:
-                    if all(LINE.__getattribute__(LINE_TYPES_HSH[key]) == line_type[1].get(key) for key in
-                           line_type[1].keys()):
-                        return line_type[0]
-                return "No model"
+            for line_name, line_model in self.line_types.items():
+                if line_model == line:
+                    return line_name
+            return "No model"
         except Exception:
             logging.error(traceback.format_exc())
 
     def findParametersSetFromComboBox(self):
-        """Find parameters set based on current selected line or trafo inspector combo box
+        """Find parameters set based on current selected line or xfmr inspector combo box
         If the line was set with impedance/admittance, return 'None'
         """
-        set_name = self.chooseLtModel.currentText()
-        for line_types in LINE_TYPES:
-            if set_name == line_types[0]:
-                return line_types[1]
+        set_name = self.chooseLineModel.currentText()
+        for line_name, line_model in self.line_types.items():
+            if set_name == line_name:
+                return line_model
         return None
 
-    def updateLtModelOptions(self):
+    def updateLineModelOptions(self):
         """Add the name of a new parameter set to QComboBox choose model,
            if the Combo has not the model yet
         -----------------------------------------------------------------
         """
-        for line_type in LINE_TYPES:
-            if self.chooseLtModel.isVisible() and self.chooseLtModel.findText(line_type[0]) < 0:
-                self.chooseLtModel.addItem(line_type[0])
+        for line_name in self.line_types.keys():
+            if self.chooseLineModel.isVisible() and self.chooseLineModel.findText(line_name) < 0:
+                self.chooseLineModel.addItem(line_name)
 
     def lineProcessing(self, mode):
         """
         Updates the line parameters based on Y and Z or parameters from LINE_TYPES,
-        or converts a trafo into a line and update its parameters following
+        or converts a xfmr into a line and update its parameters following
         Calls
         -----
-        line and trafo QPushButtons submit by model, submit by parameters
+        line and xfmr QPushButtons submit by model, submit by parameters
         """
         try:
-            if self.getLtFromGridPos(self._currElementCoords) is not None:
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            if isinstance(curve.obj, TL):
                 # The element already is a line
-                assert (self.getTrafoFromGridPos(self._currElementCoords) is None)
-                LINE = self.getLtFromGridPos(self._currElementCoords)
-                line = LINE[0]
+                line = curve.obj
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
                     # Current selected element is a line
                     # Update using properties
                     # Z and Y are obtained from the updated properties
                     if param_values is not None:
-                        l = float(self.EllLineEdit.text())
-                        vbase = float(self.VbaseLineEdit.text())
-                        self.updateLineWithParameters(line, param_values, l, vbase)
+                        ell = float(self.EllLineEdit.text()) * 1e3
+                        vbase = float(self.VbaseLineEdit.text()) * 1e3
+                        self.updateLineWithParameters(line, param_values, ell, vbase)
                         self.LayoutManager()
-                        self._statusMsg.emit_sig('Updated line with parameters')
+                        self.statusMsg.emit_sig('Updated line with parameters')
                     else:
-                        self._statusMsg.emit_sig('You have to choose an valid model')
+                        self.statusMsg.emit_sig('You have to choose a valid model')
                 elif mode == 'impedance':
                     # Current selected element is a line
                     # Update using impedance and admittance
-                    R = float(self.LtRLineEdit.text()) / 100
-                    X = float(self.LtXLineEdit.text()) / 100
-                    Y = float(self.LtYLineEdit.text()) / 100
+                    R = float(self.TlRLineEdit.text()) / 100
+                    X = float(self.TlXLineEdit.text()) / 100
+                    Y = float(self.TlYLineEdit.text()) / 100
                     Z = R + 1j * X
                     Y = 1j * Y
-                    l = float(self.EllLineEdit.text())
-                    vbase = float(self.VbaseLineEdit.text())
-                    self.updateLineWithImpedances(line, Z, Y, l, vbase)
+                    ell = float(self.EllLineEdit.text()) * 1e3
+                    vbase = float(self.VbaseLineEdit.text()) * 1e3
+                    self.updateLineWithImpedances(line, Z, Y, ell, vbase)
                     self.LayoutManager()
-                    self._statusMsg.emit_sig('Update line with impedances')
-            elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
-                # The element is a trafo and will be converted into a line
-                assert (self.getLtFromGridPos(self._currElementCoords) is None)
-                TRAFO = self.getTrafoFromGridPos(self._currElementCoords)
-                self.remove_trafo(TRAFO)
-                new_line = LT()
-                new_line.origin = TRAFO[0].origin
-                new_line.destiny = TRAFO[0].destiny
+                    self.statusMsg.emit_sig('Update line with impedances')
+            elif isinstance(curve.obj, Transformer):
+                # The element is a xfmr and will be converted into a line
+                xfmr = curve.obj
+                self.remove_xfmr(curve)
+                new_line = TL(orig=xfmr.orig, dest=xfmr.dest)
                 if mode == 'parameters':
                     param_values = self.findParametersSetFromComboBox()
                     if param_values is not None:
-                        l = float(self.EllLineEdit.text())
-                        vbase = float(self.VbaseLineEdit.text())
-                        self.updateLineWithParameters(new_line, param_values, l, vbase)
-                        self._statusMsg.emit_sig('Trafo -> line, updated with parameters')
+                        ell = float(self.EllLineEdit.text()) * 1e3
+                        vbase = float(self.VbaseLineEdit.text()) * 1e3
+                        self.updateLineWithParameters(new_line, param_values, ell, vbase)
+                        self.statusMsg.emit_sig('xfmr -> line, updated with parameters')
                     else:
-                        self._statusMsg.emit_sig('You have to choose a valid model')
+                        self.statusMsg.emit_sig('You have to choose a valid model')
                 elif mode == 'impedance':
-                    R = float(self.LtRLineEdit.text()) / 100
-                    X = float(self.LtXLineEdit.text()) / 100
-                    Y = float(self.LtYLineEdit.text()) / 100
+                    R = float(self.TlRLineEdit.text()) / 100
+                    X = float(self.TlXLineEdit.text()) / 100
+                    Y = float(self.TlYLineEdit.text()) / 100
                     Z = R + 1j * X
                     Y = 1j * Y
-                    l = float(self.EllLineEdit.text())
-                    vbase = float(self.VbaseLineEdit.text())
-                    self.updateLineWithImpedances(new_line, Z, Y, l, vbase)
-                    self._statusMsg.emit_sig('Trafo -> line, updated with impedances')
-                inserting_line = [new_line, TRAFO[1], TRAFO[2], False]
-                for line_drawing in inserting_line[1]:
+                    ell = float(self.EllLineEdit.text()) * 1e3
+                    vbase = float(self.VbaseLineEdit.text()) * 1e3
+                    self.updateLineWithImpedances(new_line, Z, Y, ell, vbase)
+                    self.statusMsg.emit_sig('xfmr -> line, updated with impedances')
+                new_curve = LineSegment(obj=new_line,
+                                        dlines=curve.dlines,
+                                        coords=curve.coords)
+                for line_drawing in new_curve.dlines:
                     blue_pen = QPen()
                     blue_pen.setColor(Qt.blue)
-                    blue_pen.setWidth(2.5)
+                    blue_pen.setWidthF(2.5)
                     line_drawing.setPen(blue_pen)
                     self.Scene.addItem(line_drawing)
-                LINES.append(inserting_line)
+                self.add_line(new_curve)
                 self.LayoutManager()
         except Exception:
             logging.error(traceback.format_exc())
 
     @staticmethod
-    def updateLineWithParameters(line, param_values, l, vbase):
+    def updateLineWithParameters(line, param_values, ell, vbase):
         """Update a line with parameters
         Parameters
         ----------
         line: line object to be updated
         param_values: key-value pairs with data do update line
-        l: line length in (km)
+        ell: line length in (m)
         vbase: voltage basis to p.u. processes (V)
         """
         line.Z, line.Y = None, None
-        line.l = l
+        line.__dict__.update(param_values.param)
         line.vbase = vbase
-        line.__dict__.update({LINE_TYPES_HSH[x]: param_values.get(x) for x in param_values})
+        line.ell = ell
 
     @staticmethod
-    def updateLineWithImpedances(line, Z, Y, l, vbase):
+    def updateLineWithImpedances(line, Z, Y, ell, vbase):
         """Update a line with impedance/admittance
         Parameters
         ----------
         line: line object to be updated
         Z: impedance (ohm)
         Y: admittance (mho)
-        l: line length (km)
+        ell: line length (m)
         vbase: voltage basis to p.u. processes (V)
         """
         zbase = vbase ** 2 / 1e8
         line.Z, line.Y = Z * zbase, Y / zbase
-        line.l = l
+        line.ell = ell
         line.vbase = vbase
-        line_parameters_name = ['rho', 'r', 'd12', 'd23', 'd31', 'm', 'd']
-        updating_line_dict = {key: -1 for key in line_parameters_name}
+        updating_line_dict = {key: -1 for key in line.param.keys()}
         line.__dict__.update(updating_line_dict)
 
-    def trafoProcessing(self):
+    def xfmrProcessing(self):
         """
-        Updates a trafo with the given parameters if the current element is a trafo
-        or converts a line into a trafo with the inputted parameters
+        Updates a xfmr with the given parameters if the current element is a xfmr
+        or converts a line into a xfmr with the inputted parameters
 
         Calls
         -----
-        QPushButton Submit trafo
+        QPushButton Submit xfmr
         """
-        global TRANSFORMERS
-        trafo_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
+        xfmr_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
         try:
-            if self.getLtFromGridPos(self._currElementCoords) is not None:
-                # Transform line into a trafo
-                assert (self.getTrafoFromGridPos(self._currElementCoords) is None)
-                line = self.getLtFromGridPos(self._currElementCoords)
-                self.remove_selected_line(line)
-                new_trafo = Trafo(
-                    snom=float(self.SNomTrafoLineEdit.text()),
-                    jx0=float(self.XZeroSeqTrafoLineEdit.text()) / 100,
-                    jx1=float(self.XPosSeqTrafoLineEdit.text()) / 100,
-                    primary=trafo_code[self.TrafoPrimary.currentText()],
-                    secondary=trafo_code[self.TrafoSecondary.currentText()],
-                    origin=line[0].origin,
-                    destiny=line[0].destiny
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            if isinstance(curve.obj, TL):
+                # Transform line into a xfmr
+                line = curve.obj
+                self.remove_line(curve)
+                new_xfmr = Transformer(
+                    orig=line.orig,
+                    dest=line.dest,
+                    snom=float(self.SNomXfmrLineEdit.text()) * 1e6,
+                    jx0=float(self.XZeroSeqXfmrLineEdit.text()) / 100,
+                    jx1=float(self.XPosSeqXfmrLineEdit.text()) / 100,
+                    primary=xfmr_code[self.XfmrPrimary.currentText()],
+                    secondary=xfmr_code[self.XfmrSecondary.currentText()]
                 )
-                inserting_trafo = [new_trafo, line[1], line[2]]
-                for line_drawing in inserting_trafo[1]:
+                new_curve = LineSegment(obj=new_xfmr,
+                                        dlines=curve.dlines,
+                                        coords=curve.coords)
+                for line_drawing in new_curve.dlines:
                     blue_pen = QPen()
                     blue_pen.setColor(Qt.red)
-                    blue_pen.setWidth(2.5)
+                    blue_pen.setWidthF(2.5)
                     line_drawing.setPen(blue_pen)
                     self.Scene.addItem(line_drawing)
-                TRANSFORMERS.append(inserting_trafo)
+                self.add_xfmr(new_curve)
                 self.LayoutManager()
-                self._statusMsg.emit_sig('Line -> trafo')
-            elif self.getTrafoFromGridPos(self._currElementCoords) is not None:
-                # Update parameters of selected trafo
-                assert (self.getLtFromGridPos(self._currElementCoords) is None)
-                trafo = self.getTrafoFromGridPos(self._currElementCoords)
-                trafo[0].snom = float(self.SNomTrafoLineEdit.text())
-                trafo[0].jx0 = float(self.XZeroSeqTrafoLineEdit.text()) / 100
-                trafo[0].jx1 = float(self.XPosSeqTrafoLineEdit.text()) / 100
-                trafo[0].primary = trafo_code[self.TrafoPrimary.currentText()]
-                trafo[0].secondary = trafo_code[self.TrafoSecondary.currentText()]
+                self.statusMsg.emit_sig('Line -> xfmr')
+            elif isinstance(curve.obj, Transformer):
+                # Update parameters of selected xfmr
+                xfmr = curve.obj
+                xfmr.snom = float(self.SNomXfmrLineEdit.text()) * 1e6
+                xfmr.jx0 = float(self.XZeroSeqXfmrLineEdit.text()) / 100
+                xfmr.jx1 = float(self.XPosSeqXfmrLineEdit.text()) / 100
+                xfmr.primary = xfmr_code[self.XfmrPrimary.currentText()]
+                xfmr.secondary = xfmr_code[self.XfmrSecondary.currentText()]
                 self.LayoutManager()
-                self._statusMsg.emit_sig('Updated trafo parameters')
+                self.statusMsg.emit_sig('Updated xfmr parameters')
         except Exception:
             logging.error(traceback.format_exc())
 
     def addNewLineType(self):
-        """Add an new type of line, if given parameters has passed in all the tests"""
+        """Add a new type of line, if given parameters has passed in all the tests"""
         try:
-            global LINE_TYPES
-            layout = self.InputNewLineTypeFormLayout
-            new_values = list(layout.itemAt(i).widget().text() for i in range(layout.count())
-                              if not isinstance(layout.itemAt(i), QLayout))
-            titles = new_values[:2]
-            par_names = new_values[2::2]
-            par_values = list(map(lambda x: float(x), new_values[3::2]))
-            if any(map(lambda x: x[0] == titles[1], LINE_TYPES)):
-                self._statusMsg.emit_sig('Duplicated name. Insert another valid name')
+            name = self.ModelName.text()
+            float_or_nan = lambda s: np.nan if s == '' else float(s)
+            new_param = dict(
+                r=float_or_nan(self.rLineEdit.text()) / 1e3,
+                d12=float_or_nan(self.d12LineEdit.text()),
+                d23=float_or_nan(self.d23LineEdit.text()),
+                d31=float_or_nan(self.d31LineEdit.text()),
+                d=float_or_nan(self.dLineEdit.text()),
+                rho=float_or_nan(self.RhoLineEdit.text()) / 1e9,
+                m=float_or_nan(self.mLineEdit.text()),
+                imax=float_or_nan(self.imaxLineEdit.text())
+            )
+            line = TL(orig=None, dest=None)
+            line.__dict__.update(new_param)
+            if name in self.line_types.keys():
+                self.statusMsg.emit_sig('Duplicated name. Insert another valid name')
                 return
-            elif any(map(lambda x: x == '', par_values)):
-                self._statusMsg.emit_sig('Undefined parameter. Fill all parameters')
+            if any(np.isnan(list(new_param.values()))):
+                self.statusMsg.emit_sig('Undefined parameter. Fill all parameters')
                 return
-            elif any(map(lambda x: par_values == list(x[1].values()), LINE_TYPES)):
-                self._statusMsg.emit_sig('A similar model was identified. The model has not been stored')
+            if any(map(lambda x: line.param == x.param, self.line_types.values())):
+                self.statusMsg.emit_sig('A similar model was identified. The model has not been stored')
                 return
-            else:
-                LINE_TYPES.append([titles[1], {par_names[i]: float(par_values[i]) for i in range(len(par_names))}])
-                self._statusMsg.emit_sig('The model has been stored')
+            self.line_types[name] = line
+            self.statusMsg.emit_sig('The model has been stored')
         except Exception:
             logging.error(traceback.format_exc())
 
@@ -936,12 +906,14 @@ class CircuitInputer(QWidget):
 
     def setLayoutHidden(self, layout, visible):
         """Hide completely any layout containing widgets or/and other layouts"""
-        witems = list(layout.itemAt(i).widget() for i in range(layout.count()) \
+        witems = list(layout.itemAt(i).widget() for i in range(layout.count())
                       if not isinstance(layout.itemAt(i), QLayout))
         witems = list(filter(lambda x: x is not None, witems))
-        for w in witems: w.setHidden(visible)
+        for w in witems:
+            w.setHidden(visible)
         litems = list(layout.itemAt(i).layout() for i in range(layout.count()) if isinstance(layout.itemAt(i), QLayout))
-        for children_layout in litems: self.setLayoutHidden(children_layout, visible)
+        for children_layout in litems:
+            self.setLayoutHidden(children_layout, visible)
 
     def setTemp(self, args):
         """This method stores the first line in line element drawing during line inputting.
@@ -949,116 +921,110 @@ class CircuitInputer(QWidget):
         """
         self._temp = args
 
-    def storeOriginAddLt(self):
-        if self._startNewLT:
-            self._ltorigin = self._currElementCoords
+    def storeOriginAddLine(self):
+        if self._startNewTL:
+            self._line_origin = self._currElementCoords
 
-    def add_line(self):
-        global LINES
+    def add_segment(self):
         try:
-            if self._startNewLT:
-                NEW_LINES = LT(origin=self._ltorigin)
-                if not self.checkLineAndTrafoCrossing():
-                    LINES.append([NEW_LINES, [], [], False])
-                else:
-                    LINES.append([NEW_LINES, [], [], True])
-                LINES[-1][1].append(self._temp)
-                LINES[-1][2].append(self._ltorigin)
-                LINES[-1][2].append(self._currElementCoords)
+            if self._startNewTL:
+                bus_orig = self.Scene.grid[self._line_origin]
+                new_line = TL(orig=bus_orig, dest=None)
+                new_curve = LineSegment(obj=new_line,
+                                        coords=[self._line_origin, self._currElementCoords],
+                                        dlines=[self._temp])
+                if self.checkLineAndXfmrCrossing():
+                    new_curve.remove = True
+                self.curves.append(new_curve)
             else:
-                if self.checkLineAndTrafoCrossing():
-                    LINES[-1][3] = True
-                LINES[-1][1].append(self._temp)
-                LINES[-1][2].append(self._currElementCoords)
-                if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                    if LINES[-1][0].destiny is None:
-                        LINES[-1][0].destiny = self._currElementCoords
-            self._startNewLT = False
-            self._statusMsg.emit_sig('Adding line...')
+                curr_curve = self.curves[-1]
+                if self.checkLineAndXfmrCrossing():
+                    curr_curve.remove = True
+                curr_curve.dlines.append(self._temp)
+                curr_curve.coords.append(self._currElementCoords)
+                if isinstance(self.Scene.grid[self._currElementCoords], Bus):
+                    if curr_curve.obj.dest is None:
+                        bus_dest = self.Scene.grid[self._currElementCoords]
+                        curr_curve.obj.dest = bus_dest
+            self._startNewTL = False
+            self.statusMsg.emit_sig('Adding line...')
         except Exception:
             logging.error(traceback.format_exc())
 
-    def checkLineAndTrafoCrossing(self):
-        """Searches for crossing between current inputting line/trafo and existent line/trafo"""
-        global LINES, TRANSFORMERS
-        for tl in LINES:
-            if self._currElementCoords in tl[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                return True
-        for trafo in TRANSFORMERS:
-            if self._currElementCoords in trafo[2] and not isinstance(GRID_BUSES[self._currElementCoords], Barra):
+    def add_line(self, curve):
+        self.curves.append(curve)
+        self.system.add_line(curve.obj, tuple(curve.coords))
+
+    def add_xfmr(self, curve):
+        self.curves.append(curve)
+        self.system.add_xfmr(curve.obj, tuple(curve.coords))
+
+    def checkLineAndXfmrCrossing(self):
+        """Searches for crossing between current inputting line/xfmr and existent line/xfmr"""
+        for curve in self.curves:
+            if self._currElementCoords in curve.coords and not isinstance(self.Scene.grid[self._currElementCoords],
+                                                                          Bus):
                 return True
         return False
 
-    def remove_trafo(self, trafo=None):
-        """Remove an trafo (draw and electrical representation)
+    def remove_curve(self, curve=None):
+        if curve is None:
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+        for linedrawing in curve.dlines:
+            self.Scene.removeItem(linedrawing)
+        self.curves.remove(curve)
+
+    def remove_xfmr(self, curve=None):
+        """Remove a xfmr (draw and electrical representation)
         Parameters
         ----------
-        trafo: trafo to be removed. If it is None, current selected trafo in interface will be removed
+        curve: curve of xfmr to be removed.
+            If it is None, current selected xfmr in interface will be removed
         """
-        global TRANSFORMERS
-        if not trafo:
-            if self.getTrafoFromGridPos(self._currElementCoords) is not None:
-                trafo = self.getTrafoFromGridPos(self._currElementCoords)
-        for linedrawing in trafo[1]:
-            self.Scene.removeItem(linedrawing)
-        TRANSFORMERS.remove(trafo)
-        if not trafo:
-            self._statusMsg.emit_sig('Removed selected trafo')
+        if curve is None:
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+        self.remove_curve(curve)
+        self.system.remove_xfmr(curve.obj, tuple(curve.coords))
+        self.statusMsg.emit_sig('Removed xfmr')
 
-    def remove_selected_line(self, line=None):
-        """Remove an line (draw and electrical representation)
+    def remove_line(self, curve=None):
+        """Remove a line (draw and electrical representation)
 
         Parameters
         ----------
-        line: line to be removed. If it is None, current selected line in interface will be removed
+        curve: curve of line to be removed.
+            If it is None, current selected line in interface will be removed
         """
-        global LINES
-        if line is None:
-            if self.getLtFromGridPos(self._currElementCoords):
-                line = self.getLtFromGridPos(self._currElementCoords)
-            else:
-                pass
-        for linedrawing in line[1]:
-            self.Scene.removeItem(linedrawing)
-        LINES.remove(line)
-        self._statusMsg.emit_sig('Removed selected line')
+        if curve is None:
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+        self.remove_curve(curve)
+        self.system.remove_line(curve.obj, tuple(curve.coords))
+        self.statusMsg.emit_sig('Removed line')
 
-    def remove_pointless_lines(self):
+    def doAfterMouseRelease(self):
         """
         If line's bool remove is True, the line will be removed.
         The remove may have three causes:
         1. The line crossed with itself or with another line
         2. The line was inputted with only two points
-        3. The line has not a destiny bar
+        3. The line has not a destination bus
         """
-        global LINES
-        try:
-            for line in LINES:
-                if line[3]:
-                    for linedrawing in line[1]:
-                        self.Scene.removeItem(linedrawing)
-                    LINES.remove(line)
-        except Exception:
-            logging.error(traceback.format_exc())
+        if self.curves:
+            curr_curve = self.curves[-1]
+            curr_curve.remove |= (len(curr_curve.coords) <= 2 or curr_curve.obj.dest is None)
+            if (not self._startNewTL and
+                    not curr_curve.remove):
+                self.system.add_line(self.curves[-1].obj, tuple(self.curves[-1].coords))
+            self._startNewTL = True
+            if curr_curve.remove:
+                self.remove_curve(curr_curve)
+            for curve in self.curves:
+                assert (curve.obj.orig is not None)
+                assert (curve.obj.dest is not None)
 
-    def doAfterMouseRelease(self):
-        global LINES
-        self._startNewLT = True
-        try:
-            if LINES:
-                if len(LINES[-1][2]) <= 2:  # If the line has two points only
-                    LINES[-1][3] = True  # Remove
-                else:  # If the line has more than two points
-                    if LINES[-1][0].destiny is None:  # If line has not destiny bus
-                        LINES[-1][3] = True  # Remove line
-            self.remove_pointless_lines()  # Removes all lines with bool remove = True
-            for lt in LINES:
-                assert (lt[0].origin is not None)
-                assert (lt[0].destiny is not None)
-            self.LayoutManager()
-            update_mask()
-        except Exception:
-            logging.error(traceback.format_exc())
+        if not self.op_mode:
+            self.system.update(Nmax=self.nmax)
+        self.LayoutManager()
 
     def methodsTrigger(self, args):
         """Trigger methods defined in __calls"""
@@ -1068,33 +1034,33 @@ class CircuitInputer(QWidget):
         """Define coordinates pointing to current selected object in interface"""
         self._currElementCoords = args
 
-    def updateBusInspector(self, BUS):
+    def updateBusInspector(self, bus):
         """Updates the bus inspector with bus data if bus exists or
         show that there's no bus (only after bus exclusion)
 
         Parameters
         ----------
-        BUS: barra object which data will be displayed
+        bus: Bus object whose data will be displayed
 
         Calls
         -----
         LayoutManager, remove_gen, remove_load
         """
-        to_be_desactivated = [self.PgInput,
-                              self.PlInput,
-                              self.QlInput,
-                              self.BarV_Value,
-                              self.XdLineEdit,
-                              self.LoadGround,
-                              self.GenGround]
-        for item in to_be_desactivated:
+        to_be_disabled = [self.PgInput,
+                          self.PlInput,
+                          self.QlInput,
+                          self.BusV_Value,
+                          self.XdLineEdit,
+                          self.LoadGround,
+                          self.GenGround]
+        for item in to_be_disabled:
             item.setDisabled(True)
-        if BUS:
-            if BUS.barra_id == 0:
-                self.BarTitle.setText('Barra Slack')
+        if bus:
+            if bus.bus_id == 0:
+                self.BusTitle.setText('Slack')
             else:
-                self.BarTitle.setText('Barra {}'.format(BUS.barra_id))
-            if BUS.pl > 0 or BUS.ql > 0:
+                self.BusTitle.setText('Bus {}'.format(bus.bus_id))
+            if bus.pl > 0 or bus.ql > 0:
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.remove_load)
@@ -1102,45 +1068,31 @@ class CircuitInputer(QWidget):
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.add_load)
-            if (BUS.pg > 0 or BUS.qg > 0) and BUS.barra_id > 0:
+            if (bus.pg > 0 or bus.qg > 0) and bus.bus_id > 0:
                 self.AddGenerationButton.setText('-')
                 self.AddGenerationButton.disconnect()
                 self.AddGenerationButton.pressed.connect(self.remove_gen)
+            elif bus.bus_id == 0:
+                self.AddGenerationButton.setText('EDIT')
+                self.AddGenerationButton.disconnect()
+                self.AddGenerationButton.pressed.connect(self.add_gen)
             else:
                 self.AddGenerationButton.setText('+')
                 self.AddGenerationButton.disconnect()
                 self.AddGenerationButton.pressed.connect(self.add_gen)
-            self.BarV_Value.setText('{:.3g}'.format(BUS.v))
-            self.BarAngle_Value.setText('{:.3g}'.format(BUS.delta * 180 / np.pi))
-            self.QgInput.setText('{:.3g}'.format(BUS.qg))
-            self.PgInput.setText('{:.3g}'.format(BUS.pg))
-            self.QlInput.setText('{:.3g}'.format(BUS.ql))
-            self.PlInput.setText('{:.3g}'.format(BUS.pl))
-            self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
-            self.GenGround.setChecked(BUS.gen_ground)
-            self.LoadGround.setChecked(BUS.load_ground)
-        else:
-            self.AddLoadButton.setText('+')
-            self.AddLoadButton.disconnect()
-            self.AddLoadButton.pressed.connect(self.add_load)
-        if (BUS.pg > 0 or BUS.qg > 0) and BUS.barra_id > 0:
-            self.AddGenerationButton.setText('-')
-            self.AddGenerationButton.disconnect()
-            self.AddGenerationButton.pressed.connect(self.remove_gen)
-        else:
-            self.AddGenerationButton.setText('+')
-            self.AddGenerationButton.disconnect()
-            self.AddGenerationButton.pressed.connect(self.add_gen)
-        self.BarV_Value.setText('{:.3g}'.format(BUS.v))
-        self.BarAngle_Value.setText('{:.3g}'.format(BUS.delta * 180 / np.pi))
-        self.QgInput.setText('{:.3g}'.format(BUS.qg))
-        self.PgInput.setText('{:.3g}'.format(BUS.pg))
-        self.QlInput.setText('{:.3g}'.format(BUS.ql))
-        self.PlInput.setText('{:.3g}'.format(BUS.pl))
-        if BUS.xd == np.inf:
+            self.BusV_Value.setText('{:.3g}'.format(bus.v))
+            self.BusAngle_Value.setText('{:.3g}'.format(bus.delta * 180 / np.pi))
+            self.QgInput.setText('{:.3g}'.format(bus.qg))
+            self.PgInput.setText('{:.3g}'.format(bus.pg))
+            self.QlInput.setText('{:.3g}'.format(bus.ql))
+            self.PlInput.setText('{:.3g}'.format(bus.pl))
+            self.XdLineEdit.setText('{:.3g}'.format(bus.xd))
+            self.GenGround.setChecked(bus.gen_ground)
+            self.LoadGround.setChecked(bus.load_ground)
+        if bus.xd == np.inf:
             self.XdLineEdit.setText('\u221E')
         else:
-            self.XdLineEdit.setText('{:.3g}'.format(BUS.xd))
+            self.XdLineEdit.setText('{:.3g}'.format(bus.xd))
 
     def LayoutManager(self):
         """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
@@ -1152,149 +1104,106 @@ class CircuitInputer(QWidget):
         try:
             # Even if there are two elements in a same square, only one will be identified
             # Bus has high priority
-            # After, lines and trafo have equal priority
+            # After, lines and xfmr have equal priority
             bus = self.getBusFromGridPos(self._currElementCoords)
-            lt = self.getLtFromGridPos(self._currElementCoords)
-            trafo = self.getTrafoFromGridPos(self._currElementCoords)
+            curve = self.getCurveFromGridPos(self._currElementCoords)
             if bus is not None:
                 # Show bus inspect
                 self.hideSpacer()
                 self.setLayoutHidden(self.InputNewLineType, True)
-                self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.setLayoutHidden(self.LineOrXfmrLayout, True)
                 self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.setLayoutHidden(self.BarLayout, False)
-                self.updateBusInspector(self.getBusFromGridPos(self._currElementCoords))
-            elif lt is not None:
-                # Show line inspect
-                assert trafo is None
-                self.hideSpacer()
-                self.setLayoutHidden(self.InputNewLineType, True)
-                self.setLayoutHidden(self.BarLayout, True)
-                self.setLayoutHidden(self.LtOrTrafoLayout, False)
-                self.chooseLt.setChecked(True)
-                self.setLayoutHidden(self.choosedTrafoFormLayout, True)
-                self.setLayoutHidden(self.choosedLtFormLayout, False)
-                self.trafoSubmitPushButton.setHidden(True)
-                self.removeTrafoPushButton.setHidden(True)
-                self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.removeLTPushButton.setHidden(False)
-                self.updateLtModelOptions()
-                self.updateLtInspector()
-                self.updateTrafoInspector()
-            elif trafo is not None:
-                # Show trafo inspect
-                assert lt is None
-                self.setLayoutHidden(self.InputNewLineType, True)
-                self.hideSpacer()
-                self.setLayoutHidden(self.BarLayout, True)
-                self.setLayoutHidden(self.LtOrTrafoLayout, False)
-                self.chooseTrafo.setChecked(True)
-                self.setLayoutHidden(self.choosedTrafoFormLayout, False)
-                self.setLayoutHidden(self.choosedLtFormLayout, True)
-                self.trafoSubmitPushButton.setHidden(False)
-                self.removeTrafoPushButton.setHidden(False)
-                self.removeLTPushButton.setHidden(True)
-                self.ltSubmitByModelPushButton.setHidden(True)
-                self.ltSubmitByImpedancePushButton.setHidden(True)
-                self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.updateTrafoInspector()
+                self.setLayoutHidden(self.BusLayout, False)
+                self.updateBusInspector(bus)
+            elif curve is not None:
+                if isinstance(curve.obj, TL):
+                    # Show line inspect
+                    self.hideSpacer()
+                    self.setLayoutHidden(self.InputNewLineType, True)
+                    self.setLayoutHidden(self.BusLayout, True)
+                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                    self.chooseLine.setChecked(True)
+                    self.setLayoutHidden(self.chosenXfmrFormLayout, True)
+                    self.setLayoutHidden(self.chosenLineFormLayout, False)
+                    self.xfmrSubmitPushButton.setHidden(True)
+                    self.removeXfmrPushButton.setHidden(True)
+                    self.setLayoutHidden(self.ControlPanelLayout, True)
+                    self.removeTLPushButton.setHidden(False)
+                    self.updateLineModelOptions()
+                    self.updateLineInspector()
+                elif isinstance(curve.obj, Transformer):
+                    # Show xfmr inspect
+                    self.setLayoutHidden(self.InputNewLineType, True)
+                    self.hideSpacer()
+                    self.setLayoutHidden(self.BusLayout, True)
+                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                    self.chooseXfmr.setChecked(True)
+                    self.setLayoutHidden(self.chosenXfmrFormLayout, False)
+                    self.setLayoutHidden(self.chosenLineFormLayout, True)
+                    self.xfmrSubmitPushButton.setHidden(False)
+                    self.removeXfmrPushButton.setHidden(False)
+                    self.removeTLPushButton.setHidden(True)
+                    self.tlSubmitByModelPushButton.setHidden(True)
+                    self.tlSubmitByImpedancePushButton.setHidden(True)
+                    self.setLayoutHidden(self.ControlPanelLayout, True)
+                    self.updateXfmrInspector()
             else:
                 # No element case
-                self.setLayoutHidden(self.BarLayout, True)
-                self.setLayoutHidden(self.LtOrTrafoLayout, True)
+                self.setLayoutHidden(self.BusLayout, True)
+                self.setLayoutHidden(self.LineOrXfmrLayout, True)
                 self.setLayoutHidden(self.InputNewLineType, True)
                 self.setLayoutHidden(self.ControlPanelLayout, True)
                 self.showSpacer()
         except Exception:
             logging.error(traceback.format_exc())
 
-    @staticmethod
-    def resequence_buses(buses):
-        """Resequence buses id in a array containing barra objects"""
-        if 0 in [bus.barra_id for bus in buses]:
-            for i in range(len(buses)):
-                buses[i].barra_id = i
-        else:
-            for i in range(1, len(buses) + 1):
-                buses[i - 1].barra_id = i
-
     def add_bus(self):
         try:
-            global GRID_BUSES, ID, BUSES, BUSES_PIXMAP
-            COORDS = self._currElementCoords
-            possible_lt, possible_trafo = self.getLtFromGridPos(COORDS), self.getTrafoFromGridPos(COORDS)
-            if not isinstance(GRID_BUSES[COORDS], Barra) and not (possible_lt or possible_trafo):
-                if 0 not in [bus.barra_id for bus in BUSES] or np.size(BUSES) == 0:
-                    # first add, or add after bus' exclusion
-                    SLACK = Barra(barra_id=0, posicao=COORDS)
-                    BUSES.insert(0, SLACK)
-                    self.resequence_buses(BUSES)
-                    GRID_BUSES[COORDS] = SLACK
-                elif 0 in [bus.barra_id for bus in BUSES]:
-                    # sequenced bus insert
-                    BUS = Barra(barra_id=len(BUSES) + 1, posicao=COORDS)
-                    GRID_BUSES[COORDS] = BUS
-                    BUSES.append(BUS)
-                    self.resequence_buses(BUSES)
-                self._statusMsg.emit_sig('Added bus')
+            coords = self._currElementCoords
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            if not isinstance(self.Scene.grid[coords], Bus) and not curve:
+                bus = self.system.add_bus()
+                self.Scene.grid[coords] = bus
             else:
-                self.Scene.removeItem(BUSES_PIXMAP[COORDS])
-                self._statusMsg.emit_sig('There\'s an element in this position!')
+                self.Scene.removeItem(self.Scene.pixmap[coords])
+                self.statusMsg.emit_sig('There\'s an element in this position!')
         except Exception:
             logging.error(traceback.format_exc())
 
     def remove_bus(self):
-        global ID, BUSES, GRID_BUSES, BUSES_PIXMAP
         try:
-            if GRID_BUSES[self._currElementCoords]:
-                BUS = self.getBusFromGridPos(self._currElementCoords)
-                self.removeElementsLinked2Bus(BUS)
-                BUSES.remove(BUS)
-                self.resequence_buses(BUSES)
-                self.Scene.removeItem(BUSES_PIXMAP[self._currElementCoords])
-                BUSES_PIXMAP[self._currElementCoords] = 0
-                GRID_BUSES[self._currElementCoords] = 0
-                update_mask()
+            coords = self._currElementCoords
+            bus = self.getBusFromGridPos(coords)
+            if bus:
+                self.removeElementsLinked2Bus(bus)
+                self.system.remove_bus(bus.bus_id)
+                self.Scene.removeItem(self.Scene.pixmap[coords])
+                self.Scene.pixmap[coords] = 0
+                self.Scene.grid[coords] = 0
         except Exception:
             logging.error(traceback.format_exc())
 
-    @staticmethod
-    def getBusFromGridPos(COORDS):
-        """Return a barra object that occupies GRID_BUSES in COORDS position"""
-        grid_bus = GRID_BUSES[COORDS]
-        if isinstance(grid_bus, Barra):
-            for bus in BUSES:
-                if bus.posicao == grid_bus.posicao:
-                    return bus
+    def getBusFromGridPos(self, coords):
+        """Return a Bus object that occupies grid in `coords` position"""
+        grid_bus = self.Scene.grid[coords]
+        if isinstance(grid_bus, Bus):
+            return grid_bus
         return None
 
-    @staticmethod
-    def getLtFromGridPos(COORDS):
-        """Return a LT object that have COORDS on its coordinates"""
-        for tl in LINES:
-            if COORDS in tl[2]:
-                return tl
+    def getCurveFromGridPos(self, coords):
+        """Return a LineSegment object that has `coords` in its coordinates"""
+        for curve in self.curves:
+            if coords in curve.coords:
+                return curve
         return None
 
-    @staticmethod
-    def getTrafoFromGridPos(COORDS):
-        """Return a Trafo object that have COORDS on its coordinates"""
-        for trafo in TRANSFORMERS:
-            if COORDS in trafo[2]:
-                return trafo
-        return None
-
-    def removeElementsLinked2Bus(self, BUS):
-        global LINES, TRANSFORMERS
-        linked_lts, linked_trfs = [], []
-        for line in LINES:
-            if BUS.posicao in line[2]:
-                linked_lts.append(line)
-        for removing_lts in linked_lts: self.remove_selected_line(removing_lts)
-        for trafo in TRANSFORMERS:
-            if BUS.posicao in trafo[2]:
-                linked_trfs.append(trafo)
-        for removing_trfs in linked_trfs: self.remove_trafo(removing_trfs)
+    def removeElementsLinked2Bus(self, bus):
+        linked = []
+        for curve in self.curves:
+            if curve.obj.orig == bus or curve.obj.dest == bus:
+                linked.append(curve)
+        for curve in linked:
+            self.remove_curve(curve)
 
     def add_gen(self):
         """
@@ -1305,15 +1214,14 @@ class CircuitInputer(QWidget):
         QPushButton Add generation (__init__)
         """
         try:
-            global BUSES
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            self.BarV_Value.setEnabled(True)
-            if BUS.barra_id != 0:
-                self.PgInput.setEnabled(True)
+            bus = self.getBusFromGridPos(self._currElementCoords)
+            self.BusV_Value.setEnabled(True)
             self.XdLineEdit.setEnabled(True)
-            self.AddGenerationButton.setText('OK')
+            if bus.bus_id > 0:
+                self.PgInput.setEnabled(True)
             self.GenGround.setEnabled(True)
-            self._statusMsg.emit_sig('Input generation data...')
+            self.AddGenerationButton.setText('OK')
+            self.statusMsg.emit_sig('Input generation data...')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.submit_gen)
         except Exception:
@@ -1326,50 +1234,42 @@ class CircuitInputer(QWidget):
         -----
         add_gen (button rebind)
         """
-        global GRID_BUSES, BUSES
-        if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            BUS.v = float(self.BarV_Value.text())
-            BUS.pg = float(self.PgInput.text())
-            BUS.gen_ground = self.GenGround.isChecked()
+        coords = self._currElementCoords
+        if isinstance(self.Scene.grid[coords], Bus):
+            bus = self.getBusFromGridPos(coords)
+            bus.v = float(self.BusV_Value.text())
+            bus.pg = float(self.PgInput.text())
+            bus.gen_ground = self.GenGround.isChecked()
             if self.XdLineEdit.text() == '\u221E':
-                BUS.xd = np.inf
+                bus.xd = np.inf
             else:
-                BUS.xd = float(self.XdLineEdit.text())
-            GRID_BUSES[self._currElementCoords].v = BUS.v
-            GRID_BUSES[self._currElementCoords].pg = BUS.pg
-            GRID_BUSES[self._currElementCoords].xd = BUS.xd
-            GRID_BUSES[self._currElementCoords].gen_ground = BUS.gen_ground
-            self.BarV_Value.setEnabled(False)
+                bus.xd = float(self.XdLineEdit.text())
+            self.BusV_Value.setEnabled(False)
             self.PgInput.setEnabled(False)
             self.XdLineEdit.setEnabled(False)
-            self.GenGround.setDisabled(True)
+            self.GenGround.setEnabled(False)
             self.AddGenerationButton.disconnect()
-            if BUS.barra_id:
+            if bus.bus_id > 0:
                 self.AddGenerationButton.setText('-')
                 self.AddGenerationButton.pressed.connect(self.remove_gen)
             else:
-                self.AddGenerationButton.setText('+')
+                self.AddGenerationButton.setText('EDIT')
                 self.AddGenerationButton.pressed.connect(self.add_gen)
-            self._statusMsg.emit_sig('Added generation')
+            self.statusMsg.emit_sig('Added generation')
 
     def remove_gen(self):
-        global GRID_BUSES, BUSES
-        if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-            BUS = self.getBusFromGridPos(self._currElementCoords)
-            BUS.v = 1
-            BUS.pg = 0
-            BUS.xd = np.inf
-            BUS.gen_ground = False
-            GRID_BUSES[self._currElementCoords].v = BUS.v
-            GRID_BUSES[self._currElementCoords].pg = BUS.pg
-            GRID_BUSES[self._currElementCoords].xd = BUS.xd
-            GRID_BUSES[self._currElementCoords].gen_ground = False
-            self.updateBusInspector(BUS)
+        coords = self._currElementCoords
+        if isinstance(self.Scene.grid[coords], Bus):
+            bus = self.getBusFromGridPos(coords)
+            bus.v = 1
+            bus.pg = 0
+            bus.xd = np.inf
+            bus.gen_ground = False
+            self.updateBusInspector(bus)
             self.AddGenerationButton.setText('+')
             self.AddGenerationButton.disconnect()
             self.AddGenerationButton.pressed.connect(self.add_gen)
-            self._statusMsg.emit_sig('Removed generation')
+            self.statusMsg.emit_sig('Removed generation')
 
     def add_load(self):
         """
@@ -1378,12 +1278,11 @@ class CircuitInputer(QWidget):
         QPushButton Add load (__init__)
         """
         try:
-            global BUSES
             self.PlInput.setEnabled(True)
             self.QlInput.setEnabled(True)
-            self.AddLoadButton.setText('OK')
-            self._statusMsg.emit_sig('Input load data...')
             self.LoadGround.setEnabled(True)
+            self.AddLoadButton.setText('OK')
+            self.statusMsg.emit_sig('Input load data...')
             self.AddLoadButton.disconnect()
             self.AddLoadButton.pressed.connect(self.submit_load)
         except Exception:
@@ -1395,49 +1294,48 @@ class CircuitInputer(QWidget):
         -----
         add_load (button rebind)
         """
-        global GRID_BUSES, BUSES
         try:
-            if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                BUS = self.getBusFromGridPos(self._currElementCoords)
-                BUS.pl = float(self.PlInput.text())
-                BUS.ql = float(self.QlInput.text())
-                BUS.load_ground = self.LoadGround.isChecked()
-                GRID_BUSES[self._currElementCoords].pl = BUS.pl
-                GRID_BUSES[self._currElementCoords].ql = BUS.ql
-                GRID_BUSES[self._currElementCoords].load_ground = BUS.load_ground
+            coords = self._currElementCoords
+            if isinstance(self.Scene.grid[coords], Bus):
+                bus = self.getBusFromGridPos(coords)
+                bus.pl = float(self.PlInput.text())
+                bus.ql = float(self.QlInput.text())
+                bus.load_ground = self.LoadGround.isChecked()
                 self.PlInput.setEnabled(False)
                 self.QlInput.setEnabled(False)
                 self.LoadGround.setEnabled(False)
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.remove_load)
-                self._statusMsg.emit_sig('Added load')
+                self.statusMsg.emit_sig('Added load')
         except Exception:
             logging.error(traceback.format_exc())
 
     def remove_load(self):
         try:
-            global GRID_BUSES, BUSES
-            if isinstance(GRID_BUSES[self._currElementCoords], Barra):
-                BUS = self.getBusFromGridPos(self._currElementCoords)
-                BUS.pl = 0
-                BUS.ql = 0
-                BUS.load_ground = True
-                GRID_BUSES[self._currElementCoords].pl = 0
-                GRID_BUSES[self._currElementCoords].ql = 0
-                GRID_BUSES[self._currElementCoords].load_ground = True
-                self.updateBusInspector(BUS)
+            coords = self._currElementCoords
+            if isinstance(self.Scene.grid[coords], Bus):
+                bus = self.getBusFromGridPos(coords)
+                bus.pl = 0
+                bus.ql = 0
+                bus.load_ground = True
+                self.updateBusInspector(bus)
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.add_load)
-                self._statusMsg.emit_sig('Removed load')
+                self.statusMsg.emit_sig('Removed load')
         except Exception:
             logging.error(traceback.format_exc())
 
 
-class Aspy(QMainWindow):
+class ASPy(QMainWindow):
     def __init__(self):
-        super(Aspy, self).__init__()
+        super(ASPy, self).__init__()
+        # Central widget
+        self.circuit = CircuitInputer()
+        self.circuit.statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
+        self.setCentralWidget(self.circuit)
+
         self.initUI()
 
     def initUI(self):
@@ -1461,18 +1359,15 @@ class Aspy(QMainWindow):
         createReport.triggered.connect(self.report)
 
         addLineAct = QAction('Add line type', self)
+        addLineAct.setShortcut('Ctrl+L')
         addLineAct.triggered.connect(self.addLineType)
 
         editLineAct = QAction('Edit line type', self)
         editLineAct.triggered.connect(self.editLineType)
 
         configure_simulation = QAction('Configure simulation', self)
+        configure_simulation.setShortcut('Ctrl+X')
         configure_simulation.triggered.connect(self.configureSimulation)
-
-        # Central widget
-        self.CircuitInputer = CircuitInputer()
-        self.CircuitInputer._statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
-        self.setCentralWidget(self.CircuitInputer)
 
         # Menu bar
         menubar = self.menuBar()
@@ -1487,7 +1382,7 @@ class Aspy(QMainWindow):
         linemenu.addAction(addLineAct)
         linemenu.addAction(editLineAct)
 
-        settings = menubar.addMenu('&Settings')
+        settings = menubar.addMenu('S&ettings')
         settings.addAction(configure_simulation)
 
         self.setWindowTitle('ASPy')
@@ -1496,202 +1391,128 @@ class Aspy(QMainWindow):
         self.show()
 
     def configureSimulation(self):
-        global NMAX, OP_MODE
-        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, True)
-        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.LtOrTrafoLayout, True)
-        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.ControlPanelLayout, False)
-        self.CircuitInputer.updateNmaxSlider(NMAX, OP_MODE)
-        self.CircuitInputer.updateNmaxLabel(NMAX, OP_MODE)
-        self.CircuitInputer.updateRealOrInsertionRadio(OP_MODE)
+        self.circuit.setLayoutHidden(self.circuit.BusLayout, True)
+        self.circuit.setLayoutHidden(self.circuit.LineOrXfmrLayout, True)
+        self.circuit.setLayoutHidden(self.circuit.ControlPanelLayout, False)
+        self.circuit.updateNmaxSlider(self.circuit.nmax, self.circuit.op_mode)
+        self.circuit.updateNmaxLabel(self.circuit.nmax, self.circuit.op_mode)
+        self.circuit.updateRealOrInsertionRadio(self.circuit.op_mode)
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args, msecs=10000)
 
     def saveSession(self):
-        try:
-            sessions_dir = getSessionsDir()
-            with shelve.open(os.path.join(sessions_dir, './db')) as db:
-                storeData(db)
-        except Exception:
-            logging.error(traceback.format_exc())
+        sessions_dir = getSessionsDir()
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        filename, _ = QFileDialog.getSaveFileName(parent=self,
+                                                  caption="test",
+                                                  directory=sessions_dir,
+                                                  filter="All Files (*)",
+                                                  options=options)
+        if filename:
+            with shelve.open(filename) as db:
+                self.storeData(db)
+                db.close()
 
     def loadSession(self):
-        try:
-            sessions_dir = getSessionsDir()
-            with shelve.open(os.path.join(sessions_dir, './db')) as db:
-                createLocalData(db)
-            createSchematic(self.CircuitInputer.Scene)
-        except Exception:
-            logging.error(traceback.format_exc())
+        sessions_dir = getSessionsDir()
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        filename, _ = QFileDialog.getOpenFileName(parent=self,
+                                                  caption="test",
+                                                  directory=sessions_dir,
+                                                  filter="All Files (*)",
+                                                  options=options)
+        if filename:
+            with shelve.open(filename) as db:
+                self.createLocalData(db)
+                db.close()
+            self.createSchematic(self.circuit.Scene)
 
     def report(self):
-        global BUSES, LINES, TRANSFORMERS, GRID_BUSES
-        create_report(BUSES, LINES, TRANSFORMERS, GRID_BUSES)
+        system = self.circuit.system
+        grid = self.circuit.Scene.grid
+        buses, lines, xfmrs = system.buses, system.lines, system.xfmrs
+        create_report(buses, lines, xfmrs, grid)
 
     def addLineType(self):
-        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.InputNewLineType, False)
-        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.BarLayout, True)
-        self.CircuitInputer.setLayoutHidden(self.CircuitInputer.LtOrTrafoLayout, True)
+        self.circuit.setLayoutHidden(self.circuit.InputNewLineType, False)
+        self.circuit.setLayoutHidden(self.circuit.BusLayout, True)
+        self.circuit.setLayoutHidden(self.circuit.LineOrXfmrLayout, True)
         self.displayStatusMsg('Adding new line model')
 
     def editLineType(self):
-        print('edit line type')
+        self.displayStatusMsg("Editing line types is currently not implemented!")
+        raise NotImplementedError
 
     def startNewSession(self):
-        global LINES, TRANSFORMERS, BUSES, GRID_BUSES, BUSES_PIXMAP
         self.clear_interface()
-        reset_system_state_variables()
-        self.CircuitInputer.doAfterMouseRelease()
+        self.reset_system_state_variables()
+        self.circuit.doAfterMouseRelease()
 
     def clear_interface(self):
-        global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
-        for line in LINES:
-            for graphic in line[1]:
-                self.CircuitInputer.Scene.removeItem(graphic)
-        for trafo in TRANSFORMERS:
-            for graphic in trafo[1]:
-                self.CircuitInputer.Scene.removeItem(graphic)
-        for bus in BUSES:
-            self.CircuitInputer.Scene.removeItem(BUSES_PIXMAP[bus.posicao])
+        to_remove = len(self.circuit.curves)
+        for i in range(to_remove):
+            self.circuit.remove_curve(self.circuit.curves[0])
+        N = self.circuit.Scene.N
+        for i in range(N):
+            for j in range(N):
+                if isinstance(self.circuit.Scene.grid[i, j], Bus):
+                    self.circuit.Scene.removeItem(self.circuit.Scene.pixmap[i, j])
 
+    def reset_system_state_variables(self):
+        N = self.circuit.Scene.N
+        self.circuit.system = PowerSystem()
+        self.circuit.curves = []
+        self.circuit.Scene.grid = np.zeros((N, N), object)
+        self.circuit.Scene.pixmap = np.zeros((N, N), object)
 
-def custom_run(f):
-    def wrapper(*args, **kwargs):
-        global OP_MODE
-        if not OP_MODE:
-            f(*args, **kwargs)
+    def createLocalData(self, db):
+        self.circuit.system = db['SYSTEM']
+        self.circuit.curves = db['CURVES']
+        self.circuit.line_types = db['LINE_TYPES']
+        self.circuit.Scene.grid = db['GRID']
 
-    return wrapper
+    def storeData(self, db):
+        filtered_curves = []
+        for curve in self.circuit.curves:
+            filtered_curves.append(LineSegment(obj=curve.obj,
+                                               coords=curve.coords,
+                                               dlines=[]))
+        db['SYSTEM'] = self.circuit.system
+        db['CURVES'] = filtered_curves
+        db['LINE_TYPES'] = self.circuit.line_types
+        db['GRID'] = self.circuit.Scene.grid
+        return db
 
-
-@custom_run
-def update_mask():
-    global NMAX
-    G = nx.Graph()
-    for b in BUSES:
-        G.add_node(b.barra_id)
-    for lt in LINES:
-        node1 = GRID_BUSES[lt[0].origin].barra_id
-        node2 = GRID_BUSES[lt[0].destiny].barra_id
-        G.add_edge(node1, node2)
-    for tr in TRANSFORMERS:
-        node1 = GRID_BUSES[tr[0].origin].barra_id
-        node2 = GRID_BUSES[tr[0].destiny].barra_id
-        G.add_edge(node1, node2)
-    connected_components = nx.connected_components(G)
-    neighbors = []
-    for component in connected_components:
-        if 0 in component:
-            neighbors = component
-    mask_buses = np.zeros(len(BUSES), bool)
-    mask_buses[list(neighbors)] = True
-    good_ids = [b.barra_id for b in np.array(BUSES)[mask_buses]]
-    rank = nx.shortest_path_length(G, source=0)
-    if len(LINES) > 0:
-        mask_linhas = np.ones(len(LINES), bool)
-        for i in range(len(LINES)):
-            lt = LINES[i][0]
-            if GRID_BUSES[lt.origin].barra_id not in good_ids:
-                mask_linhas[i] = False
-        linhas = np.array(LINES)[mask_linhas][:, 0]
-    else:
-        linhas = np.array([])
-    if len(TRANSFORMERS) > 0:
-        mask_trafos = np.ones(len(TRANSFORMERS), bool)
-        for i in range(len(TRANSFORMERS)):
-            tr = TRANSFORMERS[i][0]
-            if GRID_BUSES[tr.origin].barra_id not in good_ids:
-                mask_trafos[i] = False
-        trafos = np.array(TRANSFORMERS)[mask_trafos][:, 0]
-    else:
-        trafos = np.array([])
-    barras = np.array(BUSES)[mask_buses]
-    hsh = {}
-    for j, i in enumerate(good_ids):
-        hsh[i] = j
-    V, S0 = update_flow(barras, linhas, trafos, GRID_BUSES, NMAX, hsh)
-    for b in barras:
-        b.v = np.abs(V[hsh[b.barra_id]])
-        b.delta = np.angle(V[hsh[b.barra_id]])
-        b.pg = np.round(S0[hsh[b.barra_id], 0], 4) + b.pl
-        b.qg = np.round(S0[hsh[b.barra_id], 1], 4) + b.ql
-        b.rank = rank[b.barra_id]
-    for lt in linhas:
-        node1 = hsh[GRID_BUSES[lt.origin].barra_id]
-        node2 = hsh[GRID_BUSES[lt.destiny].barra_id]
-        lt.v1 = V[node1]
-        lt.v2 = V[node2]
-    for tr in trafos:
-        node1 = hsh[GRID_BUSES[tr.origin].barra_id]
-        node2 = hsh[GRID_BUSES[tr.destiny].barra_id]
-        tr.v1 = V[node1]
-        tr.v2 = V[node2]
-    If = update_short(barras, linhas, trafos, GRID_BUSES, hsh)
-    for b in barras:
-        b.iTPG = If[hsh[b.barra_id], 0, 0]
-        b.iSLG = If[hsh[b.barra_id], 1, 0]
-        b.iDLGb = If[hsh[b.barra_id], 2, 1]
-        b.iDLGc = If[hsh[b.barra_id], 2, 2]
-        b.iLL = If[hsh[b.barra_id], 3, 1]
+    def createSchematic(self, scene):
+        squarel = scene._oneSquareSideLength
+        for i in range(scene.N):
+            for j in range(scene.N):
+                if isinstance(scene.grid[i, j], Bus):
+                    point = (squarel / 2 + squarel * j,
+                             squarel / 2 + squarel * i)
+                    drawbus = scene.drawBus(point)
+                    scene.pixmap[i, j] = drawbus
+        for pos, curve in enumerate(self.circuit.curves):
+            for pairs in interface_coordpairs(curve.coords, squarel):
+                if isinstance(curve.obj, TL):
+                    dline = scene.drawLine(pairs, color='b')
+                else:
+                    dline = scene.drawLine(pairs, color='r')
+                curve.dlines.append(dline)
 
 
 def interface_coordpairs(coords, squarel):
     for k in range(len(coords) - 1):
-        yield (np.array([[squarel / 2 + squarel * coords[k][1], squarel / 2 + squarel * coords[k][0]],
-                         [squarel / 2 + squarel * coords[k + 1][1], squarel / 2 + squarel * coords[k + 1][0]]]))
-
-
-def createSchematic(scene):
-    global LINES, TRANSFORMERS, BUSES
-    squarel = scene._oneSquareSideLength
-    for bus in BUSES:
-        point = squarel / 2 + squarel * bus.posicao[1], squarel / 2 + squarel * bus.posicao[0]
-        drawbus = scene.drawBus(point)
-        BUSES_PIXMAP[bus.posicao] = drawbus
-    for pos, line in enumerate(LINES):
-        for pairs in interface_coordpairs(line[2], squarel):
-            drawline = scene.drawLine(pairs)
-            LINES[pos][1].append(drawline)
-    for pos, trafo in enumerate(TRANSFORMERS):
-        for pairs in interface_coordpairs(trafo[2], squarel):
-            drawline = scene.drawLine(pairs, color='r')
-            TRANSFORMERS[pos][1].append(drawline)
-
-
-def reset_system_state_variables():
-    global BUSES, LINES, TRANSFORMERS, GRID_BUSES, BUSES_PIXMAP
-    LINES, BUSES, TRANSFORMERS = [], [], []
-    GRID_BUSES = np.zeros((N, N), object)
-    BUSES_PIXMAP = np.zeros((N, N), object)
-
-
-def storeData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
-    filtered_lines = []
-    for line in LINES:
-        filtered_lines.append([line[0], [], line[2], False])
-    db['LINES'] = filtered_lines
-    db['BUSES'] = BUSES
-    db['GRID_BUSES'] = GRID_BUSES
-    filtered_trafos = []
-    for trafo in TRANSFORMERS:
-        filtered_trafos.append([trafo[0], [], trafo[2], False])  # aspy.core.Trafo/coordinates
-    db['TRANSFORMERS'] = filtered_trafos
-    db['LINE_TYPES'] = LINE_TYPES
-    return db
-
-
-def createLocalData(db):
-    global LINES, BUSES, TRANSFORMERS, LINE_TYPES, GRID_BUSES
-    LINE_TYPES = db['LINE_TYPES']
-    LINES = db['LINES']
-    BUSES = db['BUSES']
-    TRANSFORMERS = db['TRANSFORMERS']
-    GRID_BUSES = db['GRID_BUSES']
-    return LINE_TYPES, LINES, BUSES, TRANSFORMERS, GRID_BUSES
+        yield (np.array([[squarel / 2 + squarel * coords[k][1],
+                          squarel / 2 + squarel * coords[k][0]],
+                         [squarel / 2 + squarel * coords[k + 1][1],
+                          squarel / 2 + squarel * coords[k + 1][0]]]))
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    aspy = Aspy()
+    aspy = ASPy()
     sys.exit(app.exec_())
