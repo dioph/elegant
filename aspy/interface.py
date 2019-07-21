@@ -225,8 +225,8 @@ class SchemeInputer(QGraphicsScene):
         width, height = self.width(), self.height()
         for i in range(self.N):
             for j in range(self.N):
-                quantizedInterface[i, j] = \
-                    QPoint(width / (2 * self.N) + i * width / self.N, height / (2 * self.N) + j * height / self.N)
+                quantizedInterface[i, j] = QPoint(width / (2 * self.N) + i * width / self.N,
+                                                  height / (2 * self.N) + j * height / self.N)
         return quantizedInterface
 
     def showQuantizedInterface(self):
@@ -1014,8 +1014,7 @@ class CircuitInputer(QWidget):
         if self.curves:
             curr_curve = self.curves[-1]
             curr_curve.remove |= (len(curr_curve.coords) <= 2 or curr_curve.obj.dest is None)
-            if (not self._startNewTL and
-                    not curr_curve.remove):
+            if not self._startNewTL and not curr_curve.remove:
                 self.system.add_line(self.curves[-1].obj, tuple(self.curves[-1].coords))
             self._startNewTL = True
             if curr_curve.remove:
@@ -1408,7 +1407,7 @@ class ASPy(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         filename, _ = QFileDialog.getSaveFileName(parent=self,
-                                                  caption="test",
+                                                  caption="Save Session",
                                                   directory=sessions_dir,
                                                   filter="All Files (*)",
                                                   options=options)
@@ -1422,7 +1421,7 @@ class ASPy(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         filename, _ = QFileDialog.getOpenFileName(parent=self,
-                                                  caption="test",
+                                                  caption="Load Session",
                                                   directory=sessions_dir,
                                                   filter="All Files (*)",
                                                   options=options)
@@ -1433,10 +1432,16 @@ class ASPy(QMainWindow):
             self.createSchematic(self.circuit.Scene)
 
     def report(self):
-        system = self.circuit.system
-        grid = self.circuit.Scene.grid
-        buses, lines, xfmrs = system.buses, system.lines, system.xfmrs
-        create_report(buses, lines, xfmrs, grid)
+        sessions_dir = getSessionsDir()
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        filename, _ = QFileDialog.getSaveFileName(parent=self,
+                                                  caption="Save Report",
+                                                  directory=sessions_dir,
+                                                  filter="PDF Files (*.pdf)",
+                                                  options=options)
+        if filename:
+            create_report(self.circuit.system, self.circuit.curves, filename)
 
     def addLineType(self):
         self.circuit.setLayoutHidden(self.circuit.InputNewLineType, False)
