@@ -1,8 +1,4 @@
-import logging
-import os
 import shelve
-import sys
-import traceback
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -11,7 +7,7 @@ from PyQt5.QtWidgets import *
 from aspy import PACKAGEDIR
 from aspy.core import *
 from aspy.report import create_report
-from aspy.utils import GenericSignal, getSessionsDir
+from aspy.utils import *
 
 
 class SchemeInputer(QGraphicsScene):
@@ -246,15 +242,6 @@ class SchemeInputer(QGraphicsScene):
         self.addLine(self.width(), 0.0, self.width(), height, pen)
 
 
-class LineSegment(object):
-    def __init__(self, obj, coords, dlines, remove=False):
-        super(LineSegment, self).__init__()
-        self.coords = coords
-        self.dlines = dlines
-        self.obj = obj
-        self.remove = remove
-
-
 class CircuitInputer(QWidget):
     def __init__(self, parent=None):
         # General initializations
@@ -298,7 +285,7 @@ class CircuitInputer(QWidget):
         # Bus voltage
         self.BusV_Value = QLineEdit('0.0')
         self.BusV_Value.setEnabled(False)
-        self.BusV_Value.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.BusV_Value.setValidator(QDoubleValidator(bottom=0., top=100.))
 
         # Bus angle
         self.BusAngle_Value = QLineEdit('0.0')
@@ -325,17 +312,17 @@ class CircuitInputer(QWidget):
 
         # Line edit to Xd bus
         self.XdLineEdit = QLineEdit('\u221E')
-        self.XdLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.XdLineEdit.setValidator(QDoubleValidator())
         self.XdLineEdit.setEnabled(False)
 
         # Line edit to input bus Pg
         self.PgInput = QLineEdit('0.0')
-        self.PgInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.PgInput.setValidator(QDoubleValidator(bottom=0.))
         self.PgInput.setEnabled(False)
 
         # Line edit to input bus Qg
         self.QgInput = QLineEdit('0.0')
-        self.QgInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.QgInput.setValidator(QDoubleValidator())
         self.QgInput.setEnabled(False)
 
         # Check box for generation ground
@@ -358,9 +345,9 @@ class CircuitInputer(QWidget):
 
         # LineEdit with Ql, Pl
         self.QlInput = QLineEdit('0.0')
-        self.QlInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.QlInput.setValidator(QDoubleValidator())
         self.PlInput = QLineEdit('0.0')
-        self.PlInput.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.PlInput.setValidator(QDoubleValidator())
         self.PlInput.setEnabled(False)
         self.QlInput.setEnabled(False)
 
@@ -393,21 +380,21 @@ class CircuitInputer(QWidget):
         self.ModelName = QLineEdit()
         self.ModelName.setValidator(QRegExpValidator(QRegExp("[A-Za-z]*")))
         self.RhoLineEdit = QLineEdit()
-        self.RhoLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.RhoLineEdit.setValidator(QDoubleValidator(bottom=0., top=100.))
         self.rLineEdit = QLineEdit()
-        self.rLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.rLineEdit.setValidator(QDoubleValidator(bottom=0., top=100.))
         self.d12LineEdit = QLineEdit()
-        self.d12LineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.d12LineEdit.setValidator(QDoubleValidator(bottom=0., top=100.))
         self.d23LineEdit = QLineEdit()
-        self.d23LineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.d23LineEdit.setValidator(QDoubleValidator(bottom=0., top=100.))
         self.d31LineEdit = QLineEdit()
-        self.d31LineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.d31LineEdit.setValidator(QDoubleValidator(bottom=0., top=100.))
         self.dLineEdit = QLineEdit()
-        self.dLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.dLineEdit.setValidator(QDoubleValidator(bottom=0., top=100.))
         self.mLineEdit = QLineEdit()
-        self.mLineEdit.setValidator(QIntValidator(1, 4))
+        self.mLineEdit.setValidator(QIntValidator(bottom=1, top=4))
         self.imaxLineEdit = QLineEdit()
-        self.imaxLineEdit.setValidator(QIntValidator(1, 1000))
+        self.imaxLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.InputNewLineTypeFormLayout.addRow('Name', self.ModelName)
         self.InputNewLineTypeFormLayout.addRow('\u03C1 (n\u03A9m)', self.RhoLineEdit)
@@ -475,19 +462,19 @@ class CircuitInputer(QWidget):
         self.chooseLineModel.addItem('No model')
 
         self.EllLineEdit = QLineEdit()
-        self.EllLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.EllLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.VbaseLineEdit = QLineEdit()
-        self.VbaseLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 3))
+        self.VbaseLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.TlRLineEdit = QLineEdit()
-        self.TlRLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+        self.TlRLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.TlXLineEdit = QLineEdit()
-        self.TlXLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+        self.TlXLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.TlYLineEdit = QLineEdit()
-        self.TlYLineEdit.setValidator(QDoubleValidator(0.0, 100.0, 5))
+        self.TlYLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.tlSubmitByImpedancePushButton = QPushButton('Submit by impedance')
         self.tlSubmitByImpedancePushButton.setMinimumWidth(200)
@@ -516,11 +503,11 @@ class CircuitInputer(QWidget):
 
         self.chosenXfmrFormLayout = QFormLayout()
         self.SNomXfmrLineEdit = QLineEdit()
-        self.SNomXfmrLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
+        self.SNomXfmrLineEdit.setValidator(QDoubleValidator(bottom=0.))
         self.XZeroSeqXfmrLineEdit = QLineEdit()
-        self.XZeroSeqXfmrLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
+        self.XZeroSeqXfmrLineEdit.setValidator(QDoubleValidator(bottom=0.))
         self.XPosSeqXfmrLineEdit = QLineEdit()
-        self.XPosSeqXfmrLineEdit.setValidator(QDoubleValidator(0, 10.0, 3))
+        self.XPosSeqXfmrLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.XfmrPrimary = QComboBox()
         self.XfmrPrimary.addItem('Y')
@@ -684,7 +671,7 @@ class CircuitInputer(QWidget):
         """
         try:
             for line_name, line_model in self.line_types.items():
-                if line_model == line:
+                if line_model.param == line.param:
                     return line_name
             return "No model"
         except Exception:
@@ -816,8 +803,7 @@ class CircuitInputer(QWidget):
         line.Z, line.Y = Z * zbase, Y / zbase
         line.ell = ell
         line.vbase = vbase
-        updating_line_dict = {key: -1 for key in line.param.keys()}
-        line.__dict__.update(updating_line_dict)
+        line.m = 0
 
     def xfmrProcessing(self):
         """
@@ -1201,7 +1187,7 @@ class CircuitInputer(QWidget):
     def removeElementsLinked2Bus(self, bus):
         linked = []
         for curve in self.curves:
-            if curve.obj.orig == bus or curve.obj.dest == bus:
+            if bus.bus_id in (curve.obj.orig.bus_id, curve.obj.dest.bus_id):
                 linked.append(curve)
         for curve in linked:
             self.remove_curve(curve)
@@ -1417,6 +1403,7 @@ class ASPy(QMainWindow):
                 db.close()
 
     def loadSession(self):
+        self.startNewSession()
         sessions_dir = getSessionsDir()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
@@ -1502,7 +1489,7 @@ class ASPy(QMainWindow):
                              squarel / 2 + squarel * i)
                     drawbus = scene.drawBus(point)
                     scene.pixmap[i, j] = drawbus
-        for pos, curve in enumerate(self.circuit.curves):
+        for curve in self.circuit.curves:
             for pairs in interface_coordpairs(curve.coords, squarel):
                 if isinstance(curve.obj, TL):
                     dline = scene.drawLine(pairs, color='b')

@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 from pylatex import Document, Section, Command, NoEscape, Figure, \
-    Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable
+    Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable, NewPage
 from aspy.core import TL, Bus
 
 _S_FACTOR_ = 3
@@ -194,10 +194,10 @@ def create_report(system, curves, grid, filename):
     xfmrs = system.xfmrs
     buses = system.buses
 
-    geometry_options = {"tmargin": "2cm",
-                        "lmargin": "2cm",
-                        "rmargin": "2cm",
-                        "bmargin": "2cm",
+    geometry_options = {"tmargin": "1cm",
+                        "lmargin": "1cm",
+                        "rmargin": "1cm",
+                        "bmargin": "1cm",
                         "includeheadfoot": True}
     doc = Document(page_numbers=True, geometry_options=geometry_options)
     doc.preamble.append(Command('usepackage', 'cmbright'))
@@ -228,11 +228,6 @@ def create_report(system, curves, grid, filename):
     doc.append(wye_comm)
     doc.append(why_comm)
     doc.add_color(name="lightgray", model="gray", description="0.80")
-    filepath = filename.strip('.pdf')
-    img = make_system_schematic(curves, grid, filepath)
-    with doc.create(Section('System')):
-        with doc.create(Figure(position='h')) as system_pic:
-            system_pic.add_plot(bbox_inches='tight', width=NoEscape('\\textwidth'))
     with doc.create(Section('Buses')):
         with doc.create(Subsection('Power-Flow Solution')):
             with doc.create(LongTable('c|ccccccc')) as tbl:
@@ -375,4 +370,10 @@ def create_report(system, curves, grid, filename):
                              NoEscape('{:.02f}'.format(np.abs(tr.S2) * 1e8 / tr.snom * 100))),
                             color=color)
 
+    filepath = filename.strip('.pdf')
+    img = make_system_schematic(curves, grid, filepath)
+    doc.append(NewPage())
+    with doc.create(Section('System')):
+        with doc.create(Figure(position='h')) as system_pic:
+            system_pic.add_plot(bbox_inches='tight', width=NoEscape('\\textwidth'))
     doc.generate_pdf(filepath, clean_tex=True, compiler='latexmk', compiler_args=['-pdf'])

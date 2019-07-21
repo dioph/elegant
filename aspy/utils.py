@@ -6,6 +6,14 @@ import traceback
 from PyQt5.QtCore import QObject, pyqtSignal
 
 
+class LineSegment(object):
+    def __init__(self, obj, coords, dlines, remove=False):
+        self.coords = coords
+        self.dlines = dlines
+        self.obj = obj
+        self.remove = remove
+
+
 class GenericSignal(QObject):
     signal = pyqtSignal(object)
 

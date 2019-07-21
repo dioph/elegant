@@ -1,5 +1,4 @@
-from numpy.distutils.core import setup
-
+import setuptools
 import aspy
 
 version = aspy.__version__
@@ -7,7 +6,7 @@ version = aspy.__version__
 with open("README.md", 'r') as f:
     long_description = f.read()
 
-setup(
+setuptools.setup(
     name="aspy",
     version=version,
     author="Eduardo Nunes & Fernando Dantas",
@@ -18,7 +17,8 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/dioph/aspy",
     packages=["aspy"],
-    install_requires=["numpy", "scipy"],
+    scripts=["bin/aspy"],
+    install_requires=["matplotlib", "networkx", "numpy", "scipy"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
