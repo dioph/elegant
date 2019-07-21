@@ -5,41 +5,32 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pylatex import Document, Section, Command, NoEscape, Figure, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable
-from aspy.core import TL, Transformer
+from aspy.core import TL, Bus
 
 _S_FACTOR_ = 3
 _DIST_H = 0.2
 _DIST_V = 0.25
 
 
-def test_inf(x):
-    if np.isfinite(x):
-        return NoEscape('{:.2f}\\angle{:.2f}'.format(np.abs(x), np.angle(x) * 180 / np.pi))
-    else:
-        return NoEscape('$\\infty$')
-
-
-def get_scheme(tr):
-    code = {0: '$\\why{}$', 1: '$\\wye{}$', 2: '$\\Delta$'}
-    return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
-
-
-def matplotlib_coordpairs(entity, sfactor=_S_FACTOR_):
-    coords = np.array(entity[2])
-    x, y = list(coords[:, i] for i in range(np.shape(coords)[1] - 1, -1, -1))
+def matplotlib_coordpairs(curve, sfactor=_S_FACTOR_):
+    coords = np.array(curve.coords)
+    x = coords[:, 1]
+    y = coords[:, 0]
     return sfactor * x, sfactor * -y
 
 
-def draw_rep_buses(ax, buses, size=250, sfactor=_S_FACTOR_):
-    for bus in buses:
-        x, y = bus.__getattribute__('posicao')[::-1]
-        plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
-        ax.annotate(bus.bus_id,
-                    xy=(sfactor * x, sfactor * -y),
-                    color='w',
-                    fontfamily='monospace',
-                    horizontalalignment='center',
-                    verticalalignment='center')
+def draw_rep_buses(ax, grid, size=250, sfactor=_S_FACTOR_):
+    N = grid.shape[0]
+    for y in range(N):
+        for x in range(N):
+            if isinstance(grid[y, x], Bus):
+                plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
+                ax.annotate(grid[y, x].bus_id,
+                            xy=(sfactor * x, sfactor * -y),
+                            color='w',
+                            fontfamily='monospace',
+                            horizontalalignment='center',
+                            verticalalignment='center')
 
 
 def collect_line_data(ax, line):
@@ -60,45 +51,37 @@ def get_line_slopes(line_data):
     return np.rad2deg(start_slope), np.rad2deg(end_slope)
 
 
-def draw_rep_lines(ax, lines, linewidth=1):
-    glines = []
-    for line in lines:
-        coords = matplotlib_coordpairs(line)
-        gline = ax.plot(*coords, linewidth=linewidth, color='b')
-        glines.append(gline)
-    return glines
+def draw_rep_curves(ax, curves, linewidth=1):
+    gcurves = []
+    for curve in curves:
+        coords = matplotlib_coordpairs(curve)
+        if isinstance(curve.obj, TL):
+            color = 'b'
+        else:
+            color = 'r'
+        gcurve, = ax.plot(*coords, linewidth=linewidth, color=color)
+        gcurves.append(gcurve)
+    return gcurves
 
 
-def draw_rep_trafos(ax, trafos, linewidth=1):
-    gtrafos = []
-    for trafo in trafos:
-        coords = matplotlib_coordpairs(trafo)
-        gtrafo = ax.plot(*coords, linewidth=linewidth, color='r')
-        gtrafos.append(gtrafo)
-    return gtrafos
-
-
-def draw_rep_scheme(data):
-    buses, lines, trafos = data
+def draw_rep_scheme(grid, curves):
     ax = plt.gca()
     ax.clear()
-    glines = draw_rep_lines(ax, lines)
-    gtrafos = draw_rep_trafos(ax, trafos)
-    draw_rep_buses(ax, buses)
+    gcurves = draw_rep_curves(ax, curves)
+    draw_rep_buses(ax, grid)
     ax.set_axis_off()
-    return glines, gtrafos
+    return gcurves
 
 
-def get_entity_extremities(entity):
-    core_obj = entity[0]
-    oy, ox = core_obj.orig
-    post_oy, post_ox = entity[2][1]
-    dy, dx = core_obj.dest
-    pre_dy, pre_dx = entity[2][-2]
+def get_curve_extremities(curve):
+    oy, ox = curve.coords[0]
+    post_oy, post_ox = curve.coords[1]
+    dy, dx = curve.coords[-1]
+    pre_dy, pre_dx = curve.coords[-2]
     return ox, -oy, post_ox, -post_oy, dx, -dy, pre_dx, -pre_dy
 
 
-def corr_origin(ox, post_ox, oy, post_oy):
+def corr_orig(ox, post_ox, oy, post_oy):
     if post_ox >= ox:
         corr_ox = 1
     else:
@@ -110,7 +93,7 @@ def corr_origin(ox, post_ox, oy, post_oy):
     return corr_ox, corr_oy
 
 
-def corr_destiny(pre_dx, dx, pre_dy, dy):
+def corr_dest(pre_dx, dx, pre_dy, dy):
     if pre_dx >= dx:
         corr_dx = 1
     else:
@@ -148,34 +131,36 @@ def corr_slopes(ox, oy, post_ox, post_oy, dx, dy, pre_dx, pre_dy):
 
 def direction_based_correction(extremities):
     ox, oy, post_ox, post_oy, dx, dy, pre_dx, pre_dy = extremities
-    corr_ox, corr_oy = corr_origin(ox, post_ox, oy, post_oy)
-    corr_dx, corr_dy = corr_destiny(pre_dx, dx, pre_dy, dy)
+    corr_ox, corr_oy = corr_orig(ox, post_ox, oy, post_oy)
+    corr_dx, corr_dy = corr_dest(pre_dx, dx, pre_dy, dy)
     corr_sslope, corr_eslope = corr_slopes(*extremities)
-    return {0: [corr_ox, corr_oy], 1: [corr_dx, corr_dy], 2: [corr_sslope, corr_eslope]}
+    return [[corr_ox, corr_oy], [corr_dx, corr_dy], [corr_sslope, corr_eslope]]
 
 
-def annotate_lines_flux_data(ax, glines, lines, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
-    for gentty, lentty in zip(glines, lines):
-        gline, line = gentty[0], lentty[0]
-        real_gline_data = collect_line_data(ax, gline)
-        sslope, eslope = get_line_slopes(real_gline_data)
-        extremities = get_entity_extremities(lentty)
+def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
+    for gcurve, curve in zip(gcurves, curves):
+        obj = curve.obj
+        real_data = collect_line_data(ax, gcurve)
+        sslope, eslope = get_line_slopes(real_data)
+        extremities = get_curve_extremities(curve)
         corr = direction_based_correction(extremities)
         ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
         sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
         sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
         ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
         ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
-        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6,
+        common_config = {'fontfamily': 'monospace',
+                         'rotation_mode': 'anchor',
+                         'fontsize': 6,
                          'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
-        ax.annotate('{:.1f}'.format(line.S1 * 100),
+        ax.annotate('{:.1f}'.format(obj.S1 * 100),
                     xy=(sx, sy),
                     horizontalalignment=hmask[corr[0][0]],
                     rotation=sslope * corr[2][0],
                     color='b',
                     **common_config)
-        ax.annotate("{:.1f}".format(line.S2 * 100),
+        ax.annotate("{:.1f}".format(-obj.S2 * 100),
                     xy=(ex, ey),
                     horizontalalignment=hmask[corr[1][0]],
                     rotation=eslope * corr[2][1],
@@ -183,55 +168,28 @@ def annotate_lines_flux_data(ax, glines, lines, sfactor=_S_FACTOR_, disth=_DIST_
                     **common_config)
 
 
-def annotate_trafos_flux_data(ax, gtrafos, trafos, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
-    for gentty, tentty in zip(gtrafos, trafos):
-        gtrafo, trafo = gentty[0], tentty[0]
-        real_gtrafo_data = collect_line_data(ax, gtrafo)
-        sslope, eslope = get_line_slopes(real_gtrafo_data)
-        extremities = get_entity_extremities(tentty)
-        corr = direction_based_correction(extremities)
-        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
-        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
-        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
-        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
-        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
-        common_config = {'fontfamily': 'monospace', 'rotation_mode': 'anchor', 'fontsize': 6,
-                         'verticalalignment': 'bottom'}
-        hmask = {1: 'left', -1: 'right'}
-        ax.annotate('{:.1f}'.format(trafo.Spu * 100),
-                    xy=(sx, sy),
-                    horizontalalignment=hmask[corr[0][0]],
-                    rotation=sslope * corr[2][0],
-                    color='b',
-                    **common_config)
-        ax.annotate("{:.1f}".format((trafo.Spu - trafo.Sper) * 100),
-                    xy=(ex, ey),
-                    horizontalalignment=hmask[corr[1][0]],
-                    rotation=eslope * corr[2][1],
-                    color='r',
-                    **common_config)
-
-
-def make_system_schematic(system, curves, filename, ext='pdf'):
+def make_system_schematic(curves, grid, filepath, ext='pdf'):
     ax = plt.gca()
-    buses, lines, xfmrs = system.buses, system.lines, system.xfmrs
-    linhas = []
-    trafos = []
-    for curve in curves:
-        if isinstance(curve.obj, TL):
-            linhas.append([curve.obj, curve.dlines, curve.coords, curve.remove])
-        else:
-            trafos.append([curve.obj, curve.dlines, curve.coords])
-    data = buses, linhas, trafos
-    glines, gtrafos = draw_rep_scheme(data)
-    annotate_lines_flux_data(ax, glines, linhas)
-    annotate_trafos_flux_data(ax, gtrafos, trafos)
-    img = os.path.join(filename) + '_i.' + ext
-    plt.savefig(img)
-    return img.split(os.sep)[-1]
+    gcurves = draw_rep_scheme(grid, curves)
+    annotate_flow(ax, gcurves, curves)
+    img = os.path.join(filepath) + '_i.' + ext
+    # plt.savefig(img, bbox_inches='tight')
+    return img
 
 
-def create_report(system, curves, filename):
+def check_inf(x):
+    if np.isfinite(x):
+        return NoEscape('{:.2f}\\angle{:.2f}'.format(np.abs(x), np.angle(x) * 180 / np.pi))
+    else:
+        return NoEscape('$\\infty$')
+
+
+def get_scheme(tr):
+    code = {0: '$\\why{}$', 1: '$\\wye{}$', 2: '$\\Delta$'}
+    return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
+
+
+def create_report(system, curves, grid, filename):
     lines = system.lines
     xfmrs = system.xfmrs
     buses = system.buses
@@ -249,7 +207,7 @@ def create_report(system, curves, filename):
     now = datetime.datetime.now()
     doc.append('Report auto-generated by ASPy at '
                '{:02d}/{:02d}/{:02d} {:02d}:{:02d}:{:02d}'.format(
-        now.day, now.month, now.year, now.hour, now.minute, now.second))
+                now.day, now.month, now.year, now.hour, now.minute, now.second))
     wye_comm = UnsafeCommand('newcommand', '\\wye',
                              extra_arguments=r'\mathbin{\text{\begin{tikzpicture}[x=1pt, y=1pt, scale=2]'
                                              r'\draw '
@@ -270,6 +228,11 @@ def create_report(system, curves, filename):
     doc.append(wye_comm)
     doc.append(why_comm)
     doc.add_color(name="lightgray", model="gray", description="0.80")
+    filepath = filename.strip('.pdf')
+    img = make_system_schematic(curves, grid, filepath)
+    with doc.create(Section('System')):
+        with doc.create(Figure(position='h')) as system_pic:
+            system_pic.add_plot(bbox_inches='tight', width=NoEscape('\\textwidth'))
     with doc.create(Section('Buses')):
         with doc.create(Subsection('Power-Flow Solution')):
             with doc.create(LongTable('c|ccccccc')) as tbl:
@@ -299,7 +262,7 @@ def create_report(system, curves, filename):
                                  NoEscape('{:.02f}'.format(b.qg * 100)),
                                  NoEscape('{:.02f}'.format(b.pl * 100)),
                                  NoEscape('{:.02f}'.format(b.ql * 100)),
-                                 test_inf(b.Z)),
+                                 check_inf(b.Z)),
                                 color=color)
         with doc.create(Subsection('Fault Calculations')):
             with doc.create(LongTable('c|cccccccccc')) as tbl:
@@ -407,16 +370,9 @@ def create_report(system, curves, filename):
                              get_scheme(tr),
                              NoEscape('{:.02f}'.format(tr.Sper.real * 100)),
                              NoEscape('{:.02f}'.format(tr.Sper.imag * 100)),
-                             NoEscape('{:.02f}'.format(tr.Spu.real * 100)),
-                             NoEscape('{:.02f}'.format(tr.Spu.imag * 100)),
-                             NoEscape('{:.02f}'.format(np.abs(tr.Spu) * 1e8 / tr.snom * 100))),
+                             NoEscape('{:.02f}'.format(tr.S2.real * 100)),
+                             NoEscape('{:.02f}'.format(tr.S2.imag * 100)),
+                             NoEscape('{:.02f}'.format(np.abs(tr.S2) * 1e8 / tr.snom * 100))),
                             color=color)
 
-    # img = make_system_schematic(system, curves, filename)
-    # with doc.create(Section('System')):
-    #     doc.append(NoEscape('\\centering'))
-    #     with doc.create(Figure(position='h!')) as system_pic:
-    #         system_pic.add_image(img)
-
-    filepath = filename.strip('.pdf')
     doc.generate_pdf(filepath, clean_tex=True, compiler='latexmk', compiler_args=['-pdf'])

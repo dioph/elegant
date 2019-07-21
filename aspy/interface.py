@@ -1441,7 +1441,7 @@ class ASPy(QMainWindow):
                                                   filter="PDF Files (*.pdf)",
                                                   options=options)
         if filename:
-            create_report(self.circuit.system, self.circuit.curves, filename)
+            create_report(self.circuit.system, self.circuit.curves, self.circuit.Scene.grid, filename)
 
     def addLineType(self):
         self.circuit.setLayoutHidden(self.circuit.InputNewLineType, False)

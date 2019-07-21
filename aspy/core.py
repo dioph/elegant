@@ -227,7 +227,11 @@ class Transformer(object):
         return self.Z1 * np.abs(self.Ipu) ** 2
 
     @property
-    def Spu(self):
+    def S1(self):
+        return self.S2 + self.Sper
+
+    @property
+    def S2(self):
         return self.v2 * self.Ipu.conjugate()
 
 

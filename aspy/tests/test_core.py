@@ -56,7 +56,7 @@ def test_modifying_added_bus():
     assert bus.v == 10
 
 
-def test():
+def test_3bus_problem_stevenson():
     system = PowerSystem()
     slack = system.add_bus()
     pv = system.add_bus()
@@ -68,11 +68,11 @@ def test():
     system.add_line(line)
     xfmr = Transformer(0, 2, jx0=0.12, jx1=0.12, secondary=DELTA)
     system.add_xfmr(xfmr)
+    assert np.allclose(system.Y, Y)
     slack.v = 1.01
     pv.pg = 0.08
     pv.v = 1.02
     pq.pl = 0.12
     pq.ql = 0.076
-    assert np.allclose(system.Y, Y)
     system.update()
     assert np.isclose(pv.delta * 180 / np.pi, 48.125, atol=1e-5)
