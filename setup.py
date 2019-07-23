@@ -1,12 +1,17 @@
-import setuptools
-import aspy
+import re
 
-version = aspy.__version__
+from setuptools import setup
+
+version = re.search(
+    '^__version__\\s*=\\s*"(.*)"',
+    open('aspy/__init__.py').read(),
+    re.M
+).group(1)
 
 with open("README.md", 'r') as f:
     long_description = f.read()
 
-setuptools.setup(
+setup(
     name="aspy",
     version=version,
     author="Eduardo Nunes & Fernando Dantas",
@@ -17,8 +22,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/dioph/aspy",
     packages=["aspy"],
-    scripts=["bin/aspy"],
-    install_requires=["matplotlib", "networkx", "numpy", "scipy"],
+    entry_points={"console_scripts": ['aspy=aspy.interface:main']},
+    install_requires=["networkx", "numpy", "scipy"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

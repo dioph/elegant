@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np
 from scipy.stats.mstats import gmean
 
-from aspy.methods import newton_raphson, short
+from .methods import newton_raphson, short
 
 CORR = np.exp(-.25)
 SQ2 = np.sqrt(2.)

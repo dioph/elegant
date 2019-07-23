@@ -1,7 +1,0 @@
-#!/usr/bin/env python
-
-from aspy.interface import *
-
-app = QApplication(sys.argv)
-aspy = ASPy()
-sys.exit(app.exec_())
