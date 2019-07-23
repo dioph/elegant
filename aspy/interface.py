@@ -1,13 +1,13 @@
-import shelve
+import pickle
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from aspy import PACKAGEDIR
-from aspy.core import *
-from aspy.report import create_report
-from aspy.utils import *
+from . import PACKAGEDIR
+from .core import *
+from .report import create_report
+from .utils import *
 
 
 class SchemeInputer(QGraphicsScene):
@@ -17,7 +17,7 @@ class SchemeInputer(QGraphicsScene):
         # system state variables
         self.pixmap = np.zeros((self.N, self.N), object)
         self.grid = np.zeros((self.N, self.N), object)
-        self._oneSquareSideLength = length
+        self.oneSquareSideLength = length
         self._moveHistory = np.ones((2, 2)) * -1
         self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
         self._lastRetainer, self._firstRetainer = False, True
@@ -29,14 +29,14 @@ class SchemeInputer(QGraphicsScene):
         self.selector_radius = length / 2
         self.setSceneRect(0,
                           0,
-                          self._oneSquareSideLength * self.N,
-                          self._oneSquareSideLength * self.N)
+                          self.oneSquareSideLength * self.N,
+                          self.oneSquareSideLength * self.N)
         self.quantizedInterface = self.getQuantizedInterface()
         self.showQuantizedInterface()
-        self.setSceneRect(self._oneSquareSideLength * -2,
-                          self._oneSquareSideLength * -2,
-                          self._oneSquareSideLength * (self.N + 4),
-                          self._oneSquareSideLength * (self.N + 4))
+        self.setSceneRect(self.oneSquareSideLength * -2,
+                          self.oneSquareSideLength * -2,
+                          self.oneSquareSideLength * (self.N + 4),
+                          self.oneSquareSideLength * (self.N + 4))
 
     @staticmethod
     def distance(interface_point, point):
@@ -62,8 +62,8 @@ class SchemeInputer(QGraphicsScene):
         -------
         : index codes for point, given its quantized coordinates
         """
-        i = int((central_point.y() - self._oneSquareSideLength / 2) / self._oneSquareSideLength)
-        j = int((central_point.x() - self._oneSquareSideLength / 2) / self._oneSquareSideLength)
+        i = int((central_point.y() - self.oneSquareSideLength / 2) / self.oneSquareSideLength)
+        j = int((central_point.x() - self.oneSquareSideLength / 2) / self.oneSquareSideLength)
         return i, j
 
     def mouseReleaseEvent(self, event):
@@ -109,7 +109,7 @@ class SchemeInputer(QGraphicsScene):
         brush.setColor(Qt.yellow)
         brush.setStyle(Qt.Dense7Pattern)
         x, y = coordinates
-        rect = self.addRect(x, y, self._oneSquareSideLength, self._oneSquareSideLength, pen, brush)
+        rect = self.addRect(x, y, self.oneSquareSideLength, self.oneSquareSideLength, pen, brush)
         return rect
 
     def clearSquare(self, oldQRect):
@@ -127,9 +127,9 @@ class SchemeInputer(QGraphicsScene):
         QRect: drawn bus (PyQt5 object)
         """
         pixmap = QPixmap(os.path.join(PACKAGEDIR, './data/icons/DOT.jpg'))
-        pixmap = pixmap.scaled(self._oneSquareSideLength, self._oneSquareSideLength, Qt.KeepAspectRatio)
+        pixmap = pixmap.scaled(self.oneSquareSideLength, self.oneSquareSideLength, Qt.KeepAspectRatio)
         sceneItem = self.addPixmap(pixmap)
-        pixmap_coords = coordinates[0] - self._oneSquareSideLength / 2, coordinates[1] - self._oneSquareSideLength / 2
+        pixmap_coords = coordinates[0] - self.oneSquareSideLength / 2, coordinates[1] - self.oneSquareSideLength / 2
         sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
         return sceneItem
 
@@ -158,8 +158,8 @@ class SchemeInputer(QGraphicsScene):
                         i, j = self.Point_pos(central_point)
                         self.clearSquare(self._selectorHistory[0])
                         #  up-right corner is (0, 0)
-                        self._selectorHistory[1] = central_point.x() - self._oneSquareSideLength / 2
-                        self._selectorHistory[2] = central_point.y() - self._oneSquareSideLength / 2
+                        self._selectorHistory[1] = central_point.x() - self.oneSquareSideLength / 2
+                        self._selectorHistory[2] = central_point.y() - self.oneSquareSideLength / 2
                         self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
                         self.pointerSignal.emit_sig((i, j))
                         self.methodSignal.emit_sig(4)
@@ -221,8 +221,8 @@ class SchemeInputer(QGraphicsScene):
         width, height = self.width(), self.height()
         for i in range(self.N):
             for j in range(self.N):
-                quantizedInterface[i, j] = QPoint(width / (2 * self.N) + i * width / self.N,
-                                                  height / (2 * self.N) + j * height / self.N)
+                quantizedInterface[i, j] = QPoint(int(width / (2 * self.N) + i * width / self.N),
+                                                  int(height / (2 * self.N) + j * height / self.N))
         return quantizedInterface
 
     def showQuantizedInterface(self):
@@ -249,7 +249,7 @@ class CircuitInputer(QWidget):
         self.system = PowerSystem()
         self.line_types = {'Default': TL(orig=None, dest=None)}
         self.curves = []
-        self.nmax = 1
+        self.nmax = 20
         self.op_mode = 0
 
         self.Scene = SchemeInputer()
@@ -330,9 +330,9 @@ class CircuitInputer(QWidget):
         self.GenGround.setEnabled(False)
 
         # Adding Pg, Qg to add generation FormLayout
-        self.AddGenerationFormLayout.addRow('x\'d (pu)', self.XdLineEdit)
-        self.AddGenerationFormLayout.addRow('P<sub>G</sub> (pu)', self.PgInput)
-        self.AddGenerationFormLayout.addRow('Q<sub>G</sub> (pu)', self.QgInput)
+        self.AddGenerationFormLayout.addRow('x\'d (%pu)', self.XdLineEdit)
+        self.AddGenerationFormLayout.addRow('P<sub>G</sub> (MW)', self.PgInput)
+        self.AddGenerationFormLayout.addRow('Q<sub>G</sub> (Mvar)', self.QgInput)
         self.AddGenerationFormLayout.addRow('Y', self.GenGround)
 
         # Label with 'Load'
@@ -356,8 +356,8 @@ class CircuitInputer(QWidget):
         self.LoadGround.setEnabled(False)
 
         # Adding Pl and Ql to add load FormLayout
-        self.AddLoadFormLayout.addRow('P<sub>L</sub> (pu)', self.PlInput)
-        self.AddLoadFormLayout.addRow('Q<sub>L</sub> (pu)', self.QlInput)
+        self.AddLoadFormLayout.addRow('P<sub>L</sub> (MW)', self.PlInput)
+        self.AddLoadFormLayout.addRow('Q<sub>L</sub> (Mvar)', self.QlInput)
         self.AddLoadFormLayout.addRow('Y', self.LoadGround)
 
         self.RemoveBus = QPushButton('Remove bus')
@@ -561,7 +561,7 @@ class CircuitInputer(QWidget):
 
         # Toplayout
         self.TopLayout = QHBoxLayout()
-        self.Spacer = QSpacerItem(200, 0, 0, 0)
+        self.Spacer = QSpacerItem(200, 0, QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.TopLayout.addItem(self.Spacer)
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
@@ -575,6 +575,41 @@ class CircuitInputer(QWidget):
         self.setLayoutHidden(self.InputNewLineType, True)
         self.setLayoutHidden(self.ControlPanelLayout, True)
         self.showSpacer()
+
+    def methodsTrigger(self, args):
+        """Trigger methods defined in __calls"""
+        self.__calls[args]()
+
+    def setCurrentObject(self, args):
+        """Define coordinates pointing to current selected object in interface"""
+        self._currElementCoords = args
+
+    def hideSpacer(self):
+        self.Spacer.changeSize(0, 0)
+
+    def showSpacer(self):
+        self.Spacer.changeSize(200, 0)
+
+    def setTemp(self, args):
+        """This method stores the first line in line element drawing during line inputting.
+        Its existence is justified by the first square limitation in MouseMoveEvent
+        """
+        self._temp = args
+
+    def storeOriginAddLine(self):
+        if self._startNewTL:
+            self._line_origin = self._currElementCoords
+
+    def setLayoutHidden(self, layout, visible):
+        """Hide completely any layout containing widgets or/and other layouts"""
+        witems = list(layout.itemAt(i).widget() for i in range(layout.count())
+                      if not isinstance(layout.itemAt(i), QLayout))
+        witems = list(filter(lambda x: x is not None, witems))
+        for w in witems:
+            w.setHidden(visible)
+        litems = list(layout.itemAt(i).layout() for i in range(layout.count()) if isinstance(layout.itemAt(i), QLayout))
+        for children_layout in litems:
+            self.setLayoutHidden(children_layout, visible)
 
     def updateRealOrInsertionRadio(self, op_mode):
         self.RealTimeRadioButton.setChecked(not op_mode)
@@ -598,6 +633,151 @@ class CircuitInputer(QWidget):
         self.op_mode = mode
         self.updateNmaxSlider(self.nmax, self.op_mode)
         self.updateNmaxLabel(self.nmax, self.op_mode)
+
+    def getBusFromGridPos(self, coords):
+        """Returns a Bus object that occupies grid in `coords` position"""
+        grid_bus = self.Scene.grid[coords]
+        if isinstance(grid_bus, Bus):
+            return grid_bus
+        return None
+
+    def getCurveFromGridPos(self, coords):
+        """Returns a LineSegment object that has `coords` in its coordinates"""
+        for curve in self.curves:
+            if coords in curve.coords:
+                return curve
+        return None
+
+    def checkLineAndXfmrCrossing(self):
+        """Searches for crossing between current inputting line/xfmr and existent line/xfmr"""
+        for curve in self.curves:
+            if self._currElementCoords in curve.coords and not isinstance(self.Scene.grid[self._currElementCoords],
+                                                                          Bus):
+                return True
+        return False
+
+    def add_segment(self):
+        try:
+            if self._startNewTL:
+                bus_orig = self.Scene.grid[self._line_origin]
+                new_line = TL(orig=bus_orig, dest=None)
+                new_curve = LineSegment(obj=new_line,
+                                        coords=[self._line_origin, self._currElementCoords],
+                                        dlines=[self._temp])
+                if self.checkLineAndXfmrCrossing():
+                    new_curve.remove = True
+                self.curves.append(new_curve)
+            else:
+                curr_curve = self.curves[-1]
+                if self.checkLineAndXfmrCrossing():
+                    curr_curve.remove = True
+                curr_curve.dlines.append(self._temp)
+                curr_curve.coords.append(self._currElementCoords)
+                if isinstance(self.Scene.grid[self._currElementCoords], Bus):
+                    if curr_curve.obj.dest is None:
+                        bus_dest = self.Scene.grid[self._currElementCoords]
+                        curr_curve.obj.dest = bus_dest
+            self._startNewTL = False
+            self.statusMsg.emit_sig('Adding line...')
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    def findParametersSetFromLt(self, line):
+        """Return the name of parameters set of a existent line or
+        return None if the line has been set by impedance and admittance
+        """
+        try:
+            for line_name, line_model in self.line_types.items():
+                if line_model.param == line.param:
+                    return line_name
+            return "No model"
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    def findParametersSetFromComboBox(self):
+        """Find parameters set based on current selected line or xfmr inspector combo box
+        If the line was set with impedance/admittance, return 'None'
+        """
+        set_name = self.chooseLineModel.currentText()
+        for line_name, line_model in self.line_types.items():
+            if set_name == line_name:
+                return line_model
+        return None
+
+    def addNewLineType(self):
+        """Add a new type of line, if given parameters has passed in all the tests
+        Called by: SubmitNewLineTypePushButton.pressed"""
+        try:
+            name = self.ModelName.text()
+            float_or_nan = lambda s: np.nan if s == '' else float(s)
+            new_param = dict(
+                r=float_or_nan(self.rLineEdit.text()) / 1e3,
+                d12=float_or_nan(self.d12LineEdit.text()),
+                d23=float_or_nan(self.d23LineEdit.text()),
+                d31=float_or_nan(self.d31LineEdit.text()),
+                d=float_or_nan(self.dLineEdit.text()),
+                rho=float_or_nan(self.RhoLineEdit.text()) / 1e9,
+                m=float_or_nan(self.mLineEdit.text()),
+                imax=float_or_nan(self.imaxLineEdit.text())
+            )
+            line = TL(orig=None, dest=None)
+            line.__dict__.update(new_param)
+            if name in self.line_types.keys():
+                self.statusMsg.emit_sig('Duplicated name. Insert another valid name')
+                return
+            if any(np.isnan(list(new_param.values()))):
+                self.statusMsg.emit_sig('Undefined parameter. Fill all parameters')
+                return
+            if any(map(lambda x: line.param == x.param, self.line_types.values())):
+                self.statusMsg.emit_sig('A similar model was identified. The model has not been stored')
+                return
+            self.line_types[name] = line
+            self.statusMsg.emit_sig('The model has been stored')
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    @staticmethod
+    def updateLineWithParameters(line, param_values, ell, vbase):
+        """Update a line with parameters
+
+        Parameters
+        ----------
+        line: TL object to be updated
+        param_values: TL object with data to update line
+        ell: line length (m)
+        vbase: voltage base (V)
+        """
+        line.Z, line.Y = None, None
+        line.__dict__.update(param_values.param)
+        line.vbase = vbase
+        line.ell = ell
+
+    @staticmethod
+    def updateLineWithImpedances(line, Z, Y, ell, vbase):
+        """Update a line with impedance/admittance
+
+        Parameters
+        ----------
+        line: TL object to be updated
+        Z: impedance (ohm)
+        Y: admittance (mho)
+        ell: line length (m)
+        vbase: voltage base (V)
+        """
+        zbase = vbase ** 2 / 1e8
+        line.Z, line.Y = Z * zbase, Y / zbase
+        line.ell = ell
+        line.vbase = vbase
+        line.m = 0
+
+    def updateLineModelOptions(self):
+        """Add the name of a new parameter set to QComboBox choose model,
+           if the Combo has not the model yet
+        -----------------------------------------------------------------
+        """
+        for line_name in self.line_types.keys():
+            if self.chooseLineModel.isVisible() and self.chooseLineModel.findText(line_name) < 0:
+                self.chooseLineModel.addItem(line_name)
 
     def defineLineOrXfmrVisibility(self):
         """Show line or xfmr options in adding line/xfmr section"""
@@ -665,44 +845,159 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
-    def findParametersSetFromLt(self, line):
-        """Return the name of parameters set of a existent line or
-        return None if the line has been set by impedance and admittance
+    def updateBusInspector(self, bus):
+        """Updates the bus inspector with bus data if bus exists or
+        shows that there's no bus (only after bus exclusion)
+        Called by: LayoutManager, remove_gen, remove_load
+
+        Parameters
+        ----------
+        bus: Bus object whose data will be displayed
+        """
+        to_be_disabled = [self.PgInput,
+                          self.PlInput,
+                          self.QlInput,
+                          self.BusV_Value,
+                          self.XdLineEdit,
+                          self.LoadGround,
+                          self.GenGround]
+        for item in to_be_disabled:
+            item.setDisabled(True)
+        if bus:
+            if bus.bus_id == 0:
+                self.BusTitle.setText('Slack')
+            else:
+                self.BusTitle.setText('Bus {}'.format(bus.bus_id))
+            if bus.pl > 0 or bus.ql > 0:
+                self.AddLoadButton.setText('-')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.remove_load)
+            else:
+                self.AddLoadButton.setText('+')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.add_load)
+            if (bus.pg > 0 or bus.qg > 0) and bus.bus_id > 0:
+                self.AddGenerationButton.setText('-')
+                self.AddGenerationButton.disconnect()
+                self.AddGenerationButton.pressed.connect(self.remove_gen)
+            elif bus.bus_id == 0:
+                self.AddGenerationButton.setText('EDIT')
+                self.AddGenerationButton.disconnect()
+                self.AddGenerationButton.pressed.connect(self.add_gen)
+            else:
+                self.AddGenerationButton.setText('+')
+                self.AddGenerationButton.disconnect()
+                self.AddGenerationButton.pressed.connect(self.add_gen)
+            self.BusV_Value.setText('{:.3g}'.format(bus.v))
+            self.BusAngle_Value.setText('{:.3g}'.format(bus.delta * 180 / np.pi))
+            self.QgInput.setText('{:.4g}'.format(bus.qg * 100))
+            self.PgInput.setText('{:.4g}'.format(bus.pg * 100))
+            self.QlInput.setText('{:.4g}'.format(bus.ql * 100))
+            self.PlInput.setText('{:.4g}'.format(bus.pl * 100))
+            self.XdLineEdit.setText('{:.3g}'.format(bus.xd))
+            self.GenGround.setChecked(bus.gen_ground)
+            self.LoadGround.setChecked(bus.load_ground)
+        if bus.xd == np.inf:
+            self.XdLineEdit.setText('\u221E')
+        else:
+            self.XdLineEdit.setText('{:.3g}'.format(bus.xd * 100))
+
+    def LayoutManager(self):
+        """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
+        Called two times ever because self.doAfterMouseRelease is triggered whenever the mouse is released
+        ------------------------------------------------------------------------------------------------------
+        Called by: doAfterMouseRelease
+        ------------------------------------------------------------------------------------------------------
         """
         try:
-            for line_name, line_model in self.line_types.items():
-                if line_model.param == line.param:
-                    return line_name
-            return "No model"
+            # Even if there are two elements in a same square, only one will be identified
+            # Bus has high priority
+            # After, lines and xfmr have equal priority
+            bus = self.getBusFromGridPos(self._currElementCoords)
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            if bus is not None:
+                # Show bus inspect
+                self.hideSpacer()
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.setLayoutHidden(self.LineOrXfmrLayout, True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
+                self.setLayoutHidden(self.BusLayout, False)
+                self.updateBusInspector(bus)
+            elif curve is not None:
+                if isinstance(curve.obj, TL):
+                    # Show line inspect
+                    self.hideSpacer()
+                    self.setLayoutHidden(self.InputNewLineType, True)
+                    self.setLayoutHidden(self.BusLayout, True)
+                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                    self.chooseLine.setChecked(True)
+                    self.setLayoutHidden(self.chosenXfmrFormLayout, True)
+                    self.setLayoutHidden(self.chosenLineFormLayout, False)
+                    self.xfmrSubmitPushButton.setHidden(True)
+                    self.removeXfmrPushButton.setHidden(True)
+                    self.setLayoutHidden(self.ControlPanelLayout, True)
+                    self.removeTLPushButton.setHidden(False)
+                    self.updateLineModelOptions()
+                    self.updateLineInspector()
+                elif isinstance(curve.obj, Transformer):
+                    # Show xfmr inspect
+                    self.setLayoutHidden(self.InputNewLineType, True)
+                    self.hideSpacer()
+                    self.setLayoutHidden(self.BusLayout, True)
+                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                    self.chooseXfmr.setChecked(True)
+                    self.setLayoutHidden(self.chosenXfmrFormLayout, False)
+                    self.setLayoutHidden(self.chosenLineFormLayout, True)
+                    self.xfmrSubmitPushButton.setHidden(False)
+                    self.removeXfmrPushButton.setHidden(False)
+                    self.removeTLPushButton.setHidden(True)
+                    self.tlSubmitByModelPushButton.setHidden(True)
+                    self.tlSubmitByImpedancePushButton.setHidden(True)
+                    self.setLayoutHidden(self.ControlPanelLayout, True)
+                    self.updateXfmrInspector()
+            else:
+                # No element case
+                self.setLayoutHidden(self.BusLayout, True)
+                self.setLayoutHidden(self.LineOrXfmrLayout, True)
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
+                self.showSpacer()
         except Exception:
             logging.error(traceback.format_exc())
 
-    def findParametersSetFromComboBox(self):
-        """Find parameters set based on current selected line or xfmr inspector combo box
-        If the line was set with impedance/admittance, return 'None'
-        """
-        set_name = self.chooseLineModel.currentText()
-        for line_name, line_model in self.line_types.items():
-            if set_name == line_name:
-                return line_model
-        return None
+    def add_line(self, curve):
+        self.curves.append(curve)
+        self.system.add_line(curve.obj, tuple(curve.coords))
 
-    def updateLineModelOptions(self):
-        """Add the name of a new parameter set to QComboBox choose model,
-           if the Combo has not the model yet
-        -----------------------------------------------------------------
+    def add_xfmr(self, curve):
+        self.curves.append(curve)
+        self.system.add_xfmr(curve.obj, tuple(curve.coords))
+
+    def add_bus(self):
         """
-        for line_name in self.line_types.keys():
-            if self.chooseLineModel.isVisible() and self.chooseLineModel.findText(line_name) < 0:
-                self.chooseLineModel.addItem(line_name)
+        Called by: Scene.mouseDoubleClickEvent
+        """
+        try:
+            coords = self._currElementCoords
+            curve = self.getCurveFromGridPos(self._currElementCoords)
+            if not isinstance(self.Scene.grid[coords], Bus) and not curve:
+                bus = self.system.add_bus()
+                self.Scene.grid[coords] = bus
+            else:
+                self.Scene.removeItem(self.Scene.pixmap[coords])
+                self.statusMsg.emit_sig('There\'s an element in this position!')
+        except Exception:
+            logging.error(traceback.format_exc())
 
     def lineProcessing(self, mode):
         """
         Updates the line parameters based on Y and Z or parameters from LINE_TYPES,
         or converts a xfmr into a line and update its parameters following
-        Calls
-        -----
-        line and xfmr QPushButtons submit by model, submit by parameters
+        Called by: tlSubmitByImpedancePushButton.pressed, tlSubmitByModelPushButton.pressed
+
+        Parameters
+        ----------
+        mode: either 'parameters' or 'impedance'
         """
         try:
             curve = self.getCurveFromGridPos(self._currElementCoords)
@@ -773,46 +1068,11 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
-    @staticmethod
-    def updateLineWithParameters(line, param_values, ell, vbase):
-        """Update a line with parameters
-        Parameters
-        ----------
-        line: line object to be updated
-        param_values: key-value pairs with data do update line
-        ell: line length in (m)
-        vbase: voltage basis to p.u. processes (V)
-        """
-        line.Z, line.Y = None, None
-        line.__dict__.update(param_values.param)
-        line.vbase = vbase
-        line.ell = ell
-
-    @staticmethod
-    def updateLineWithImpedances(line, Z, Y, ell, vbase):
-        """Update a line with impedance/admittance
-        Parameters
-        ----------
-        line: line object to be updated
-        Z: impedance (ohm)
-        Y: admittance (mho)
-        ell: line length (m)
-        vbase: voltage basis to p.u. processes (V)
-        """
-        zbase = vbase ** 2 / 1e8
-        line.Z, line.Y = Z * zbase, Y / zbase
-        line.ell = ell
-        line.vbase = vbase
-        line.m = 0
-
     def xfmrProcessing(self):
         """
         Updates a xfmr with the given parameters if the current element is a xfmr
         or converts a line into a xfmr with the inputted parameters
-
-        Calls
-        -----
-        QPushButton Submit xfmr
+        Called by: xfmrSubmitPushButton.pressed
         """
         xfmr_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
         try:
@@ -855,106 +1115,6 @@ class CircuitInputer(QWidget):
         except Exception:
             logging.error(traceback.format_exc())
 
-    def addNewLineType(self):
-        """Add a new type of line, if given parameters has passed in all the tests"""
-        try:
-            name = self.ModelName.text()
-            float_or_nan = lambda s: np.nan if s == '' else float(s)
-            new_param = dict(
-                r=float_or_nan(self.rLineEdit.text()) / 1e3,
-                d12=float_or_nan(self.d12LineEdit.text()),
-                d23=float_or_nan(self.d23LineEdit.text()),
-                d31=float_or_nan(self.d31LineEdit.text()),
-                d=float_or_nan(self.dLineEdit.text()),
-                rho=float_or_nan(self.RhoLineEdit.text()) / 1e9,
-                m=float_or_nan(self.mLineEdit.text()),
-                imax=float_or_nan(self.imaxLineEdit.text())
-            )
-            line = TL(orig=None, dest=None)
-            line.__dict__.update(new_param)
-            if name in self.line_types.keys():
-                self.statusMsg.emit_sig('Duplicated name. Insert another valid name')
-                return
-            if any(np.isnan(list(new_param.values()))):
-                self.statusMsg.emit_sig('Undefined parameter. Fill all parameters')
-                return
-            if any(map(lambda x: line.param == x.param, self.line_types.values())):
-                self.statusMsg.emit_sig('A similar model was identified. The model has not been stored')
-                return
-            self.line_types[name] = line
-            self.statusMsg.emit_sig('The model has been stored')
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def hideSpacer(self):
-        self.Spacer.changeSize(0, 0)
-
-    def showSpacer(self):
-        self.Spacer.changeSize(200, 0)
-
-    def setLayoutHidden(self, layout, visible):
-        """Hide completely any layout containing widgets or/and other layouts"""
-        witems = list(layout.itemAt(i).widget() for i in range(layout.count())
-                      if not isinstance(layout.itemAt(i), QLayout))
-        witems = list(filter(lambda x: x is not None, witems))
-        for w in witems:
-            w.setHidden(visible)
-        litems = list(layout.itemAt(i).layout() for i in range(layout.count()) if isinstance(layout.itemAt(i), QLayout))
-        for children_layout in litems:
-            self.setLayoutHidden(children_layout, visible)
-
-    def setTemp(self, args):
-        """This method stores the first line in line element drawing during line inputting.
-        Its existence is justified by the first square limitation in MouseMoveEvent
-        """
-        self._temp = args
-
-    def storeOriginAddLine(self):
-        if self._startNewTL:
-            self._line_origin = self._currElementCoords
-
-    def add_segment(self):
-        try:
-            if self._startNewTL:
-                bus_orig = self.Scene.grid[self._line_origin]
-                new_line = TL(orig=bus_orig, dest=None)
-                new_curve = LineSegment(obj=new_line,
-                                        coords=[self._line_origin, self._currElementCoords],
-                                        dlines=[self._temp])
-                if self.checkLineAndXfmrCrossing():
-                    new_curve.remove = True
-                self.curves.append(new_curve)
-            else:
-                curr_curve = self.curves[-1]
-                if self.checkLineAndXfmrCrossing():
-                    curr_curve.remove = True
-                curr_curve.dlines.append(self._temp)
-                curr_curve.coords.append(self._currElementCoords)
-                if isinstance(self.Scene.grid[self._currElementCoords], Bus):
-                    if curr_curve.obj.dest is None:
-                        bus_dest = self.Scene.grid[self._currElementCoords]
-                        curr_curve.obj.dest = bus_dest
-            self._startNewTL = False
-            self.statusMsg.emit_sig('Adding line...')
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def add_line(self, curve):
-        self.curves.append(curve)
-        self.system.add_line(curve.obj, tuple(curve.coords))
-
-    def add_xfmr(self, curve):
-        self.curves.append(curve)
-        self.system.add_xfmr(curve.obj, tuple(curve.coords))
-
-    def checkLineAndXfmrCrossing(self):
-        """Searches for crossing between current inputting line/xfmr and existent line/xfmr"""
-        for curve in self.curves:
-            if self._currElementCoords in curve.coords and not isinstance(self.Scene.grid[self._currElementCoords],
-                                                                          Bus):
-                return True
-        return False
-
     def remove_curve(self, curve=None):
         if curve is None:
             curve = self.getCurveFromGridPos(self._currElementCoords)
@@ -989,6 +1149,154 @@ class CircuitInputer(QWidget):
         self.system.remove_line(curve.obj, tuple(curve.coords))
         self.statusMsg.emit_sig('Removed line')
 
+    def removeElementsLinked2Bus(self, bus):
+        """
+        Called by: remove_bus
+
+        Parameters
+        ----------
+        bus: Bus object
+        """
+        linked = []
+        for curve in self.curves:
+            if bus.bus_id in (curve.obj.orig.bus_id, curve.obj.dest.bus_id):
+                linked.append(curve)
+        for curve in linked:
+            self.remove_curve(curve)
+
+    def remove_bus(self):
+        """
+        Called by: RemoveBus.pressed
+        """
+        try:
+            coords = self._currElementCoords
+            bus = self.getBusFromGridPos(coords)
+            if bus:
+                self.removeElementsLinked2Bus(bus)
+                self.system.remove_bus(bus.bus_id)
+                self.Scene.removeItem(self.Scene.pixmap[coords])
+                self.Scene.pixmap[coords] = 0
+                self.Scene.grid[coords] = 0
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    def add_gen(self):
+        """Adds generation to the bus, make some QLineEdits activated
+        Called by: AddGenerationButton.pressed (__init__)
+        """
+        try:
+            bus = self.getBusFromGridPos(self._currElementCoords)
+            self.BusV_Value.setEnabled(True)
+            self.XdLineEdit.setEnabled(True)
+            if bus.bus_id > 0:
+                self.PgInput.setEnabled(True)
+            self.GenGround.setEnabled(True)
+            self.AddGenerationButton.setText('OK')
+            self.statusMsg.emit_sig('Input generation data...')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.submit_gen)
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    def submit_gen(self):
+        """Updates bus parameters with the user input in bus inspector
+        Called by: AddedGenerationButton.pressed (add_gen)
+        """
+        coords = self._currElementCoords
+        if isinstance(self.Scene.grid[coords], Bus):
+            bus = self.getBusFromGridPos(coords)
+            bus.v = float(self.BusV_Value.text())
+            bus.pg = float(self.PgInput.text()) / 100
+            bus.gen_ground = self.GenGround.isChecked()
+            if self.XdLineEdit.text() == '\u221E':
+                bus.xd = np.inf
+            else:
+                bus.xd = float(self.XdLineEdit.text()) / 100
+            self.BusV_Value.setEnabled(False)
+            self.PgInput.setEnabled(False)
+            self.XdLineEdit.setEnabled(False)
+            self.GenGround.setEnabled(False)
+            self.AddGenerationButton.disconnect()
+            if bus.bus_id > 0:
+                self.AddGenerationButton.setText('-')
+                self.AddGenerationButton.pressed.connect(self.remove_gen)
+            else:
+                self.AddGenerationButton.setText('EDIT')
+                self.AddGenerationButton.pressed.connect(self.add_gen)
+            self.statusMsg.emit_sig('Added generation')
+
+    def remove_gen(self):
+        """
+        Called by: AddGenerationButton.pressed (submit_gen)
+        """
+        coords = self._currElementCoords
+        if isinstance(self.Scene.grid[coords], Bus):
+            bus = self.getBusFromGridPos(coords)
+            bus.v = 1
+            bus.pg = 0
+            bus.xd = np.inf
+            bus.gen_ground = False
+            self.updateBusInspector(bus)
+            self.AddGenerationButton.setText('+')
+            self.AddGenerationButton.disconnect()
+            self.AddGenerationButton.pressed.connect(self.add_gen)
+            self.statusMsg.emit_sig('Removed generation')
+
+    def add_load(self):
+        """
+        Called by: AddLoadButton.pressed (__init__)
+        """
+        try:
+            self.PlInput.setEnabled(True)
+            self.QlInput.setEnabled(True)
+            self.LoadGround.setEnabled(True)
+            self.AddLoadButton.setText('OK')
+            self.statusMsg.emit_sig('Input load data...')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.submit_load)
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    def submit_load(self):
+        """
+        Called by: AddLoadButton.pressed (add_load)
+        """
+        try:
+            coords = self._currElementCoords
+            if isinstance(self.Scene.grid[coords], Bus):
+                bus = self.getBusFromGridPos(coords)
+                bus.pl = float(self.PlInput.text()) / 100
+                bus.ql = float(self.QlInput.text()) / 100
+                bus.load_ground = self.LoadGround.isChecked()
+                self.PlInput.setEnabled(False)
+                self.QlInput.setEnabled(False)
+                self.LoadGround.setEnabled(False)
+                self.AddLoadButton.setText('-')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.remove_load)
+                self.statusMsg.emit_sig('Added load')
+        except Exception:
+            logging.error(traceback.format_exc())
+
+    def remove_load(self):
+        """
+        Called by: AddLoadButton.pressed (submit_load)
+        """
+        try:
+            coords = self._currElementCoords
+            if isinstance(self.Scene.grid[coords], Bus):
+                bus = self.getBusFromGridPos(coords)
+                bus.pl = 0
+                bus.ql = 0
+                bus.load_ground = True
+                self.updateBusInspector(bus)
+                self.AddLoadButton.setText('+')
+                self.AddLoadButton.disconnect()
+                self.AddLoadButton.pressed.connect(self.add_load)
+                self.statusMsg.emit_sig('Removed load')
+        except Exception:
+            logging.error(traceback.format_exc())
+
     def doAfterMouseRelease(self):
         """
         If line's bool remove is True, the line will be removed.
@@ -1012,307 +1320,6 @@ class CircuitInputer(QWidget):
         if not self.op_mode:
             self.system.update(Nmax=self.nmax)
         self.LayoutManager()
-
-    def methodsTrigger(self, args):
-        """Trigger methods defined in __calls"""
-        self.__calls[args]()
-
-    def setCurrentObject(self, args):
-        """Define coordinates pointing to current selected object in interface"""
-        self._currElementCoords = args
-
-    def updateBusInspector(self, bus):
-        """Updates the bus inspector with bus data if bus exists or
-        show that there's no bus (only after bus exclusion)
-
-        Parameters
-        ----------
-        bus: Bus object whose data will be displayed
-
-        Calls
-        -----
-        LayoutManager, remove_gen, remove_load
-        """
-        to_be_disabled = [self.PgInput,
-                          self.PlInput,
-                          self.QlInput,
-                          self.BusV_Value,
-                          self.XdLineEdit,
-                          self.LoadGround,
-                          self.GenGround]
-        for item in to_be_disabled:
-            item.setDisabled(True)
-        if bus:
-            if bus.bus_id == 0:
-                self.BusTitle.setText('Slack')
-            else:
-                self.BusTitle.setText('Bus {}'.format(bus.bus_id))
-            if bus.pl > 0 or bus.ql > 0:
-                self.AddLoadButton.setText('-')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.remove_load)
-            else:
-                self.AddLoadButton.setText('+')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.add_load)
-            if (bus.pg > 0 or bus.qg > 0) and bus.bus_id > 0:
-                self.AddGenerationButton.setText('-')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.remove_gen)
-            elif bus.bus_id == 0:
-                self.AddGenerationButton.setText('EDIT')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.add_gen)
-            else:
-                self.AddGenerationButton.setText('+')
-                self.AddGenerationButton.disconnect()
-                self.AddGenerationButton.pressed.connect(self.add_gen)
-            self.BusV_Value.setText('{:.3g}'.format(bus.v))
-            self.BusAngle_Value.setText('{:.3g}'.format(bus.delta * 180 / np.pi))
-            self.QgInput.setText('{:.3g}'.format(bus.qg))
-            self.PgInput.setText('{:.3g}'.format(bus.pg))
-            self.QlInput.setText('{:.3g}'.format(bus.ql))
-            self.PlInput.setText('{:.3g}'.format(bus.pl))
-            self.XdLineEdit.setText('{:.3g}'.format(bus.xd))
-            self.GenGround.setChecked(bus.gen_ground)
-            self.LoadGround.setChecked(bus.load_ground)
-        if bus.xd == np.inf:
-            self.XdLineEdit.setText('\u221E')
-        else:
-            self.XdLineEdit.setText('{:.3g}'.format(bus.xd))
-
-    def LayoutManager(self):
-        """Hide or show specific layouts, based on the current element or passed parameters by trigger methods.
-        Called two times ever because self.doAfterMouseRelease is triggered whenever the mouse is released
-        ------------------------------------------------------------------------------------------------------
-        Called by: doAfterMouseRelease
-        ------------------------------------------------------------------------------------------------------
-        """
-        try:
-            # Even if there are two elements in a same square, only one will be identified
-            # Bus has high priority
-            # After, lines and xfmr have equal priority
-            bus = self.getBusFromGridPos(self._currElementCoords)
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if bus is not None:
-                # Show bus inspect
-                self.hideSpacer()
-                self.setLayoutHidden(self.InputNewLineType, True)
-                self.setLayoutHidden(self.LineOrXfmrLayout, True)
-                self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.setLayoutHidden(self.BusLayout, False)
-                self.updateBusInspector(bus)
-            elif curve is not None:
-                if isinstance(curve.obj, TL):
-                    # Show line inspect
-                    self.hideSpacer()
-                    self.setLayoutHidden(self.InputNewLineType, True)
-                    self.setLayoutHidden(self.BusLayout, True)
-                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
-                    self.chooseLine.setChecked(True)
-                    self.setLayoutHidden(self.chosenXfmrFormLayout, True)
-                    self.setLayoutHidden(self.chosenLineFormLayout, False)
-                    self.xfmrSubmitPushButton.setHidden(True)
-                    self.removeXfmrPushButton.setHidden(True)
-                    self.setLayoutHidden(self.ControlPanelLayout, True)
-                    self.removeTLPushButton.setHidden(False)
-                    self.updateLineModelOptions()
-                    self.updateLineInspector()
-                elif isinstance(curve.obj, Transformer):
-                    # Show xfmr inspect
-                    self.setLayoutHidden(self.InputNewLineType, True)
-                    self.hideSpacer()
-                    self.setLayoutHidden(self.BusLayout, True)
-                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
-                    self.chooseXfmr.setChecked(True)
-                    self.setLayoutHidden(self.chosenXfmrFormLayout, False)
-                    self.setLayoutHidden(self.chosenLineFormLayout, True)
-                    self.xfmrSubmitPushButton.setHidden(False)
-                    self.removeXfmrPushButton.setHidden(False)
-                    self.removeTLPushButton.setHidden(True)
-                    self.tlSubmitByModelPushButton.setHidden(True)
-                    self.tlSubmitByImpedancePushButton.setHidden(True)
-                    self.setLayoutHidden(self.ControlPanelLayout, True)
-                    self.updateXfmrInspector()
-            else:
-                # No element case
-                self.setLayoutHidden(self.BusLayout, True)
-                self.setLayoutHidden(self.LineOrXfmrLayout, True)
-                self.setLayoutHidden(self.InputNewLineType, True)
-                self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.showSpacer()
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def add_bus(self):
-        try:
-            coords = self._currElementCoords
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if not isinstance(self.Scene.grid[coords], Bus) and not curve:
-                bus = self.system.add_bus()
-                self.Scene.grid[coords] = bus
-            else:
-                self.Scene.removeItem(self.Scene.pixmap[coords])
-                self.statusMsg.emit_sig('There\'s an element in this position!')
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def remove_bus(self):
-        try:
-            coords = self._currElementCoords
-            bus = self.getBusFromGridPos(coords)
-            if bus:
-                self.removeElementsLinked2Bus(bus)
-                self.system.remove_bus(bus.bus_id)
-                self.Scene.removeItem(self.Scene.pixmap[coords])
-                self.Scene.pixmap[coords] = 0
-                self.Scene.grid[coords] = 0
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def getBusFromGridPos(self, coords):
-        """Return a Bus object that occupies grid in `coords` position"""
-        grid_bus = self.Scene.grid[coords]
-        if isinstance(grid_bus, Bus):
-            return grid_bus
-        return None
-
-    def getCurveFromGridPos(self, coords):
-        """Return a LineSegment object that has `coords` in its coordinates"""
-        for curve in self.curves:
-            if coords in curve.coords:
-                return curve
-        return None
-
-    def removeElementsLinked2Bus(self, bus):
-        linked = []
-        for curve in self.curves:
-            if bus.bus_id in (curve.obj.orig.bus_id, curve.obj.dest.bus_id):
-                linked.append(curve)
-        for curve in linked:
-            self.remove_curve(curve)
-
-    def add_gen(self):
-        """
-        Adds generation to the bus, make some QLineEdits activated
-
-        Calls
-        -----
-        QPushButton Add generation (__init__)
-        """
-        try:
-            bus = self.getBusFromGridPos(self._currElementCoords)
-            self.BusV_Value.setEnabled(True)
-            self.XdLineEdit.setEnabled(True)
-            if bus.bus_id > 0:
-                self.PgInput.setEnabled(True)
-            self.GenGround.setEnabled(True)
-            self.AddGenerationButton.setText('OK')
-            self.statusMsg.emit_sig('Input generation data...')
-            self.AddGenerationButton.disconnect()
-            self.AddGenerationButton.pressed.connect(self.submit_gen)
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def submit_gen(self):
-        """Updates bus parameters with the user input in bus inspector
-
-        Calls
-        -----
-        add_gen (button rebind)
-        """
-        coords = self._currElementCoords
-        if isinstance(self.Scene.grid[coords], Bus):
-            bus = self.getBusFromGridPos(coords)
-            bus.v = float(self.BusV_Value.text())
-            bus.pg = float(self.PgInput.text())
-            bus.gen_ground = self.GenGround.isChecked()
-            if self.XdLineEdit.text() == '\u221E':
-                bus.xd = np.inf
-            else:
-                bus.xd = float(self.XdLineEdit.text())
-            self.BusV_Value.setEnabled(False)
-            self.PgInput.setEnabled(False)
-            self.XdLineEdit.setEnabled(False)
-            self.GenGround.setEnabled(False)
-            self.AddGenerationButton.disconnect()
-            if bus.bus_id > 0:
-                self.AddGenerationButton.setText('-')
-                self.AddGenerationButton.pressed.connect(self.remove_gen)
-            else:
-                self.AddGenerationButton.setText('EDIT')
-                self.AddGenerationButton.pressed.connect(self.add_gen)
-            self.statusMsg.emit_sig('Added generation')
-
-    def remove_gen(self):
-        coords = self._currElementCoords
-        if isinstance(self.Scene.grid[coords], Bus):
-            bus = self.getBusFromGridPos(coords)
-            bus.v = 1
-            bus.pg = 0
-            bus.xd = np.inf
-            bus.gen_ground = False
-            self.updateBusInspector(bus)
-            self.AddGenerationButton.setText('+')
-            self.AddGenerationButton.disconnect()
-            self.AddGenerationButton.pressed.connect(self.add_gen)
-            self.statusMsg.emit_sig('Removed generation')
-
-    def add_load(self):
-        """
-        Calls
-        -----
-        QPushButton Add load (__init__)
-        """
-        try:
-            self.PlInput.setEnabled(True)
-            self.QlInput.setEnabled(True)
-            self.LoadGround.setEnabled(True)
-            self.AddLoadButton.setText('OK')
-            self.statusMsg.emit_sig('Input load data...')
-            self.AddLoadButton.disconnect()
-            self.AddLoadButton.pressed.connect(self.submit_load)
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def submit_load(self):
-        """
-        Calls
-        -----
-        add_load (button rebind)
-        """
-        try:
-            coords = self._currElementCoords
-            if isinstance(self.Scene.grid[coords], Bus):
-                bus = self.getBusFromGridPos(coords)
-                bus.pl = float(self.PlInput.text())
-                bus.ql = float(self.QlInput.text())
-                bus.load_ground = self.LoadGround.isChecked()
-                self.PlInput.setEnabled(False)
-                self.QlInput.setEnabled(False)
-                self.LoadGround.setEnabled(False)
-                self.AddLoadButton.setText('-')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.remove_load)
-                self.statusMsg.emit_sig('Added load')
-        except Exception:
-            logging.error(traceback.format_exc())
-
-    def remove_load(self):
-        try:
-            coords = self._currElementCoords
-            if isinstance(self.Scene.grid[coords], Bus):
-                bus = self.getBusFromGridPos(coords)
-                bus.pl = 0
-                bus.ql = 0
-                bus.load_ground = True
-                self.updateBusInspector(bus)
-                self.AddLoadButton.setText('+')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.add_load)
-                self.statusMsg.emit_sig('Removed load')
-        except Exception:
-            logging.error(traceback.format_exc())
 
 
 class ASPy(QMainWindow):
@@ -1398,9 +1405,9 @@ class ASPy(QMainWindow):
                                                   filter="All Files (*)",
                                                   options=options)
         if filename:
-            with shelve.open(filename) as db:
-                self.storeData(db)
-                db.close()
+            with open(filename, 'bw') as file:
+                self.storeData(file)
+                file.close()
 
     def loadSession(self):
         self.startNewSession()
@@ -1413,9 +1420,9 @@ class ASPy(QMainWindow):
                                                   filter="All Files (*)",
                                                   options=options)
         if filename:
-            with shelve.open(filename) as db:
-                self.createLocalData(db)
-                db.close()
+            with open(filename, 'br') as file:
+                self.createLocalData(file)
+                file.close()
             self.createSchematic(self.circuit.Scene)
 
     def report(self):
@@ -1462,26 +1469,32 @@ class ASPy(QMainWindow):
         self.circuit.Scene.grid = np.zeros((N, N), object)
         self.circuit.Scene.pixmap = np.zeros((N, N), object)
 
-    def createLocalData(self, db):
+    def createLocalData(self, file):
+        db = pickle.load(file)
         self.circuit.system = db['SYSTEM']
         self.circuit.curves = db['CURVES']
         self.circuit.line_types = db['LINE_TYPES']
         self.circuit.Scene.grid = db['GRID']
+        for bus in self.circuit.system.buses:
+            assert bus in self.circuit.Scene.grid
+        for curve in self.circuit.curves:
+            assert curve.obj in self.circuit.system.lines or curve.obj in self.circuit.system.xfmrs
 
-    def storeData(self, db):
+    def storeData(self, file):
         filtered_curves = []
         for curve in self.circuit.curves:
             filtered_curves.append(LineSegment(obj=curve.obj,
                                                coords=curve.coords,
                                                dlines=[]))
-        db['SYSTEM'] = self.circuit.system
-        db['CURVES'] = filtered_curves
-        db['LINE_TYPES'] = self.circuit.line_types
-        db['GRID'] = self.circuit.Scene.grid
+        db = {'SYSTEM': self.circuit.system,
+              'CURVES': filtered_curves,
+              'LINE_TYPES': self.circuit.line_types,
+              'GRID': self.circuit.Scene.grid}
+        pickle.dump(db, file)
         return db
 
     def createSchematic(self, scene):
-        squarel = scene._oneSquareSideLength
+        squarel = scene.oneSquareSideLength
         for i in range(scene.N):
             for j in range(scene.N):
                 if isinstance(scene.grid[i, j], Bus):
@@ -1498,15 +1511,7 @@ class ASPy(QMainWindow):
                 curve.dlines.append(dline)
 
 
-def interface_coordpairs(coords, squarel):
-    for k in range(len(coords) - 1):
-        yield (np.array([[squarel / 2 + squarel * coords[k][1],
-                          squarel / 2 + squarel * coords[k][0]],
-                         [squarel / 2 + squarel * coords[k + 1][1],
-                          squarel / 2 + squarel * coords[k + 1][0]]]))
-
-
-if __name__ == '__main__':
+def main():
     app = QApplication(sys.argv)
-    aspy = ASPy()
+    ASPy()
     sys.exit(app.exec_())

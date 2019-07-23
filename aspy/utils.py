@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import traceback
+import numpy as np
 
 from PyQt5.QtCore import QObject, pyqtSignal
 
@@ -36,6 +37,14 @@ def getSessionsDir():
     if not os.path.exists(sessions_dir):
         os.mkdir(sessions_dir)
     return sessions_dir
+
+
+def interface_coordpairs(coords, squarel):
+    for k in range(len(coords) - 1):
+        yield (np.array([[squarel / 2 + squarel * coords[k][1],
+                          squarel / 2 + squarel * coords[k][0]],
+                         [squarel / 2 + squarel * coords[k + 1][1],
+                          squarel / 2 + squarel * coords[k + 1][0]]]))
 
 
 def debug(f):

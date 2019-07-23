@@ -1,7 +1,8 @@
 from aspy.interface import *
 from aspy.report import *
 
-with shelve.open(os.path.join(PACKAGEDIR, './data/testdb')) as db:
+with open(os.path.join(PACKAGEDIR, './data/testdb'), 'br') as file:
+    db = pickle.load(file)
     system = db['SYSTEM']
     curves = db['CURVES']
     grid = db['GRID']
