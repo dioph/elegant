@@ -1,4 +1,5 @@
 import pickle
+from collections import namedtuple
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -9,24 +10,83 @@ from .core import *
 from .report import create_report
 from .utils import *
 
+block = namedtuple('block', ('start', 'end'))
+
+
+class Block:
+    def __init__(self):
+        self.start = False
+        self.end = True
+
+
+class MoveStory:
+    def __init__(self, current=None, last=None):
+        self.current = current
+        self.last = last
+
+    def __gt__(self, other):
+        if self.is_current_empty or self.is_last_empty:
+            return False
+        return np.all(self.current) > other and np.all(self.last) > other
+
+    @property
+    def is_current_empty(self):
+        return self.current is None
+
+    @property
+    def is_last_empty(self):
+        return self.last is None
+
+    @property
+    def is_empty(self):
+        return (self.last, self.current) == (None, None)
+
+    @property
+    def is_full(self):
+        return (self.last, self.current) != (None, None)
+
+    @property
+    def allows_drawing(self):
+        return self > 0 and self.current != self.last
+
+    def reset(self):
+        self.last = None
+        self.current = None
+
+    def is_last_different_from(self, x, y):
+        return self.last[0] != x or self.last[1] != y
+
+    def is_current_different_from(self, x, y):
+        return self.current[0] != x or self.current[1] != y
+
+    def set_last(self, x, y):
+        self.last = [x, y]
+
+    def set_current(self, x, y):
+        self.current = [x, y]
+
 
 class SchemeInputer(QGraphicsScene):
     def __init__(self, n=20, length=50):
         super(SchemeInputer, self).__init__()
         self.N = n
-        # system state variables
+
+        # System state variables
         self.pixmap = np.zeros((self.N, self.N), object)
         self.grid = np.zeros((self.N, self.N), object)
         self.oneSquareSideLength = length
-        self._moveHistory = np.ones((2, 2)) * -1
+        # self._moveHistory = np.ones((2, 2)) * -1
+        # self._lastRetainer, self._firstRetainer = False, True
         self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
-        self._lastRetainer, self._firstRetainer = False, True
+        self.move_story = MoveStory()
+        self.block = Block()
 
         self.pointerSignal = GenericSignal()
         self.methodSignal = GenericSignal()
         self.dataSignal = GenericSignal()
+
         # Visible portion of Scene to View
-        self.selector_radius = length / 2
+        self.bump_circle = length / 2
         self.setSceneRect(0,
                           0,
                           self.oneSquareSideLength * self.N,
@@ -67,9 +127,9 @@ class SchemeInputer(QGraphicsScene):
         return i, j
 
     def mouseReleaseEvent(self, event):
-        self._moveHistory[:, :] = -1
-        self._lastRetainer = False
-        self._firstRetainer = True
+        self.move_story.reset()
+        self.block.start = True
+        self.block.end = True
         self.methodSignal.emit_sig(3)
 
     def drawLine(self, coordinates, color='b'):
@@ -137,7 +197,7 @@ class SchemeInputer(QGraphicsScene):
         """This method allows buses additions"""
         double_pressed = event.scenePos().x(), event.scenePos().y()
         for central_point in self.quantizedInterface.flatten():
-            if self.distance(double_pressed, central_point) <= self.selector_radius:
+            if self.distance(double_pressed, central_point) <= self.bump_circle:
                 i, j = self.Point_pos(central_point)
                 sceneItem = self.drawBus((central_point.x(), central_point.y()))
                 self.pixmap[(i, j)] = sceneItem
@@ -151,7 +211,7 @@ class SchemeInputer(QGraphicsScene):
             if event.button() in (1, 2):
                 pressed = event.scenePos().x(), event.scenePos().y()
                 for central_point in self.quantizedInterface.flatten():
-                    if self.distance(pressed, central_point) <= self.selector_radius:
+                    if self.distance(pressed, central_point) <= self.bump_circle:
                         i, j = self.Point_pos(central_point)
                         self.clearSquare(self._selectorHistory[0])
                         #  up-right corner is (0, 0)
@@ -165,48 +225,81 @@ class SchemeInputer(QGraphicsScene):
         except Exception:
             logging.error(traceback.format_exc())
 
+    def draw_line_suite(self, i, j):
+        coordinates = np.atleast_2d(np.array([self.move_story.last, self.move_story.current]))
+        line = self.drawLine(coordinates, color='b')
+        self.move_story.reset()
+        self.pointerSignal.emit_sig((i, j))
+        self.dataSignal.emit_sig(line)
+        self.methodSignal.emit_sig(1)
+
+    # def mouseMoveEvent(self, event):
+    #     """This method gives behavior to adding lines wire tool"""
+    #     if event.button() == 0:
+    #         clicked = event.scenePos().x(), event.scenePos().y()
+    #         for central_point in self.quantizedInterface.flatten():
+    #             i, j = self.Point_pos(central_point)
+    #             try:
+    #                 if self.distance(clicked, central_point) <= self.selector_radius:
+    #                     if np.all(self._moveHistory[0] < 0):  # Set source
+    #                         self._moveHistory[0, 0] = central_point.x()
+    #                         self._moveHistory[0, 1] = central_point.y()
+    #                         if isinstance(self.grid[i, j], Bus):  # Asserts the start was from a bus
+    #                             self._firstRetainer = False
+    #                     if central_point.x() != self._moveHistory[0, 0] \
+    #                             or central_point.y() != self._moveHistory[0, 1]:  # Set destination
+    #                         self._moveHistory[1, 0] = central_point.x()
+    #                         self._moveHistory[1, 1] = central_point.y()
+    #                     if (np.all(self._moveHistory > 0)) and \
+    #                             (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
+    #                         # DRAW LINE #
+    #                         try:
+    #                             if isinstance(self.grid[i, j], Bus) and not self._firstRetainer:
+    #                                 # when a bus is achieved
+    #                                 line = self.drawLine(self._moveHistory)
+    #                                 self._moveHistory[:, :] = -1
+    #                                 self._lastRetainer = True  # Prevent the user for put line outside last bus
+    #                                 self.pointerSignal.emit_sig((i, j))
+    #                                 self.dataSignal.emit_sig(line)
+    #                                 self.methodSignal.emit_sig(1)
+    #                             elif not isinstance(self.grid[i, j], Bus) and not (
+    #                                     self._lastRetainer or self._firstRetainer):
+    #                                 # started from a bus
+    #                                 line = self.drawLine(self._moveHistory)
+    #                                 self._moveHistory[:, :] = -1
+    #                                 self.pointerSignal.emit_sig((i, j))
+    #                                 self.dataSignal.emit_sig(line)
+    #                                 self.methodSignal.emit_sig(1)
+    #                         except Exception:
+    #                             logging.error(traceback.format_exc())
+    #                     break
+    #             except Exception:
+    #                 logging.error(traceback.format_exc())
+
+    @property
+    def is_drawing_blocked(self):
+        return self.block.start or self.block.end
+
     def mouseMoveEvent(self, event):
-        """This method gives behavior to adding lines wire tool"""
-        if event.button() == 0:
-            clicked = event.scenePos().x(), event.scenePos().y()
-            for central_point in self.quantizedInterface.flatten():
+        clicked = event.scenePos().x(), event.scenePos().y()
+        for central_point in self.quantizedInterface.flatten():
+            if self.distance(clicked, central_point) <= self.bump_circle:
                 i, j = self.Point_pos(central_point)
-                try:
-                    if self.distance(clicked, central_point) <= self.selector_radius:
-                        if np.all(self._moveHistory[0] < 0):  # Set source
-                            self._moveHistory[0, 0] = central_point.x()
-                            self._moveHistory[0, 1] = central_point.y()
-                            if isinstance(self.grid[i, j], Bus):  # Asserts the start was from a bus
-                                self._firstRetainer = False
-                        if central_point.x() != self._moveHistory[0, 0] \
-                                or central_point.y() != self._moveHistory[0, 1]:  # Set destination
-                            self._moveHistory[1, 0] = central_point.x()
-                            self._moveHistory[1, 1] = central_point.y()
-                        if (np.all(self._moveHistory > 0)) and \
-                                (np.any(self._moveHistory[0, :] != np.any(self._moveHistory[1, :]))):
-                            # DRAW LINE #
-                            try:
-                                if isinstance(self.grid[i, j], Bus) and not self._firstRetainer:
-                                    # when a bus is achieved
-                                    line = self.drawLine(self._moveHistory)
-                                    self._moveHistory[:, :] = -1
-                                    self._lastRetainer = True  # Prevent the user for put line outside last bus
-                                    self.pointerSignal.emit_sig((i, j))
-                                    self.dataSignal.emit_sig(line)
-                                    self.methodSignal.emit_sig(1)
-                                elif not isinstance(self.grid[i, j], Bus) and not (
-                                        self._lastRetainer or self._firstRetainer):
-                                    # started from a bus
-                                    line = self.drawLine(self._moveHistory)
-                                    self._moveHistory[:, :] = -1
-                                    self.pointerSignal.emit_sig((i, j))
-                                    self.dataSignal.emit_sig(line)
-                                    self.methodSignal.emit_sig(1)
-                            except Exception:
-                                logging.error(traceback.format_exc())
-                        break
-                except Exception:
-                    logging.error(traceback.format_exc())
+                x, y = central_point.x(), central_point.y()
+                if self.move_story.is_empty:
+                    self.move_story.set_last(x, y)
+                    if isinstance(self.grid[i, j], Bus):
+                        self.block.start = False
+                if self.move_story.is_last_different_from(x, y):
+                    self.move_story.set_current(x, y)
+                if self.move_story.allows_drawing:
+                    if isinstance(self.grid[i, j], Bus) and not self.block.start:
+                        self.draw_line_suite(i, j)  # parou numa barra
+                        self.block.end = True
+                    elif not isinstance(self.grid[i, j], Bus) and not self.is_drawing_blocked:
+                        self.draw_line_suite(i, j)  # continua desenhando porque começou certo
+
+
 
     def getQuantizedInterface(self):
         """
