@@ -178,8 +178,11 @@ def make_system_schematic(curves, grid, filepath, ext='pdf'):
 
 
 def check_inf(x):
-    if np.isfinite(x):
-        return NoEscape('{:.2f}\\angle{:.2f}'.format(np.abs(x), np.angle(x) * 180 / np.pi))
+    if np.isfinite(x) and np.abs(x) < 1e6:
+        if isinstance(x, complex):
+            return NoEscape('{:.02f}\\angle{:.02f}'.format(np.abs(x), np.angle(x, deg=True)))
+        else:
+            return NoEscape('{:.04f}'.format(x))
     else:
         return NoEscape('$\\infty$')
 
@@ -288,15 +291,15 @@ def create_report(system, curves, grid, filename):
                     else:
                         color = None
                     tbl.add_row((b.bus_id,
-                                 NoEscape('{:.04f}'.format(np.abs(b.iTPG))),
+                                 check_inf(np.abs(b.iTPG)),
                                  NoEscape('${:.02f}$'.format(np.angle(b.iTPG) * 180 / np.pi)),
-                                 NoEscape('{:.04f}'.format(np.abs(b.iSLG))),
+                                 check_inf(np.abs(b.iSLG)),
                                  NoEscape('${:.02f}$'.format(np.angle(b.iSLG) * 180 / np.pi)),
-                                 NoEscape('{:.04f}'.format(np.abs(b.iDLGb))),
+                                 check_inf(np.abs(b.iDLGb)),
                                  NoEscape('${:.02f}$'.format(np.angle(b.iDLGb) * 180 / np.pi)),
-                                 NoEscape('{:.04f}'.format(np.abs(b.iDLGc))),
+                                 check_inf(np.abs(b.iDLGc)),
                                  NoEscape('${:.02f}$'.format(np.angle(b.iDLGc) * 180 / np.pi)),
-                                 NoEscape('{:.04f}'.format(np.abs(b.iLL))),
+                                 check_inf(np.abs(b.iLL)),
                                  NoEscape('${:.02f}$'.format(np.angle(b.iLL) * 180 / np.pi))),
                                 color=color)
     with doc.create(Section('Lines')):
