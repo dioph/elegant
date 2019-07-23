@@ -169,12 +169,12 @@ def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=
                     **common_config)
 
 
-def make_system_schematic(curves, grid, filepath, ext='pdf', save_figure=False):
+def make_system_schematic(curves, grid, filepath, savefig, ext='pdf'):
     ax = plt.gca()
     gcurves = draw_rep_scheme(grid, curves)
     annotate_flow(ax, gcurves, curves)
     img = os.path.join(filepath) + '_i.' + ext
-    if save_figure:
+    if savefig:
         plt.savefig(img, bbox_inches='tight')
 
 
@@ -193,7 +193,7 @@ def get_scheme(tr):
     return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
 
 
-def create_report(system, curves, grid, filename):
+def create_report(system, curves, grid, filename, savefig=False):
     lines = system.lines
     xfmrs = system.xfmrs
     buses = system.buses
@@ -375,7 +375,7 @@ def create_report(system, curves, grid, filename):
                             color=color)
 
     filepath = filename.strip('.pdf')
-    make_system_schematic(curves, grid, filepath)
+    make_system_schematic(curves, grid, filepath, savefig=savefig)
     doc.append(NewPage())
     with doc.create(Section('System')):
         with doc.create(Figure(position='h')) as system_pic:
