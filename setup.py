@@ -1,8 +1,12 @@
-from numpy.distutils.core import setup
+import re
 
-import aspy
+from setuptools import setup
 
-version = aspy.__version__
+version = re.search(
+    '^__version__\\s*=\\s*"(.*)"',
+    open('aspy/__init__.py').read(),
+    re.M
+).group(1)
 
 with open("README.md", 'r') as f:
     long_description = f.read()
@@ -18,7 +22,8 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/dioph/aspy",
     packages=["aspy"],
-    install_requires=["numpy", "scipy"],
+    entry_points={"console_scripts": ['aspy=aspy.interface:main']},
+    install_requires=["networkx", "numpy", "scipy"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

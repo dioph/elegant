@@ -1,9 +1,11 @@
-from aspy.SchemeInput import Aspy
-from PyQt5.QtWidgets import QApplication
 import sys
 
+from PyQt5.QtWidgets import QApplication
+
+from aspy.interface import ASPy
+
 app = QApplication(sys.argv)
-aspy = Aspy()
+aspy = ASPy()
 
 def test_buses():
     pass

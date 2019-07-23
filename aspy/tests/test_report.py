@@ -1,15 +1,14 @@
-import shelve
+from aspy.interface import *
+from aspy.report import *
 
-from aspy.SchemeInput import createLocalData
-from aspy.utils import getSessionsDir
-from ..report import *
+with open(os.path.join(PACKAGEDIR, './data/testdb'), 'br') as file:
+    db = pickle.load(file)
+    system = db['SYSTEM']
+    curves = db['CURVES']
+    grid = db['GRID']
 
-_SESSIONS_DIR_ = getSessionsDir()
+SESSIONS_DIR = getSessionsDir()
 
-with shelve.open(_SESSIONS_DIR_ + 'db') as db:
-    tipos, linhas, barras, trafos, grid = createLocalData(db)
-    isolinhas = np.array(linhas)[:, 0]
-    isotrafos = np.array(trafos)[:, 0]
 
 def test_create_report():
-    assert create_report(barras, isolinhas, isotrafos, grid)
+    assert create_report(system, curves, grid, os.path.join(SESSIONS_DIR, 'test.pdf'))
