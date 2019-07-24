@@ -16,7 +16,7 @@ class Block:
         self.end = end
 
 
-class MoveStory:
+class HistoryData:
     def __init__(self, current=None, last=None):
         self.current = current
         self.last = last
@@ -63,20 +63,6 @@ class MoveStory:
         self.current = [x, y]
 
 
-class SelectionHistory(MoveStory):
-    def __init__(self):
-        super(SelectionHistory, self).__init__()
-        self.dsquare_obj = None
-
-    @property
-    def dsquare_obj(self):
-        return self.extra
-
-    @dsquare_obj.setter
-    def dsquare_obj(self, dsquare):
-        self.extra = dsquare
-
-
 class SchemeInputer(QGraphicsScene):
     def __init__(self, n=20, length=50):
         super(SchemeInputer, self).__init__()
@@ -86,9 +72,10 @@ class SchemeInputer(QGraphicsScene):
         self.pixmap = np.zeros((self.N, self.N), object)
         self.grid = np.zeros((self.N, self.N), object)
         self.oneSquareSideLength = length
-        self._selectorHistory = np.array([None, -1, -1])  # 0: old QRect, 1 & 2: coordinates to new QRect
-        self.move_story = MoveStory()
+        self.move_history = HistoryData()
         self.block = Block()
+        self.selectorHistory = HistoryData()
+        self.selectorHistory.__setattr__('dsquare_obj', None)
 
         self.pointerSignal = GenericSignal()
         self.methodSignal = GenericSignal()
@@ -136,7 +123,7 @@ class SchemeInputer(QGraphicsScene):
         return i, j
 
     def mouseReleaseEvent(self, event):
-        self.move_story.reset()
+        self.move_history.reset()
         self.block.start = True
         self.block.end = False
         self.methodSignal.emit_sig(3)
@@ -181,10 +168,6 @@ class SchemeInputer(QGraphicsScene):
         rect = self.addRect(x, y, self.oneSquareSideLength, self.oneSquareSideLength, pen, brush)
         return rect
 
-    def clearSquare(self, oldQRect):
-        if oldQRect is not None:
-            self.removeItem(oldQRect)
-
     def drawBus(self, coordinates):
         """
         Parameters
@@ -215,17 +198,17 @@ class SchemeInputer(QGraphicsScene):
                 break
 
     def mousePressEvent(self, event):
-        """This method allows transmission lines additions"""
         if event.button() in (1, 2):
             pressed = event.scenePos().x(), event.scenePos().y()
             for central_point in self.quantizedInterface.flatten():
                 if self.distance(pressed, central_point) <= self.bump_circle_radius:
                     i, j = self.Point_pos(central_point)
-                    self.clearSquare(self._selectorHistory[0])
-                    # up-right corner is (0, 0)
-                    self._selectorHistory[1] = central_point.x() - self.oneSquareSideLength / 2
-                    self._selectorHistory[2] = central_point.y() - self.oneSquareSideLength / 2
-                    self._selectorHistory[0] = self.drawSquare(self._selectorHistory[1:])
+                    x, y = central_point.x(), central_point.y()
+                    if self.selectorHistory.dsquare_obj is not None:
+                        self.removeItem(self.selectorHistory.dsquare_obj)
+                    self.selectorHistory.set_current(x - self.oneSquareSideLength / 2,
+                                                     y - self.oneSquareSideLength / 2)
+                    self.selectorHistory.dsquare_obj = self.drawSquare(self.selectorHistory.current)
                     self.pointerSignal.emit_sig((i, j))
                     self.methodSignal.emit_sig(4)
                     self.methodSignal.emit_sig(2)
@@ -236,9 +219,9 @@ class SchemeInputer(QGraphicsScene):
         return self.block.start or self.block.end
 
     def draw_line_suite(self, i, j):
-        coordinates = np.atleast_2d(np.array([self.move_story.last, self.move_story.current]))
+        coordinates = np.atleast_2d(np.array([self.move_history.last, self.move_history.current]))
         line = self.drawLine(coordinates, color='b')
-        self.move_story.reset()
+        self.move_history.reset()
         self.pointerSignal.emit_sig((i, j))
         self.dataSignal.emit_sig(line)
         self.methodSignal.emit_sig(1)
@@ -249,13 +232,13 @@ class SchemeInputer(QGraphicsScene):
             if self.distance(clicked, central_point) <= self.bump_circle_radius:
                 i, j = self.Point_pos(central_point)
                 x, y = central_point.x(), central_point.y()
-                if self.move_story.is_empty:
-                    self.move_story.set_last(x, y)
+                if self.move_history.is_empty:
+                    self.move_history.set_last(x, y)
                     if isinstance(self.grid[i, j], Bus):
                         self.block.start = False
-                if self.move_story.is_last_different_from(x, y):
-                    self.move_story.set_current(x, y)
-                if self.move_story.allows_drawing and not self.is_drawing_blocked:
+                if self.move_history.is_last_different_from(x, y):
+                    self.move_history.set_current(x, y)
+                if self.move_history.allows_drawing and not self.is_drawing_blocked:
                     if isinstance(self.grid[i, j], Bus):
                         self.draw_line_suite(i, j)
                         self.block.end = True
