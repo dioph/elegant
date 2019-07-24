@@ -239,11 +239,9 @@ class SchemeInputer(QGraphicsScene):
                 if self.move_history.is_last_different_from(x, y):
                     self.move_history.set_current(x, y)
                 if self.move_history.allows_drawing and not self.is_drawing_blocked:
+                    self.draw_line_suite(i, j)
                     if isinstance(self.grid[i, j], Bus):
-                        self.draw_line_suite(i, j)
                         self.block.end = True
-                    elif not isinstance(self.grid[i, j], Bus):
-                        self.draw_line_suite(i, j)
                 break
 
     def getQuantizedInterface(self):
