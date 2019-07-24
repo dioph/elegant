@@ -687,42 +687,36 @@ class CircuitInputer(QWidget):
         return False
 
     def add_segment(self):
-        try:
-            if self._startNewTL:
-                bus_orig = self.Scene.grid[self._line_origin]
-                new_line = TL(orig=bus_orig, dest=None)
-                new_curve = LineSegment(obj=new_line,
-                                        coords=[self._line_origin, self._currElementCoords],
-                                        dlines=[self._temp])
-                if self.checkLineAndXfmrCrossing():
-                    new_curve.remove = True
-                self.curves.append(new_curve)
-            else:
-                curr_curve = self.curves[-1]
-                if self.checkLineAndXfmrCrossing():
-                    curr_curve.remove = True
-                curr_curve.dlines.append(self._temp)
-                curr_curve.coords.append(self._currElementCoords)
-                if isinstance(self.Scene.grid[self._currElementCoords], Bus):
-                    if curr_curve.obj.dest is None:
-                        bus_dest = self.Scene.grid[self._currElementCoords]
-                        curr_curve.obj.dest = bus_dest
-            self._startNewTL = False
-            self.statusMsg.emit_sig('Adding line...')
-        except Exception:
-            logging.error(traceback.format_exc())
+        if self._startNewTL:
+            bus_orig = self.Scene.grid[self._line_origin]
+            new_line = TL(orig=bus_orig, dest=None)
+            new_curve = LineSegment(obj=new_line,
+                                    coords=[self._line_origin, self._currElementCoords],
+                                    dlines=[self._temp])
+            if self.checkLineAndXfmrCrossing():
+                new_curve.remove = True
+            self.curves.append(new_curve)
+        else:
+            curr_curve = self.curves[-1]
+            if self.checkLineAndXfmrCrossing():
+                curr_curve.remove = True
+            curr_curve.dlines.append(self._temp)
+            curr_curve.coords.append(self._currElementCoords)
+            if isinstance(self.Scene.grid[self._currElementCoords], Bus):
+                if curr_curve.obj.dest is None:
+                    bus_dest = self.Scene.grid[self._currElementCoords]
+                    curr_curve.obj.dest = bus_dest
+        self._startNewTL = False
+        self.statusMsg.emit_sig('Adding line...')
 
     def findParametersSetFromLt(self, line):
         """Return the name of parameters set of a existent line or
         return None if the line has been set by impedance and admittance
         """
-        try:
-            for line_name, line_model in self.line_types.items():
-                if line_model.param == line.param:
-                    return line_name
-            return "No model"
-        except Exception:
-            logging.error(traceback.format_exc())
+        for line_name, line_model in self.line_types.items():
+            if line_model.param == line.param:
+                return line_name
+        return "No model"
 
     def findParametersSetFromComboBox(self):
         """Find parameters set based on current selected line or xfmr inspector combo box
@@ -737,34 +731,31 @@ class CircuitInputer(QWidget):
     def addNewLineType(self):
         """Add a new type of line, if given parameters has passed in all the tests
         Called by: SubmitNewLineTypePushButton.pressed"""
-        try:
-            name = self.ModelName.text()
-            float_or_nan = lambda s: np.nan if s == '' else float(s)
-            new_param = dict(
-                r=float_or_nan(self.rLineEdit.text()) / 1e3,
-                d12=float_or_nan(self.d12LineEdit.text()),
-                d23=float_or_nan(self.d23LineEdit.text()),
-                d31=float_or_nan(self.d31LineEdit.text()),
-                d=float_or_nan(self.dLineEdit.text()),
-                rho=float_or_nan(self.RhoLineEdit.text()) / 1e9,
-                m=float_or_nan(self.mLineEdit.text()),
-                imax=float_or_nan(self.imaxLineEdit.text())
-            )
-            line = TL(orig=None, dest=None)
-            line.__dict__.update(new_param)
-            if name in self.line_types.keys():
-                self.statusMsg.emit_sig('Duplicated name. Insert another valid name')
-                return
-            if any(np.isnan(list(new_param.values()))):
-                self.statusMsg.emit_sig('Undefined parameter. Fill all parameters')
-                return
-            if any(map(lambda x: line.param == x.param, self.line_types.values())):
-                self.statusMsg.emit_sig('A similar model was identified. The model has not been stored')
-                return
-            self.line_types[name] = line
-            self.statusMsg.emit_sig('The model has been stored')
-        except Exception:
-            logging.error(traceback.format_exc())
+        name = self.ModelName.text()
+        float_or_nan = lambda s: np.nan if s == '' else float(s)
+        new_param = dict(
+            r=float_or_nan(self.rLineEdit.text()) / 1e3,
+            d12=float_or_nan(self.d12LineEdit.text()),
+            d23=float_or_nan(self.d23LineEdit.text()),
+            d31=float_or_nan(self.d31LineEdit.text()),
+            d=float_or_nan(self.dLineEdit.text()),
+            rho=float_or_nan(self.RhoLineEdit.text()) / 1e9,
+            m=float_or_nan(self.mLineEdit.text()),
+            imax=float_or_nan(self.imaxLineEdit.text())
+        )
+        line = TL(orig=None, dest=None)
+        line.__dict__.update(new_param)
+        if name in self.line_types.keys():
+            self.statusMsg.emit_sig('Duplicated name. Insert another valid name')
+            return
+        if any(np.isnan(list(new_param.values()))):
+            self.statusMsg.emit_sig('Undefined parameter. Fill all parameters')
+            return
+        if any(map(lambda x: line.param == x.param, self.line_types.values())):
+            self.statusMsg.emit_sig('A similar model was identified. The model has not been stored')
+            return
+        self.line_types[name] = line
+        self.statusMsg.emit_sig('The model has been stored')
 
     @staticmethod
     def updateLineWithParameters(line, param_values, ell, vbase):
@@ -838,23 +829,20 @@ class CircuitInputer(QWidget):
         LayoutManager, xfmrProcessing
         """
         xfmr_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
-        try:
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if curve is not None:
-                xfmr = curve.obj
-                self.SNomXfmrLineEdit.setText('{:.3g}'.format(xfmr.snom / 1e6))
-                self.XZeroSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx0 * 100))
-                self.XPosSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx1 * 100))
-                self.XfmrPrimary.setCurrentText(xfmr_code[xfmr.primary])
-                self.XfmrSecondary.setCurrentText(xfmr_code[xfmr.secondary])
-            else:
-                self.SNomXfmrLineEdit.setText('100')
-                self.XZeroSeqXfmrLineEdit.setText('0.0')
-                self.XPosSeqXfmrLineEdit.setText('0.0')
-                self.XfmrPrimary.setCurrentText(xfmr_code[1])
-                self.XfmrSecondary.setCurrentText(xfmr_code[1])
-        except Exception:
-            logging.error(traceback.format_exc())
+        curve = self.getCurveFromGridPos(self._currElementCoords)
+        if curve is not None:
+            xfmr = curve.obj
+            self.SNomXfmrLineEdit.setText('{:.3g}'.format(xfmr.snom / 1e6))
+            self.XZeroSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx0 * 100))
+            self.XPosSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx1 * 100))
+            self.XfmrPrimary.setCurrentText(xfmr_code[xfmr.primary])
+            self.XfmrSecondary.setCurrentText(xfmr_code[xfmr.secondary])
+        else:
+            self.SNomXfmrLineEdit.setText('100')
+            self.XZeroSeqXfmrLineEdit.setText('0.0')
+            self.XPosSeqXfmrLineEdit.setText('0.0')
+            self.XfmrPrimary.setCurrentText(xfmr_code[1])
+            self.XfmrSecondary.setCurrentText(xfmr_code[1])
 
     def updateLineInspector(self):
         """Updates the line inspector
@@ -862,18 +850,15 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, lineProcessing
         """
-        try:
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            line = curve.obj
-            line_model = self.findParametersSetFromLt(line)
-            self.EllLineEdit.setText('{:.03g}'.format(line.ell / 1e3))
-            self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase / 1e3))
-            self.TlRLineEdit.setText('{number.real:.04f}'.format(number=line.Zpu * 100))
-            self.TlXLineEdit.setText('{number.imag:.04f}'.format(number=line.Zpu * 100))
-            self.TlYLineEdit.setText('{number.imag:.04f}'.format(number=line.Ypu * 100))
-            self.chooseLineModel.setCurrentText(line_model)
-        except Exception:
-            logging.error(traceback.format_exc())
+        curve = self.getCurveFromGridPos(self._currElementCoords)
+        line = curve.obj
+        line_model = self.findParametersSetFromLt(line)
+        self.EllLineEdit.setText('{:.03g}'.format(line.ell / 1e3))
+        self.VbaseLineEdit.setText('{:.03g}'.format(line.vbase / 1e3))
+        self.TlRLineEdit.setText('{number.real:.04f}'.format(number=line.Zpu * 100))
+        self.TlXLineEdit.setText('{number.imag:.04f}'.format(number=line.Zpu * 100))
+        self.TlYLineEdit.setText('{number.imag:.04f}'.format(number=line.Ypu * 100))
+        self.chooseLineModel.setCurrentText(line_model)
 
     def updateBusInspector(self, bus):
         """Updates the bus inspector with bus data if bus exists or
@@ -939,61 +924,59 @@ class CircuitInputer(QWidget):
         Called by: doAfterMouseRelease
         ------------------------------------------------------------------------------------------------------
         """
-        try:
-            # Even if there are two elements in a same square, only one will be identified
-            # Bus has high priority
-            # After, lines and xfmr have equal priority
-            bus = self.getBusFromGridPos(self._currElementCoords)
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if bus is not None:
-                # Show bus inspect
+
+        # Even if there are two elements in a same square, only one will be identified
+        # Bus has high priority
+        # After, lines and xfmr have equal priority
+        bus = self.getBusFromGridPos(self._currElementCoords)
+        curve = self.getCurveFromGridPos(self._currElementCoords)
+        if bus is not None:
+            # Show bus inspect
+            self.hideSpacer()
+            self.setLayoutHidden(self.InputNewLineType, True)
+            self.setLayoutHidden(self.LineOrXfmrLayout, True)
+            self.setLayoutHidden(self.ControlPanelLayout, True)
+            self.setLayoutHidden(self.BusLayout, False)
+            self.updateBusInspector(bus)
+        elif curve is not None:
+            if isinstance(curve.obj, TL):
+                # Show line inspect
                 self.hideSpacer()
                 self.setLayoutHidden(self.InputNewLineType, True)
-                self.setLayoutHidden(self.LineOrXfmrLayout, True)
-                self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.setLayoutHidden(self.BusLayout, False)
-                self.updateBusInspector(bus)
-            elif curve is not None:
-                if isinstance(curve.obj, TL):
-                    # Show line inspect
-                    self.hideSpacer()
-                    self.setLayoutHidden(self.InputNewLineType, True)
-                    self.setLayoutHidden(self.BusLayout, True)
-                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
-                    self.chooseLine.setChecked(True)
-                    self.setLayoutHidden(self.chosenXfmrFormLayout, True)
-                    self.setLayoutHidden(self.chosenLineFormLayout, False)
-                    self.xfmrSubmitPushButton.setHidden(True)
-                    self.removeXfmrPushButton.setHidden(True)
-                    self.setLayoutHidden(self.ControlPanelLayout, True)
-                    self.removeTLPushButton.setHidden(False)
-                    self.updateLineModelOptions()
-                    self.updateLineInspector()
-                elif isinstance(curve.obj, Transformer):
-                    # Show xfmr inspect
-                    self.setLayoutHidden(self.InputNewLineType, True)
-                    self.hideSpacer()
-                    self.setLayoutHidden(self.BusLayout, True)
-                    self.setLayoutHidden(self.LineOrXfmrLayout, False)
-                    self.chooseXfmr.setChecked(True)
-                    self.setLayoutHidden(self.chosenXfmrFormLayout, False)
-                    self.setLayoutHidden(self.chosenLineFormLayout, True)
-                    self.xfmrSubmitPushButton.setHidden(False)
-                    self.removeXfmrPushButton.setHidden(False)
-                    self.removeTLPushButton.setHidden(True)
-                    self.tlSubmitByModelPushButton.setHidden(True)
-                    self.tlSubmitByImpedancePushButton.setHidden(True)
-                    self.setLayoutHidden(self.ControlPanelLayout, True)
-                    self.updateXfmrInspector()
-            else:
-                # No element case
                 self.setLayoutHidden(self.BusLayout, True)
-                self.setLayoutHidden(self.LineOrXfmrLayout, True)
-                self.setLayoutHidden(self.InputNewLineType, True)
+                self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                self.chooseLine.setChecked(True)
+                self.setLayoutHidden(self.chosenXfmrFormLayout, True)
+                self.setLayoutHidden(self.chosenLineFormLayout, False)
+                self.xfmrSubmitPushButton.setHidden(True)
+                self.removeXfmrPushButton.setHidden(True)
                 self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.showSpacer()
-        except Exception:
-            logging.error(traceback.format_exc())
+                self.removeTLPushButton.setHidden(False)
+                self.updateLineModelOptions()
+                self.updateLineInspector()
+            elif isinstance(curve.obj, Transformer):
+                # Show xfmr inspect
+                self.setLayoutHidden(self.InputNewLineType, True)
+                self.hideSpacer()
+                self.setLayoutHidden(self.BusLayout, True)
+                self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                self.chooseXfmr.setChecked(True)
+                self.setLayoutHidden(self.chosenXfmrFormLayout, False)
+                self.setLayoutHidden(self.chosenLineFormLayout, True)
+                self.xfmrSubmitPushButton.setHidden(False)
+                self.removeXfmrPushButton.setHidden(False)
+                self.removeTLPushButton.setHidden(True)
+                self.tlSubmitByModelPushButton.setHidden(True)
+                self.tlSubmitByImpedancePushButton.setHidden(True)
+                self.setLayoutHidden(self.ControlPanelLayout, True)
+                self.updateXfmrInspector()
+        else:
+            # No element case
+            self.setLayoutHidden(self.BusLayout, True)
+            self.setLayoutHidden(self.LineOrXfmrLayout, True)
+            self.setLayoutHidden(self.InputNewLineType, True)
+            self.setLayoutHidden(self.ControlPanelLayout, True)
+            self.showSpacer()
 
     def add_line(self, curve):
         self.curves.append(curve)
@@ -1007,17 +990,14 @@ class CircuitInputer(QWidget):
         """
         Called by: Scene.mouseDoubleClickEvent
         """
-        try:
-            coords = self._currElementCoords
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if not isinstance(self.Scene.grid[coords], Bus) and not curve:
-                bus = self.system.add_bus()
-                self.Scene.grid[coords] = bus
-            else:
-                self.Scene.removeItem(self.Scene.pixmap[coords])
-                self.statusMsg.emit_sig('There\'s an element in this position!')
-        except Exception:
-            logging.error(traceback.format_exc())
+        coords = self._currElementCoords
+        curve = self.getCurveFromGridPos(self._currElementCoords)
+        if not isinstance(self.Scene.grid[coords], Bus) and not curve:
+            bus = self.system.add_bus()
+            self.Scene.grid[coords] = bus
+        else:
+            self.Scene.removeItem(self.Scene.pixmap[coords])
+            self.statusMsg.emit_sig('There\'s an element in this position!')
 
     def lineProcessing(self, mode):
         """
@@ -1029,74 +1009,71 @@ class CircuitInputer(QWidget):
         ----------
         mode: either 'parameters' or 'impedance'
         """
-        try:
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if isinstance(curve.obj, TL):
-                # The element already is a line
-                line = curve.obj
-                if mode == 'parameters':
-                    param_values = self.findParametersSetFromComboBox()
-                    # Current selected element is a line
-                    # Update using properties
-                    # Z and Y are obtained from the updated properties
-                    if param_values is not None:
-                        ell = float(self.EllLineEdit.text()) * 1e3
-                        vbase = float(self.VbaseLineEdit.text()) * 1e3
-                        self.updateLineWithParameters(line, param_values, ell, vbase)
-                        self.LayoutManager()
-                        self.statusMsg.emit_sig('Updated line with parameters')
-                    else:
-                        self.statusMsg.emit_sig('You have to choose a valid model')
-                elif mode == 'impedance':
-                    # Current selected element is a line
-                    # Update using impedance and admittance
-                    R = float(self.TlRLineEdit.text()) / 100
-                    X = float(self.TlXLineEdit.text()) / 100
-                    Y = float(self.TlYLineEdit.text()) / 100
-                    Z = R + 1j * X
-                    Y = 1j * Y
+        curve = self.getCurveFromGridPos(self._currElementCoords)
+        if isinstance(curve.obj, TL):
+            # The element already is a line
+            line = curve.obj
+            if mode == 'parameters':
+                param_values = self.findParametersSetFromComboBox()
+                # Current selected element is a line
+                # Update using properties
+                # Z and Y are obtained from the updated properties
+                if param_values is not None:
                     ell = float(self.EllLineEdit.text()) * 1e3
                     vbase = float(self.VbaseLineEdit.text()) * 1e3
-                    self.updateLineWithImpedances(line, Z, Y, ell, vbase)
+                    self.updateLineWithParameters(line, param_values, ell, vbase)
                     self.LayoutManager()
-                    self.statusMsg.emit_sig('Update line with impedances')
-            elif isinstance(curve.obj, Transformer):
-                # The element is a xfmr and will be converted into a line
-                xfmr = curve.obj
-                self.remove_xfmr(curve)
-                new_line = TL(orig=xfmr.orig, dest=xfmr.dest)
-                if mode == 'parameters':
-                    param_values = self.findParametersSetFromComboBox()
-                    if param_values is not None:
-                        ell = float(self.EllLineEdit.text()) * 1e3
-                        vbase = float(self.VbaseLineEdit.text()) * 1e3
-                        self.updateLineWithParameters(new_line, param_values, ell, vbase)
-                        self.statusMsg.emit_sig('xfmr -> line, updated with parameters')
-                    else:
-                        self.statusMsg.emit_sig('You have to choose a valid model')
-                elif mode == 'impedance':
-                    R = float(self.TlRLineEdit.text()) / 100
-                    X = float(self.TlXLineEdit.text()) / 100
-                    Y = float(self.TlYLineEdit.text()) / 100
-                    Z = R + 1j * X
-                    Y = 1j * Y
+                    self.statusMsg.emit_sig('Updated line with parameters')
+                else:
+                    self.statusMsg.emit_sig('You have to choose a valid model')
+            elif mode == 'impedance':
+                # Current selected element is a line
+                # Update using impedance and admittance
+                R = float(self.TlRLineEdit.text()) / 100
+                X = float(self.TlXLineEdit.text()) / 100
+                Y = float(self.TlYLineEdit.text()) / 100
+                Z = R + 1j * X
+                Y = 1j * Y
+                ell = float(self.EllLineEdit.text()) * 1e3
+                vbase = float(self.VbaseLineEdit.text()) * 1e3
+                self.updateLineWithImpedances(line, Z, Y, ell, vbase)
+                self.LayoutManager()
+                self.statusMsg.emit_sig('Update line with impedances')
+        elif isinstance(curve.obj, Transformer):
+            # The element is a xfmr and will be converted into a line
+            xfmr = curve.obj
+            self.remove_xfmr(curve)
+            new_line = TL(orig=xfmr.orig, dest=xfmr.dest)
+            if mode == 'parameters':
+                param_values = self.findParametersSetFromComboBox()
+                if param_values is not None:
                     ell = float(self.EllLineEdit.text()) * 1e3
                     vbase = float(self.VbaseLineEdit.text()) * 1e3
-                    self.updateLineWithImpedances(new_line, Z, Y, ell, vbase)
-                    self.statusMsg.emit_sig('xfmr -> line, updated with impedances')
-                new_curve = LineSegment(obj=new_line,
-                                        dlines=curve.dlines,
-                                        coords=curve.coords)
-                for line_drawing in new_curve.dlines:
-                    blue_pen = QPen()
-                    blue_pen.setColor(Qt.blue)
-                    blue_pen.setWidthF(2.5)
-                    line_drawing.setPen(blue_pen)
-                    self.Scene.addItem(line_drawing)
-                self.add_line(new_curve)
-                self.LayoutManager()
-        except Exception:
-            logging.error(traceback.format_exc())
+                    self.updateLineWithParameters(new_line, param_values, ell, vbase)
+                    self.statusMsg.emit_sig('xfmr -> line, updated with parameters')
+                else:
+                    self.statusMsg.emit_sig('You have to choose a valid model')
+            elif mode == 'impedance':
+                R = float(self.TlRLineEdit.text()) / 100
+                X = float(self.TlXLineEdit.text()) / 100
+                Y = float(self.TlYLineEdit.text()) / 100
+                Z = R + 1j * X
+                Y = 1j * Y
+                ell = float(self.EllLineEdit.text()) * 1e3
+                vbase = float(self.VbaseLineEdit.text()) * 1e3
+                self.updateLineWithImpedances(new_line, Z, Y, ell, vbase)
+                self.statusMsg.emit_sig('xfmr -> line, updated with impedances')
+            new_curve = LineSegment(obj=new_line,
+                                    dlines=curve.dlines,
+                                    coords=curve.coords)
+            for line_drawing in new_curve.dlines:
+                blue_pen = QPen()
+                blue_pen.setColor(Qt.blue)
+                blue_pen.setWidthF(2.5)
+                line_drawing.setPen(blue_pen)
+                self.Scene.addItem(line_drawing)
+            self.add_line(new_curve)
+            self.LayoutManager()
 
     def xfmrProcessing(self):
         """
@@ -1105,45 +1082,42 @@ class CircuitInputer(QWidget):
         Called by: xfmrSubmitPushButton.pressed
         """
         xfmr_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
-        try:
-            curve = self.getCurveFromGridPos(self._currElementCoords)
-            if isinstance(curve.obj, TL):
-                # Transform line into a xfmr
-                line = curve.obj
-                self.remove_line(curve)
-                new_xfmr = Transformer(
-                    orig=line.orig,
-                    dest=line.dest,
-                    snom=float(self.SNomXfmrLineEdit.text()) * 1e6,
-                    jx0=float(self.XZeroSeqXfmrLineEdit.text()) / 100,
-                    jx1=float(self.XPosSeqXfmrLineEdit.text()) / 100,
-                    primary=xfmr_code[self.XfmrPrimary.currentText()],
-                    secondary=xfmr_code[self.XfmrSecondary.currentText()]
-                )
-                new_curve = LineSegment(obj=new_xfmr,
-                                        dlines=curve.dlines,
-                                        coords=curve.coords)
-                for line_drawing in new_curve.dlines:
-                    blue_pen = QPen()
-                    blue_pen.setColor(Qt.red)
-                    blue_pen.setWidthF(2.5)
-                    line_drawing.setPen(blue_pen)
-                    self.Scene.addItem(line_drawing)
-                self.add_xfmr(new_curve)
-                self.LayoutManager()
-                self.statusMsg.emit_sig('Line -> xfmr')
-            elif isinstance(curve.obj, Transformer):
-                # Update parameters of selected xfmr
-                xfmr = curve.obj
-                xfmr.snom = float(self.SNomXfmrLineEdit.text()) * 1e6
-                xfmr.jx0 = float(self.XZeroSeqXfmrLineEdit.text()) / 100
-                xfmr.jx1 = float(self.XPosSeqXfmrLineEdit.text()) / 100
-                xfmr.primary = xfmr_code[self.XfmrPrimary.currentText()]
-                xfmr.secondary = xfmr_code[self.XfmrSecondary.currentText()]
-                self.LayoutManager()
-                self.statusMsg.emit_sig('Updated xfmr parameters')
-        except Exception:
-            logging.error(traceback.format_exc())
+        curve = self.getCurveFromGridPos(self._currElementCoords)
+        if isinstance(curve.obj, TL):
+            # Transform line into a xfmr
+            line = curve.obj
+            self.remove_line(curve)
+            new_xfmr = Transformer(
+                orig=line.orig,
+                dest=line.dest,
+                snom=float(self.SNomXfmrLineEdit.text()) * 1e6,
+                jx0=float(self.XZeroSeqXfmrLineEdit.text()) / 100,
+                jx1=float(self.XPosSeqXfmrLineEdit.text()) / 100,
+                primary=xfmr_code[self.XfmrPrimary.currentText()],
+                secondary=xfmr_code[self.XfmrSecondary.currentText()]
+            )
+            new_curve = LineSegment(obj=new_xfmr,
+                                    dlines=curve.dlines,
+                                    coords=curve.coords)
+            for line_drawing in new_curve.dlines:
+                blue_pen = QPen()
+                blue_pen.setColor(Qt.red)
+                blue_pen.setWidthF(2.5)
+                line_drawing.setPen(blue_pen)
+                self.Scene.addItem(line_drawing)
+            self.add_xfmr(new_curve)
+            self.LayoutManager()
+            self.statusMsg.emit_sig('Line -> xfmr')
+        elif isinstance(curve.obj, Transformer):
+            # Update parameters of selected xfmr
+            xfmr = curve.obj
+            xfmr.snom = float(self.SNomXfmrLineEdit.text()) * 1e6
+            xfmr.jx0 = float(self.XZeroSeqXfmrLineEdit.text()) / 100
+            xfmr.jx1 = float(self.XPosSeqXfmrLineEdit.text()) / 100
+            xfmr.primary = xfmr_code[self.XfmrPrimary.currentText()]
+            xfmr.secondary = xfmr_code[self.XfmrSecondary.currentText()]
+            self.LayoutManager()
+            self.statusMsg.emit_sig('Updated xfmr parameters')
 
     def remove_curve(self, curve=None):
         if curve is None:
@@ -1198,35 +1172,29 @@ class CircuitInputer(QWidget):
         """
         Called by: RemoveBus.pressed
         """
-        try:
-            coords = self._currElementCoords
-            bus = self.getBusFromGridPos(coords)
-            if bus:
-                self.removeElementsLinked2Bus(bus)
-                self.system.remove_bus(bus.bus_id)
-                self.Scene.removeItem(self.Scene.pixmap[coords])
-                self.Scene.pixmap[coords] = 0
-                self.Scene.grid[coords] = 0
-        except Exception:
-            logging.error(traceback.format_exc())
+        coords = self._currElementCoords
+        bus = self.getBusFromGridPos(coords)
+        if bus:
+            self.removeElementsLinked2Bus(bus)
+            self.system.remove_bus(bus.bus_id)
+            self.Scene.removeItem(self.Scene.pixmap[coords])
+            self.Scene.pixmap[coords] = 0
+            self.Scene.grid[coords] = 0
 
     def add_gen(self):
         """Adds generation to the bus, make some QLineEdits activated
         Called by: AddGenerationButton.pressed (__init__)
         """
-        try:
-            bus = self.getBusFromGridPos(self._currElementCoords)
-            self.BusV_Value.setEnabled(True)
-            self.XdLineEdit.setEnabled(True)
-            if bus.bus_id > 0:
-                self.PgInput.setEnabled(True)
-            self.GenGround.setEnabled(True)
-            self.AddGenerationButton.setText('OK')
-            self.statusMsg.emit_sig('Input generation data...')
-            self.AddGenerationButton.disconnect()
-            self.AddGenerationButton.pressed.connect(self.submit_gen)
-        except Exception:
-            logging.error(traceback.format_exc())
+        bus = self.getBusFromGridPos(self._currElementCoords)
+        self.BusV_Value.setEnabled(True)
+        self.XdLineEdit.setEnabled(True)
+        if bus.bus_id > 0:
+            self.PgInput.setEnabled(True)
+        self.GenGround.setEnabled(True)
+        self.AddGenerationButton.setText('OK')
+        self.statusMsg.emit_sig('Input generation data...')
+        self.AddGenerationButton.disconnect()
+        self.AddGenerationButton.pressed.connect(self.submit_gen)
 
     def submit_gen(self):
         """Updates bus parameters with the user input in bus inspector
@@ -1276,56 +1244,47 @@ class CircuitInputer(QWidget):
         """
         Called by: AddLoadButton.pressed (__init__)
         """
-        try:
-            self.PlInput.setEnabled(True)
-            self.QlInput.setEnabled(True)
-            self.LoadGround.setEnabled(True)
-            self.AddLoadButton.setText('OK')
-            self.statusMsg.emit_sig('Input load data...')
-            self.AddLoadButton.disconnect()
-            self.AddLoadButton.pressed.connect(self.submit_load)
-        except Exception:
-            logging.error(traceback.format_exc())
+        self.PlInput.setEnabled(True)
+        self.QlInput.setEnabled(True)
+        self.LoadGround.setEnabled(True)
+        self.AddLoadButton.setText('OK')
+        self.statusMsg.emit_sig('Input load data...')
+        self.AddLoadButton.disconnect()
+        self.AddLoadButton.pressed.connect(self.submit_load)
 
     def submit_load(self):
         """
         Called by: AddLoadButton.pressed (add_load)
         """
-        try:
-            coords = self._currElementCoords
-            if isinstance(self.Scene.grid[coords], Bus):
-                bus = self.getBusFromGridPos(coords)
-                bus.pl = float(self.PlInput.text()) / 100
-                bus.ql = float(self.QlInput.text()) / 100
-                bus.load_ground = self.LoadGround.isChecked()
-                self.PlInput.setEnabled(False)
-                self.QlInput.setEnabled(False)
-                self.LoadGround.setEnabled(False)
-                self.AddLoadButton.setText('-')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.remove_load)
-                self.statusMsg.emit_sig('Added load')
-        except Exception:
-            logging.error(traceback.format_exc())
+        coords = self._currElementCoords
+        if isinstance(self.Scene.grid[coords], Bus):
+            bus = self.getBusFromGridPos(coords)
+            bus.pl = float(self.PlInput.text()) / 100
+            bus.ql = float(self.QlInput.text()) / 100
+            bus.load_ground = self.LoadGround.isChecked()
+            self.PlInput.setEnabled(False)
+            self.QlInput.setEnabled(False)
+            self.LoadGround.setEnabled(False)
+            self.AddLoadButton.setText('-')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.remove_load)
+            self.statusMsg.emit_sig('Added load')
 
     def remove_load(self):
         """
         Called by: AddLoadButton.pressed (submit_load)
         """
-        try:
-            coords = self._currElementCoords
-            if isinstance(self.Scene.grid[coords], Bus):
-                bus = self.getBusFromGridPos(coords)
-                bus.pl = 0
-                bus.ql = 0
-                bus.load_ground = True
-                self.updateBusInspector(bus)
-                self.AddLoadButton.setText('+')
-                self.AddLoadButton.disconnect()
-                self.AddLoadButton.pressed.connect(self.add_load)
-                self.statusMsg.emit_sig('Removed load')
-        except Exception:
-            logging.error(traceback.format_exc())
+        coords = self._currElementCoords
+        if isinstance(self.Scene.grid[coords], Bus):
+            bus = self.getBusFromGridPos(coords)
+            bus.pl = 0
+            bus.ql = 0
+            bus.load_ground = True
+            self.updateBusInspector(bus)
+            self.AddLoadButton.setText('+')
+            self.AddLoadButton.disconnect()
+            self.AddLoadButton.pressed.connect(self.add_load)
+            self.statusMsg.emit_sig('Removed load')
 
     def doAfterMouseRelease(self):
         """
