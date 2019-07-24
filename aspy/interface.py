@@ -122,12 +122,6 @@ class SchemeInputer(QGraphicsScene):
         j = int((central_point.x() - self.oneSquareSideLength / 2) / self.oneSquareSideLength)
         return i, j
 
-    def mouseReleaseEvent(self, event):
-        self.move_history.reset()
-        self.block.start = True
-        self.block.end = False
-        self.methodSignal.emit_sig(3)
-
     def drawLine(self, coordinates, color='b'):
         """
         Parameters
@@ -185,34 +179,39 @@ class SchemeInputer(QGraphicsScene):
         sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
         return sceneItem
 
-    def mouseDoubleClickEvent(self, event):
-        """This method allows buses additions"""
-        double_pressed = event.scenePos().x(), event.scenePos().y()
+    def get_central_point(self, event):
+        coordinates = event.scenePos().x(), event.scenePos().y()
         for central_point in self.quantizedInterface.flatten():
-            if self.distance(double_pressed, central_point) <= self.bump_circle_radius:
+            if self.distance(coordinates, central_point) <= self.bump_circle_radius:
                 i, j = self.Point_pos(central_point)
-                sceneItem = self.drawBus((central_point.x(), central_point.y()))
-                self.pixmap[(i, j)] = sceneItem
-                self.pointerSignal.emit_sig((i, j))
-                self.methodSignal.emit_sig(0)
-                break
+                return central_point, i, j
+
+    def mouseReleaseEvent(self, event):
+        self.move_history.reset()
+        self.block.start = True
+        self.block.end = False
+        self.methodSignal.emit_sig(3)
+
+    def mouseDoubleClickEvent(self, event):
+        if self.get_central_point(event):
+            central_point, i, j = self.get_central_point(event)
+            sceneItem = self.drawBus((central_point.x(), central_point.y()))
+            self.pixmap[(i, j)] = sceneItem
+            self.pointerSignal.emit_sig((i, j))
+            self.methodSignal.emit_sig(0)
 
     def mousePressEvent(self, event):
-        if event.button() in (1, 2):
-            pressed = event.scenePos().x(), event.scenePos().y()
-            for central_point in self.quantizedInterface.flatten():
-                if self.distance(pressed, central_point) <= self.bump_circle_radius:
-                    i, j = self.Point_pos(central_point)
-                    x, y = central_point.x(), central_point.y()
-                    if self.selectorHistory.dsquare_obj is not None:
-                        self.removeItem(self.selectorHistory.dsquare_obj)
-                    self.selectorHistory.set_current(x - self.oneSquareSideLength / 2,
-                                                     y - self.oneSquareSideLength / 2)
-                    self.selectorHistory.dsquare_obj = self.drawSquare(self.selectorHistory.current)
-                    self.pointerSignal.emit_sig((i, j))
-                    self.methodSignal.emit_sig(4)
-                    self.methodSignal.emit_sig(2)
-                    break
+        if self.get_central_point(event):
+            central_point, i, j = self.get_central_point(event)
+            x, y = central_point.x(), central_point.y()
+            if self.selectorHistory.dsquare_obj is not None:
+                self.removeItem(self.selectorHistory.dsquare_obj)
+            self.selectorHistory.set_current(x - self.oneSquareSideLength / 2,
+                                             y - self.oneSquareSideLength / 2)
+            self.selectorHistory.dsquare_obj = self.drawSquare(self.selectorHistory.current)
+            self.pointerSignal.emit_sig((i, j))
+            self.methodSignal.emit_sig(4)
+            self.methodSignal.emit_sig(2)
 
     @property
     def is_drawing_blocked(self):
@@ -227,10 +226,9 @@ class SchemeInputer(QGraphicsScene):
         self.methodSignal.emit_sig(1)
 
     def mouseMoveEvent(self, event):
-        clicked = event.scenePos().x(), event.scenePos().y()
-        for central_point in self.quantizedInterface.flatten():
-            if self.distance(clicked, central_point) <= self.bump_circle_radius:
-                i, j = self.Point_pos(central_point)
+        if self.get_central_point(event):
+            central_point, i, j = self.get_central_point(event)
+            if central_point is not None:
                 x, y = central_point.x(), central_point.y()
                 if self.move_history.is_empty:
                     self.move_history.set_last(x, y)
@@ -242,7 +240,6 @@ class SchemeInputer(QGraphicsScene):
                     self.draw_line_suite(i, j)
                     if isinstance(self.grid[i, j], Bus):
                         self.block.end = True
-                break
 
     def getQuantizedInterface(self):
         """
