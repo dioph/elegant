@@ -108,7 +108,7 @@ class SchemeInputer(QGraphicsScene):
         """
         return np.hypot(interface_point[0] - point.x(), interface_point[1] - point.y())
 
-    def Point_pos(self, central_point):
+    def ij_from_QPoint(self, central_point):
         """
         Parameters
         ----------
@@ -121,6 +121,11 @@ class SchemeInputer(QGraphicsScene):
         i = int((central_point.y() - self.oneSquareSideLength / 2) / self.oneSquareSideLength)
         j = int((central_point.x() - self.oneSquareSideLength / 2) / self.oneSquareSideLength)
         return i, j
+
+    def QPoint_from_ij(self, i, j):
+        for central_point in self.quantizedInterface.flatten():
+            if (i, j) == self.ij_from_QPoint(central_point):
+                return central_point
 
     def drawLine(self, coordinates, color='b'):
         """
@@ -183,7 +188,8 @@ class SchemeInputer(QGraphicsScene):
         coordinates = event.scenePos().x(), event.scenePos().y()
         for central_point in self.quantizedInterface.flatten():
             if self.distance(coordinates, central_point) <= self.bump_circle_radius:
-                i, j = self.Point_pos(central_point)
+                i, j = self.ij_from_QPoint(central_point)
+                print(central_point, i, j)
                 return central_point, i, j
 
     def mouseReleaseEvent(self, event):
@@ -647,7 +653,7 @@ class CircuitInputer(QWidget):
 
     def updateNmaxLabel(self, nmax, op_mode):
         if not op_mode:
-            self.NmaxLabel.setText('Nmax: {:02d}'.format(nmax))
+            self.NmaxLabel.setText('Nmax: {}'.format(nmax).zfill(2))
         else:
             self.NmaxLabel.setText('Nmax: --')
 
