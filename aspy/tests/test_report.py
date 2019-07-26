@@ -1,14 +1,10 @@
+import os
+import unittest
+
 from aspy.interface import *
 from aspy.report import *
-import unittest
-import sys, os
 
-if sys.platform in ('win32', 'win64'):
-    file = os.path.join(PACKAGEDIR, './data/wtestdb')
-elif sys.platform in ('linux'):
-    file = os.path.join(PACKAGEDIR, './data/ltestdb')
-else:
-    file = '.'
+file = getTestDbFile()
 with open(file, 'br') as file:
     db = pickle.load(file)
     system = db['SYSTEM']
