@@ -1,7 +1,11 @@
+import os
+import unittest
+
 from aspy.interface import *
 from aspy.report import *
 
-with open(os.path.join(PACKAGEDIR, './data/testdb'), 'br') as file:
+file = getTestDbFile()
+with open(file, 'br') as file:
     db = pickle.load(file)
     system = db['SYSTEM']
     curves = db['CURVES']
@@ -10,5 +14,8 @@ with open(os.path.join(PACKAGEDIR, './data/testdb'), 'br') as file:
 SESSIONS_DIR = getSessionsDir()
 
 
-def test_create_report():
-    assert create_report(system, curves, grid, os.path.join(SESSIONS_DIR, 'test.pdf'))
+class ReportTests(unittest.TestCase):
+    def test_report(self):
+        filename = os.path.join(SESSIONS_DIR, 'report_test.pdf')
+        create_report(system, curves, grid, filename)
+        self.assertTrue(os.path.exists(filename), 'the pdf test file was not successfully generated')
