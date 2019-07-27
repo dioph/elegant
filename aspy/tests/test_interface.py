@@ -1,6 +1,5 @@
 import unittest
 
-from PyQt5.QtCore import QRect, QLine
 from PyQt5.QtWidgets import *
 
 from aspy.interface import ASPy
@@ -30,16 +29,23 @@ class ASPyQt(QWidget):
                 return False
         return True
 
-    @property
-    def dbuses_amount(self):
-        ditems = self.ASPy.circuit.Scene.children()
-        print(ditems)
-        return len([d for d in ditems if isinstance(d, QRect)])
+    def get_ditems(self):
+        return self.ASPy.circuit.Scene.items()
 
     @property
-    def dlines_amout(self):
-        ditems = self.ASPy.circuit.Scene.children()
-        return len([d for d in ditems if isinstance(d, QLine)])
+    def dbuses_amount(self):
+        ditems = self.get_ditems()
+        return len([d for d in ditems if isinstance(d, QGraphicsPixmapItem)])
+
+    @property
+    def dlines_amount(self):
+        ditems = self.get_ditems()
+        return len([d for d in ditems if (isinstance(d, QGraphicsLineItem) and d.pen().color().name() == '#0000ff')])
+
+    @property
+    def dxmfrs_amount(self):
+        ditems = self.get_ditems()
+        return len([d for d in ditems if (isinstance(d, QGraphicsLineItem) and d.pen().color().name() == '#ff0000')])
 
 
 app = QApplication(sys.argv)
@@ -56,7 +62,6 @@ class ASPyTests(unittest.TestCase):
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.InputNewLineType), 'InputNewLineType is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.ControlPanelLayout),
                         'ControlPanelLayout is not hidden')
-        self.assertEqual(self.aspyqt.dbuses_amount, 0, 'amount of buses > 0')
 
     def test_insertion_mode(self):
         self.aspyqt.insertion_mode()
@@ -73,13 +78,15 @@ class ASPyTests(unittest.TestCase):
         self.assertEqual(self.circuit.NmaxLabel.text(), 'Nmax: {}'.format(self.circuit.nmax).zfill(2))
 
     def test_load_session(self):
+        self.test_initial_ui()
         file = getTestDbFile()
         with open(file, 'br') as file:
             self.aspyqt.ASPy.createLocalData(file)
             file.close()
-        self.assertGreater(len(self.aspyqt.ASPy.circuit.system.buses), 0, 'Incorrect amount of buses encountered')
-        self.assertGreater(len(self.aspyqt.ASPy.circuit.system.lines), 0, 'Incorrect amount of lines encountered')
-        self.assertFalse(len(self.aspyqt.ASPy.circuit.system.xfmrs) > 0, 'Incorrect amount of xmfrs encountered')
+        self.aspyqt.ASPy.createSchematic(self.aspyqt.ASPy.circuit.Scene)
+        self.assertGreater(len(self.aspyqt.ASPy.circuit.system.buses), 0, 'buses = 0')
+        self.assertGreater(len(self.aspyqt.ASPy.circuit.system.lines), 0, 'lines = 0')
+        self.assertFalse(len(self.aspyqt.ASPy.circuit.system.xfmrs) > 0, 'xmfrs > 0')
 
 if __name__ == '__main__':
     unittest.main()
