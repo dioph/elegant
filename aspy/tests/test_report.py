@@ -1,4 +1,3 @@
-import os
 import unittest
 
 from aspy.interface import *
@@ -19,3 +18,5 @@ class ReportTests(unittest.TestCase):
         filename = os.path.join(SESSIONS_DIR, 'report_test.pdf')
         create_report(system, curves, grid, filename)
         self.assertTrue(os.path.exists(filename), 'the pdf test file was not successfully generated')
+        os.remove(filename)
+        self.assertFalse(os.path.exists(filename), 'the pdf test file was not successfully removed')

@@ -4,7 +4,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from . import PACKAGEDIR
 from .core import *
 from .report import create_report
 from .utils import *

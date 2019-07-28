@@ -40,14 +40,8 @@ def getSessionsDir():
         os.mkdir(sessions_dir)
     return sessions_dir
 
-
 def getTestDbFile():
-    if sys.platform in ('win32', 'win64'):
-        return os.path.join(PACKAGEDIR, 'data/wtestdb')
-    elif sys.platform == 'linux':
-        return os.path.join(PACKAGEDIR, 'data/ltestdb')
-    else:
-        return '.'
+    return os.path.join(PACKAGEDIR, 'data/ltestdb')
 
 def interface_coordpairs(coords, squarel):
     for k in range(len(coords) - 1):
