@@ -9,8 +9,14 @@ from pylatex import Document, Section, Command, NoEscape, Figure, \
 from aspy.core import TL, Bus
 
 _S_FACTOR_ = 3
-_DIST_H = 0.2
-_DIST_V = 0.25
+_DIST_CORR = {  # todo no overlapping based corrections
+    4: (0.2, 0.2),
+    5: (0.2, 0.2),
+    6: (0.2, 0.2),
+    7: (0.2, 0.2),
+    8: (0.2, 0.2),
+}
+_MINIMAL_FONTSIZE_ = 6
 
 
 def matplotlib_coordpairs(curve, sfactor=_S_FACTOR_):
@@ -138,7 +144,9 @@ def direction_based_correction(extremities):
     return [[corr_ox, corr_oy], [corr_dx, corr_dy], [corr_sslope, corr_eslope]]
 
 
-def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
+def annotate_overlapping_flow(ax, gcurves, curves, fontsize, sfactor=_S_FACTOR_):
+    txts = []
+    disth, distv = _DIST_CORR[fontsize]
     for gcurve, curve in zip(gcurves, curves):
         obj = curve.obj
         real_data = collect_line_data(ax, gcurve)
@@ -152,27 +160,61 @@ def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=
         ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
         common_config = {'fontfamily': 'monospace',
                          'rotation_mode': 'anchor',
-                         'fontsize': 6,
+                         'fontsize': fontsize,
                          'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
-        ax.annotate('{:.1f}'.format(obj.S1 * 100),
-                    xy=(sx, sy),
-                    horizontalalignment=hmask[corr[0][0]],
-                    rotation=sslope * corr[2][0],
-                    color='b',
-                    **common_config)
-        ax.annotate("{:.1f}".format(-obj.S2 * 100),
-                    xy=(ex, ey),
-                    horizontalalignment=hmask[corr[1][0]],
-                    rotation=eslope * corr[2][1],
-                    color='r',
-                    **common_config)
+        ltxt = ax.annotate('{:.1f}'.format(obj.S1 * 100),
+                           xy=(sx, sy),
+                           horizontalalignment=hmask[corr[0][0]],
+                           rotation=sslope * corr[2][0],
+                           color='b',
+                           **common_config)
+        ttxt = ax.annotate("{:.1f}".format(-obj.S2 * 100),
+                           xy=(ex, ey),
+                           horizontalalignment=hmask[corr[1][0]],
+                           rotation=eslope * corr[2][1],
+                           color='r',
+                           **common_config)
+        txts.append(ltxt)
+        txts.append(ttxt)
+    return txts
 
 
-def make_system_schematic(curves, grid, filepath, savefig, ext='pdf'):
+def overlaps(text, others):
+    renderer = plt.get_current_fig_manager().canvas.get_renderer()
+    text_bbox = text.get_window_extent(renderer=renderer)
+    for other in others:
+        other_bbox = other.get_window_extent(renderer=renderer)
+        if text_bbox.overlaps(other_bbox) > 0:
+            return True
+    return False
+
+
+def reannotate(txts):
+    for i in range(len(txts) - 1):
+        txt = txts.pop(i)
+        if overlaps(txt, txts):
+            txts.insert(i, txt)
+            return True
+        txts.insert(i, txt)
+    return False
+
+
+def annotate_flow(ax, gcurves, curves, initial_fontsize):
+    current_fontsize = initial_fontsize
+    txts = annotate_overlapping_flow(ax, gcurves, curves, current_fontsize)
+    while reannotate(txts) and current_fontsize > _MINIMAL_FONTSIZE_:
+        current_fontsize -= 1
+        print('current_fontsize = ', current_fontsize)
+        for txt in txts:
+            txt.remove()
+        txts = annotate_overlapping_flow(ax, gcurves, curves, current_fontsize)
+
+
+def make_system_schematic(curves, grid, filepath, savefig, initial_fontsize, ext='pdf'):
     ax = plt.gca()
     gcurves = draw_rep_scheme(grid, curves)
-    annotate_flow(ax, gcurves, curves)
+    annotate_flow(ax, gcurves, curves, initial_fontsize)
     img = os.path.join(filepath) + '_i.' + ext
     if savefig:
         plt.savefig(img, bbox_inches='tight')
@@ -375,7 +417,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                             color=color)
 
     filepath = filename.strip('.pdf')
-    make_system_schematic(curves, grid, filepath, savefig=savefig)
+    make_system_schematic(curves, grid, filepath, savefig=savefig, initial_fontsize=8)
     doc.append(NewPage())
     with doc.create(Section('System')):
         with doc.create(Figure(position='h')) as system_pic:
