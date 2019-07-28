@@ -41,7 +41,7 @@ def getSessionsDir():
     return sessions_dir
 
 def getTestDbFile():
-    return os.path.join(PACKAGEDIR, 'data/ltestdb')
+    return os.path.join(PACKAGEDIR, 'data/testdb')
 
 def interface_coordpairs(coords, squarel):
     for k in range(len(coords) - 1):
