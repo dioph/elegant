@@ -176,7 +176,7 @@ class SchemeInputer(QGraphicsScene):
         -------
         QRect: drawn bus (PyQt5 object)
         """
-        pixmap = QPixmap(os.path.join(PACKAGEDIR, './data/icons/DOT.jpg'))
+        pixmap = QPixmap(os.path.join(PACKAGEDIR, 'data/icons/DOT.jpg'))
         pixmap = pixmap.scaled(self.oneSquareSideLength, self.oneSquareSideLength, Qt.KeepAspectRatio)
         sceneItem = self.addPixmap(pixmap)
         pixmap_coords = coordinates[0] - self.oneSquareSideLength / 2, coordinates[1] - self.oneSquareSideLength / 2
