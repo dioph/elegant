@@ -8,33 +8,36 @@ from pylatex import Document, Section, Command, NoEscape, Figure, \
 
 from aspy.core import TL, Bus
 
-_S_FACTOR_ = 3
-_DIST_H = 0.2
-_DIST_V = 0.25
+DIST = 0.25
 
-
-def matplotlib_coordpairs(curve, sfactor=_S_FACTOR_):
+def matplotlib_coordpairs(curve):
     coords = np.array(curve.coords)
     x = coords[:, 1]
     y = coords[:, 0]
-    return sfactor * x, sfactor * -y
+    return x, -y
 
 
-def draw_rep_buses(ax, grid, size=250, sfactor=_S_FACTOR_):
+def draw_rep_buses(ax, grid, size=250):
     N = grid.shape[0]
     for y in range(N):
         for x in range(N):
             if isinstance(grid[y, x], Bus):
-                plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
+                plt.scatter(x, -y, s=size, c='k', zorder=3)
                 ax.annotate(grid[y, x].bus_id,
-                            xy=(sfactor * x, sfactor * -y),
+                            xy=(x, -y),
                             color='w',
                             fontfamily='monospace',
                             horizontalalignment='center',
                             verticalalignment='center')
 
 
-def collect_line_data(ax, line):
+def collect_abstract_line_data(line):
+    x, y = line.get_data()
+    p1x, p2x, p1y, p2y = x[0], x[1], y[0], y[1]
+    pblx, plx, pbly, ply = x[-2], x[-1], y[-2], y[-1]
+    return np.array([p1x, p1y]), np.array([p2x, p2y]), np.array([pblx, pbly]), np.array([plx, ply])
+
+def collect_display_line_data(ax, line):
     x, y = line.get_data()
     p1x, p2x, p1y, p2y = x[0], x[1], y[0], y[1]
     pblx, plx, pbly, ply = x[-2], x[-1], y[-2], y[-1]
@@ -44,15 +47,13 @@ def collect_line_data(ax, line):
     r_pl = ax.transData.transform_point([plx, ply])
     return r_p1, r_p2, r_pbl, r_pl
 
-
 def get_line_slopes(line_data):
     r_p1, r_p2, r_pbl, r_pl = line_data
     start_slope = np.arctan2(np.abs(r_p2[1] - r_p1[1]), np.abs(r_p2[0] - r_p1[0]))
     end_slope = np.arctan2(np.abs(r_pl[1] - r_pbl[1]), np.abs(r_pl[0] - r_pbl[0]))
     return np.rad2deg(start_slope), np.rad2deg(end_slope)
 
-
-def draw_rep_curves(ax, curves, linewidth=1):
+def draw_all_curves(ax, curves, linewidth=1):
     gcurves = []
     for curve in curves:
         coords = matplotlib_coordpairs(curve)
@@ -68,7 +69,7 @@ def draw_rep_curves(ax, curves, linewidth=1):
 def draw_rep_scheme(grid, curves):
     ax = plt.gca()
     ax.clear()
-    gcurves = draw_rep_curves(ax, curves)
+    gcurves = draw_all_curves(ax, curves)
     draw_rep_buses(ax, grid)
     ax.set_axis_off()
     return gcurves
@@ -138,18 +139,20 @@ def direction_based_correction(extremities):
     return [[corr_ox, corr_oy], [corr_dx, corr_dy], [corr_sslope, corr_eslope]]
 
 
-def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
+def annotate_flow(ax, gcurves, curves):
     for gcurve, curve in zip(gcurves, curves):
         obj = curve.obj
-        real_data = collect_line_data(ax, gcurve)
-        sslope, eslope = get_line_slopes(real_data)
+        real_data = collect_display_line_data(ax, gcurve)
+        abstract_data = collect_abstract_line_data(gcurve)
+        dys_sslope, dys_eslope = get_line_slopes(real_data)
+        abst_sslope, abst_eslope = get_line_slopes(abstract_data)
         extremities = get_curve_extremities(curve)
         corr = direction_based_correction(extremities)
-        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
-        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
-        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
-        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
-        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
+        ox, oy, dx, dy = extremities[0], extremities[1], extremities[-4], extremities[-3]
+        sx = ox + DIST * np.cos(np.deg2rad(abst_sslope)) * corr[0][0]
+        sy = oy + DIST * np.sin(np.deg2rad(abst_sslope)) * corr[0][1]
+        ex = dx + DIST * np.cos(np.deg2rad(abst_eslope)) * corr[1][0]
+        ey = dy + DIST * np.sin(np.deg2rad(abst_eslope)) * corr[1][1]
         common_config = {'fontfamily': 'monospace',
                          'rotation_mode': 'anchor',
                          'fontsize': 6,
@@ -158,24 +161,26 @@ def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=
         ax.annotate('{:.1f}'.format(obj.S1 * 100),
                     xy=(sx, sy),
                     horizontalalignment=hmask[corr[0][0]],
-                    rotation=sslope * corr[2][0],
+                    rotation=dys_sslope * corr[2][0],
                     color='b',
                     **common_config)
         ax.annotate("{:.1f}".format(-obj.S2 * 100),
                     xy=(ex, ey),
                     horizontalalignment=hmask[corr[1][0]],
-                    rotation=eslope * corr[2][1],
+                    rotation=dys_eslope * corr[2][1],
                     color='r',
                     **common_config)
 
 
-def make_system_schematic(curves, grid, filepath, savefig, ext='pdf'):
+def make_system_schematic(curves, grid, filepath=None, show=False, ext='pdf'):
     ax = plt.gca()
     gcurves = draw_rep_scheme(grid, curves)
     annotate_flow(ax, gcurves, curves)
-    img = os.path.join(filepath) + '_i.' + ext
-    if savefig:
+    if filepath is not None:
+        img = os.path.join(filepath) + '_i.' + ext
         plt.savefig(img, bbox_inches='tight')
+    if show:
+        plt.show()
 
 
 def check_inf(x):
@@ -375,7 +380,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                             color=color)
 
     filepath = filename.strip('.pdf')
-    make_system_schematic(curves, grid, filepath, savefig=savefig)
+    make_system_schematic(curves, grid, filepath)
     doc.append(NewPage())
     with doc.create(Section('System')):
         with doc.create(Figure(position='h')) as system_pic:
