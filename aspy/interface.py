@@ -62,10 +62,23 @@ class HistoryData:
         self.current = [x, y]
 
 
+class View(QGraphicsView):
+    def __init__(self, QGraphicsScene):
+        super(View, self).__init__(QGraphicsScene)
+        self.horizontalScrollBar().valueChanged.connect(self.erase)
+        self.verticalScrollBar().valueChanged.connect(self.erase)
+
+    def erase(self):
+        if self.scene().selectorHistory.dsquare_obj is not None:
+            self.scene().removeItem(self.scene().selectorHistory.dsquare_obj)
+            self.scene().selectorHistory.dsquare_obj = None
+
+
 class SchemeInputer(QGraphicsScene):
     def __init__(self, n=20, length=50):
         super(SchemeInputer, self).__init__()
         self.N = n
+        self.View = View(self)
 
         # System state variables
         self.pixmap = np.zeros((self.N, self.N), object)
@@ -92,6 +105,8 @@ class SchemeInputer(QGraphicsScene):
                           self.oneSquareSideLength * -2,
                           self.oneSquareSideLength * (self.N + 4),
                           self.oneSquareSideLength * (self.N + 4))
+
+
 
     @staticmethod
     def distance(interface_point, point):
@@ -188,7 +203,6 @@ class SchemeInputer(QGraphicsScene):
         for central_point in self.quantizedInterface.flatten():
             if self.distance(coordinates, central_point) <= self.bump_circle_radius:
                 i, j = self.ij_from_QPoint(central_point)
-                print(central_point, i, j)
                 return central_point, i, j
 
     def mouseReleaseEvent(self, event):
@@ -205,15 +219,18 @@ class SchemeInputer(QGraphicsScene):
             self.pointerSignal.emit_sig((i, j))
             self.methodSignal.emit_sig(0)
 
+    def redraw_cursor(self, x, y):
+        if self.selectorHistory.dsquare_obj is not None:
+            self.removeItem(self.selectorHistory.dsquare_obj)
+        self.selectorHistory.set_current(x - self.oneSquareSideLength / 2,
+                                         y - self.oneSquareSideLength / 2)
+        self.selectorHistory.dsquare_obj = self.drawSquare(self.selectorHistory.current)
+
     def mousePressEvent(self, event):
         if self.get_central_point(event):
             central_point, i, j = self.get_central_point(event)
             x, y = central_point.x(), central_point.y()
-            if self.selectorHistory.dsquare_obj is not None:
-                self.removeItem(self.selectorHistory.dsquare_obj)
-            self.selectorHistory.set_current(x - self.oneSquareSideLength / 2,
-                                             y - self.oneSquareSideLength / 2)
-            self.selectorHistory.dsquare_obj = self.drawSquare(self.selectorHistory.current)
+            self.redraw_cursor(x, y)
             self.pointerSignal.emit_sig((i, j))
             self.methodSignal.emit_sig(4)
             self.methodSignal.emit_sig(2)
@@ -235,6 +252,7 @@ class SchemeInputer(QGraphicsScene):
             central_point, i, j = self.get_central_point(event)
             if central_point is not None:
                 x, y = central_point.x(), central_point.y()
+                self.redraw_cursor(x, y)
                 if self.move_history.is_empty:
                     self.move_history.set_last(x, y)
                     if isinstance(self.grid[i, j], Bus):
@@ -289,7 +307,8 @@ class CircuitInputer(QWidget):
 
         self.Scene = SchemeInputer()
 
-        self.View = QGraphicsView(self.Scene)
+        # self.View = QGraphicsView(self.Scene)
+        self.View = self.Scene.View
         self.SchemeInputLayout = QHBoxLayout()  # Layout for SchemeInput
         self.SchemeInputLayout.addWidget(self.View)
         self._currElementCoords = None  # Coordinates to current object being manipuled
@@ -316,6 +335,7 @@ class CircuitInputer(QWidget):
         self.BusTitle = QLabel('Bus title')
         self.BusTitle.setAlignment(Qt.AlignCenter)
         self.BusTitle.setMinimumWidth(200)
+        self.BusTitle.setMaximumWidth(200)
 
         # Bus voltage
         self.BusV_Value = QLineEdit('0.0')
@@ -445,6 +465,7 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addLayout(self.InputNewLineTypeFormLayout)
         self.SubmitNewLineTypePushButton = QPushButton('Submit')
         self.SubmitNewLineTypePushButton.setMinimumWidth(200)
+        self.SubmitNewLineTypePushButton.setMaximumWidth(200)
         self.SubmitNewLineTypePushButton.pressed.connect(self.addNewLineType)
         self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
         self.InputNewLineType.addStretch()
@@ -513,11 +534,13 @@ class CircuitInputer(QWidget):
 
         self.tlSubmitByImpedancePushButton = QPushButton('Submit by impedance')
         self.tlSubmitByImpedancePushButton.setMinimumWidth(200)
+        self.tlSubmitByImpedancePushButton.setMaximumWidth(200)
         self.tlSubmitByImpedancePushButton.pressed.connect(lambda: self.lineProcessing('impedance'))
 
         self.tlSubmitByModelPushButton = QPushButton('Submit by model')
         self.tlSubmitByModelPushButton.pressed.connect(lambda: self.lineProcessing('parameters'))
         self.tlSubmitByModelPushButton.setMinimumWidth(200)
+        self.tlSubmitByModelPushButton.setMaximumWidth(200)
 
         self.chosenLineFormLayout.addRow('Model', self.chooseLineModel)
         self.chosenLineFormLayout.addRow('\u2113 (km)', self.EllLineEdit)
@@ -528,6 +551,7 @@ class CircuitInputer(QWidget):
 
         self.removeTLPushButton = QPushButton('Remove TL')
         self.removeTLPushButton.setMinimumWidth(200)
+        self.removeTLPushButton.setMaximumWidth(200)
         self.removeTLPushButton.pressed.connect(self.remove_line)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
@@ -556,6 +580,7 @@ class CircuitInputer(QWidget):
         self.xfmrSubmitPushButton = QPushButton('Submit xfmr')
         self.xfmrSubmitPushButton.pressed.connect(self.xfmrProcessing)
         self.xfmrSubmitPushButton.setMinimumWidth(200)
+        self.xfmrSubmitPushButton.setMaximumWidth(200)
 
         self.removeXfmrPushButton = QPushButton('Remove xfmr')
         self.removeXfmrPushButton.pressed.connect(self.remove_xfmr)
@@ -566,6 +591,7 @@ class CircuitInputer(QWidget):
         """
         self.removeXfmrPushButton.pressed.connect(self.LayoutManager)
         self.removeXfmrPushButton.setMinimumWidth(200)
+        self.removeXfmrPushButton.setMaximumWidth(200)
 
         self.chosenXfmrFormLayout.addRow('Snom (MVA)', self.SNomXfmrLineEdit)
         self.chosenXfmrFormLayout.addRow('x+ (%pu)', self.XPosSeqXfmrLineEdit)
@@ -1000,6 +1026,7 @@ class CircuitInputer(QWidget):
         if not isinstance(self.Scene.grid[coords], Bus) and not curve:
             bus = self.system.add_bus()
             self.Scene.grid[coords] = bus
+            self.statusMsg.emit_sig('Added bus')
         else:
             self.Scene.removeItem(self.Scene.pixmap[coords])
             self.statusMsg.emit_sig('There\'s an element in this position!')
@@ -1181,7 +1208,8 @@ class CircuitInputer(QWidget):
         bus = self.getBusFromGridPos(coords)
         if bus:
             self.removeElementsLinked2Bus(bus)
-            self.system.remove_bus(bus.bus_id)
+            n = self.system.id2n(bus.bus_id)
+            self.system.remove_bus(n)
             self.Scene.removeItem(self.Scene.pixmap[coords])
             self.Scene.pixmap[coords] = 0
             self.Scene.grid[coords] = 0
@@ -1301,15 +1329,18 @@ class CircuitInputer(QWidget):
         """
         if self.curves:
             curr_curve = self.curves[-1]
-            curr_curve.remove |= (len(curr_curve.coords) <= 2 or curr_curve.obj.dest is None)
+            curr_curve.remove |= (len(curr_curve.coords) <= 2
+                                  or curr_curve.obj.dest is None
+                                  or curr_curve.obj.dest == curr_curve.obj.orig)
             if not self._startNewTL and not curr_curve.remove:
                 self.system.add_line(self.curves[-1].obj, tuple(self.curves[-1].coords))
             self._startNewTL = True
             if curr_curve.remove:
                 self.remove_curve(curr_curve)
             for curve in self.curves:
-                assert (curve.obj.orig is not None)
-                assert (curve.obj.dest is not None)
+                assert curve.obj.orig is not None
+                assert curve.obj.dest is not None
+                assert curve.obj.dest != curve.obj.orig
 
         if not self.op_mode:
             self.system.update(Nmax=self.nmax)
@@ -1387,7 +1418,7 @@ class ASPy(QMainWindow):
         self.circuit.updateRealOrInsertionRadio(self.circuit.op_mode)
 
     def displayStatusMsg(self, args):
-        self.statusBar().showMessage(args, msecs=10000)
+        self.statusBar().showMessage(args)
 
     def saveSession(self):
         sessions_dir = getSessionsDir()
