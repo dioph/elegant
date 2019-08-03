@@ -235,12 +235,29 @@ class Transformer(object):
         return self.v2 * self.Ipu.conjugate()
 
 
+class Keys:
+    def __init__(self):
+        self.keys = {}
+
+    def have_extremities(self, extremities):
+        return extremities in self.keys.keys()
+
+    def add_keyobj(self, extremities, path, obj):
+        if self.have_extremities(extremities):
+            self.keys[extremities][path] = obj
+        else:
+            self.keys[extremities] = {path: obj}
+
+    def get_keyobj(self, extremities, path):
+        return self.keys[extremities][path]
+
+
 class PowerSystem(object):
     def __init__(self):
         self.buses = []
         self.lines = []
         self.xfmrs = []
-        self.keys = {}
+        self.keys = Keys()
         self.graph = nx.MultiGraph()
         self.status = ""
 
@@ -256,41 +273,46 @@ class PowerSystem(object):
         self.graph.add_node(bus)
         return bus
 
-    def add_line(self, line, key=None):
-        if (line.orig, line.dest, key) in self.graph.edges:
+    def add_line(self, line, path=None):
+        if (line.orig, line.dest, path) in self.graph.edges:
             self.status = "key already exists!"
+            return
+        if line.orig == line.dest:
+            self.status = "same origin and destiny buses not allowed"
             return
         self.lines.append(line)
-        key = self.graph.add_edge(line.orig, line.dest, key)
-        pos = frozenset([line.orig, line.dest])
-        if pos in self.keys.keys():
-            self.keys[pos][key] = line
-        else:
-            self.keys[pos] = {key: line}
+        path = self.graph.add_edge(line.orig, line.dest, path)
+        extremities = frozenset([line.orig, line.dest])
+        self.keys.add_keyobj(extremities, path, line)
 
-    def add_xfmr(self, xfmr, key=None):
-        if (xfmr.orig, xfmr.dest, key) in self.graph.edges:
-            self.status = "key already exists!"
-            return
-        self.xfmrs.append(xfmr)
-        key = self.graph.add_edge(xfmr.orig, xfmr.dest, key)
-        pos = frozenset([xfmr.orig, xfmr.dest])
-        if pos in self.keys.keys():
-            self.keys[pos][key] = xfmr
-        else:
-            self.keys[pos] = {key: xfmr}
+    def id2n(self, id):
+        for n, bus in enumerate(self.buses):
+            if bus.bus_id == id:
+                return n
 
     def remove_bus(self, n):
         bus = self.buses[n]
         self.remove_elements_linked_to(bus)
+        self.graph.remove_node(bus)
         self.buses.remove(bus)
         self.sort_buses()
+
+    def add_xfmr(self, xfmr, path=None):
+        if (xfmr.orig, xfmr.dest, path) in self.graph.edges:
+            self.status = "key already exists!"
+            return
+        if xfmr.orig == xfmr.dest:
+            self.status = "key already exists!"
+            return
+        self.xfmrs.append(xfmr)
+        path = self.graph.add_edge(xfmr.orig, xfmr.dest, path)
+        extremities = frozenset([xfmr.orig, xfmr.dest])
+        self.keys.add_keyobj(extremities, path, xfmr)
 
     def remove_line(self, line, key=None):
         if key is not None and (line.orig, line.dest, key) not in self.graph.edges:
             self.status = "key does not exist!"
             return
-
         self.lines.remove(line)
         self.graph.remove_edge(line.orig, line.dest, key)
         self.status = "removed line"
@@ -310,20 +332,25 @@ class PowerSystem(object):
         else:
             for i in range(self.N):
                 self.buses[i].bus_id = i + 1
+        ids = [bus.bus_id for bus in self.buses]
+        for line in self.lines:
+            assert line.dest.bus_id in ids and line.orig.bus_id in ids
+        for xfmr in self.xfmrs:
+            assert xfmr.dest.bus_id in ids and xfmr.orig.bus_id in ids
 
     def remove_elements_linked_to(self, bus):
         linked = []
         for edge in self.graph.edges:
-            i, j, key = edge
-            if i == bus or j == bus:
-                pos = frozenset([i, j])
-                obj = self.keys[pos][key]
-                linked.append([obj, key])
-        for obj, key in linked:
+            origin_bus, destiny_bus, path = edge
+            if origin_bus == bus or destiny_bus == bus:
+                extremities = frozenset([origin_bus, destiny_bus])
+                obj = self.keys.get_keyobj(extremities, path)
+                linked.append([obj, path])
+        for obj, path in linked:
             if isinstance(obj, TL):
-                self.remove_line(obj, key)
+                self.remove_line(obj, path)
             elif isinstance(obj, Transformer):
-                self.remove_xfmr(obj, key)
+                self.remove_xfmr(obj, path)
 
     @property
     def N(self):
@@ -350,14 +377,15 @@ class PowerSystem(object):
 
     @property
     def masked_buses(self):
-        connected_components = nx.connected_components(self.graph)
         neighbors = []
+        connected_components = nx.connected_components(self.graph)
         for component in connected_components:
             component_ids = [b.bus_id for b in component]
-            if 0 in component_ids:
+            if 0 in component_ids:  # and 0 in [b.bus_id for b in self.buses]
                 neighbors = component_ids
         mask_buses = np.zeros(self.N, bool)
-        mask_buses[list(neighbors)] = True
+        if np.size(mask_buses):
+            mask_buses[list(neighbors)] = True
         if self.N > 0:
             masked_buses = np.array(self.buses)[mask_buses]
         else:
