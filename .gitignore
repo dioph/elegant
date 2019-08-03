@@ -25,7 +25,6 @@
 *.dwl2
 *.bak
 *.dwg
-*.egg-info/*
 
 # Logs and databases #
 ######################
@@ -43,5 +42,3 @@
 ehthumbs.db
 Thumbs.db
 *.pytest_cache
-venv/*
-*.pyc
