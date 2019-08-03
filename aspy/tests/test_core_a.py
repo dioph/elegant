@@ -40,7 +40,7 @@ def test_remove_line():
     system = PowerSystem()
     system.add_bus()
     system.add_bus()
-    line = TL(orig=0, dest=1)
+    line = TL(orig=system.buses[0], dest=system.buses[1])
     system.add_line(line)
     system.add_line(line)
     assert len(system.lines) == 2
@@ -56,17 +56,43 @@ def test_modifying_added_bus():
     assert bus.v == 10
 
 
+def test_good_ids():
+    system = PowerSystem()
+    system.add_bus()
+    system.add_bus()
+    system.add_bus()
+    system.add_bus()
+    for i, b in enumerate(system.buses):
+        assert b.bus_id == i
+    system.remove_bus(0)
+    for i, b in enumerate(system.buses):
+        assert b.bus_id == i + 1
+    line = TL(orig=system.buses[0], dest=system.buses[1])
+    xfmr = Transformer(orig=system.buses[0], dest=system.buses[1])
+    system.add_line(line)  # bus 1 -> bus 2
+    system.add_xfmr(xfmr)  # bus 1 -> bus 2
+    assert system.M == 0
+    system.add_bus()  # add slack
+    assert system.M == 1
+    line = TL(orig=system.buses[0], dest=system.buses[1])
+    system.add_line(line)  # slack <--> bus 1 <--> bus 2
+    assert system.M == 3
+
+
 def test_3bus_problem_stevenson():
     system = PowerSystem()
     slack = system.add_bus()
     pv = system.add_bus()
     pq = system.add_bus()
-    line = TL(2, 1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
+    bus_0 = system.buses[1]
+    bus_1 = system.buses[1]
+    bus_2 = system.buses[2]
+    line = TL(bus_2, bus_1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
     Y = np.array([[1 / .12j, 0, -1 / .12j],
                   [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
                   [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])
     system.add_line(line)
-    xfmr = Transformer(0, 2, jx0=0.12, jx1=0.12, secondary=DELTA)
+    xfmr = Transformer(bus_0, bus_2, jx0=0.12, jx1=0.12, secondary=DELTA)
     system.add_xfmr(xfmr)
     assert np.allclose(system.Y, Y)
     slack.v = 1.01
