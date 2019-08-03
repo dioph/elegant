@@ -304,7 +304,6 @@ class CircuitInputer(QWidget):
         self.curves = []
         self.nmax = 20
         self.op_mode = 0
-        self.sidebar_width = 200
 
         self.Scene = SchemeInputer()
 
@@ -335,8 +334,8 @@ class CircuitInputer(QWidget):
         # Bus title
         self.BusTitle = QLabel('Bus title')
         self.BusTitle.setAlignment(Qt.AlignCenter)
-        self.BusTitle.setMinimumWidth(self.sidebar_width)
-        self.BusTitle.setMaximumWidth(self.sidebar_width)
+        self.BusTitle.setMinimumWidth(200)
+        self.BusTitle.setMaximumWidth(200)
 
         # Bus voltage
         self.BusV_Value = QLineEdit('0.0')
@@ -465,8 +464,8 @@ class CircuitInputer(QWidget):
         self.InputNewLineType.addStretch()
         self.InputNewLineType.addLayout(self.InputNewLineTypeFormLayout)
         self.SubmitNewLineTypePushButton = QPushButton('Submit')
-        self.SubmitNewLineTypePushButton.setMinimumWidth(self.sidebar_width)
-        self.SubmitNewLineTypePushButton.setMaximumWidth(self.sidebar_width)
+        self.SubmitNewLineTypePushButton.setMinimumWidth(200)
+        self.SubmitNewLineTypePushButton.setMaximumWidth(200)
         self.SubmitNewLineTypePushButton.pressed.connect(self.addNewLineType)
         self.InputNewLineType.addWidget(self.SubmitNewLineTypePushButton)
         self.InputNewLineType.addStretch()
@@ -534,14 +533,14 @@ class CircuitInputer(QWidget):
         self.TlYLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
         self.tlSubmitByImpedancePushButton = QPushButton('Submit by impedance')
-        self.tlSubmitByImpedancePushButton.setMinimumWidth(self.sidebar_width)
-        self.tlSubmitByImpedancePushButton.setMaximumWidth(self.sidebar_width)
+        self.tlSubmitByImpedancePushButton.setMinimumWidth(200)
+        self.tlSubmitByImpedancePushButton.setMaximumWidth(200)
         self.tlSubmitByImpedancePushButton.pressed.connect(lambda: self.lineProcessing('impedance'))
 
         self.tlSubmitByModelPushButton = QPushButton('Submit by model')
         self.tlSubmitByModelPushButton.pressed.connect(lambda: self.lineProcessing('parameters'))
-        self.tlSubmitByModelPushButton.setMinimumWidth(self.sidebar_width)
-        self.tlSubmitByModelPushButton.setMaximumWidth(self.sidebar_width)
+        self.tlSubmitByModelPushButton.setMinimumWidth(200)
+        self.tlSubmitByModelPushButton.setMaximumWidth(200)
 
         self.chosenLineFormLayout.addRow('Model', self.chooseLineModel)
         self.chosenLineFormLayout.addRow('\u2113 (km)', self.EllLineEdit)
@@ -551,8 +550,8 @@ class CircuitInputer(QWidget):
         self.chosenLineFormLayout.addRow('Y (%pu)', self.TlYLineEdit)
 
         self.removeTLPushButton = QPushButton('Remove TL')
-        self.removeTLPushButton.setMinimumWidth(self.sidebar_width)
-        self.removeTLPushButton.setMaximumWidth(self.sidebar_width)
+        self.removeTLPushButton.setMinimumWidth(200)
+        self.removeTLPushButton.setMaximumWidth(200)
         self.removeTLPushButton.pressed.connect(self.remove_line)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
@@ -580,8 +579,8 @@ class CircuitInputer(QWidget):
 
         self.xfmrSubmitPushButton = QPushButton('Submit xfmr')
         self.xfmrSubmitPushButton.pressed.connect(self.xfmrProcessing)
-        self.xfmrSubmitPushButton.setMinimumWidth(self.sidebar_width)
-        self.xfmrSubmitPushButton.setMaximumWidth(self.sidebar_width)
+        self.xfmrSubmitPushButton.setMinimumWidth(200)
+        self.xfmrSubmitPushButton.setMaximumWidth(200)
 
         self.removeXfmrPushButton = QPushButton('Remove xfmr')
         self.removeXfmrPushButton.pressed.connect(self.remove_xfmr)
@@ -591,8 +590,8 @@ class CircuitInputer(QWidget):
         #     The conversion xfmr <-> line calls the method remove_selected_(line/xfmr)
         """
         self.removeXfmrPushButton.pressed.connect(self.LayoutManager)
-        self.removeXfmrPushButton.setMinimumWidth(self.sidebar_width)
-        self.removeXfmrPushButton.setMaximumWidth(self.sidebar_width)
+        self.removeXfmrPushButton.setMinimumWidth(200)
+        self.removeXfmrPushButton.setMaximumWidth(200)
 
         self.chosenXfmrFormLayout.addRow('Snom (MVA)', self.SNomXfmrLineEdit)
         self.chosenXfmrFormLayout.addRow('x+ (%pu)', self.XPosSeqXfmrLineEdit)
@@ -623,7 +622,7 @@ class CircuitInputer(QWidget):
 
         # Toplayout
         self.TopLayout = QHBoxLayout()
-        self.Spacer = QSpacerItem(self.sidebar_width, 0, QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.Spacer = QSpacerItem(200, 0, QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.TopLayout.addItem(self.Spacer)
         self.TopLayout.addLayout(self.InspectorAreaLayout)
         self.TopLayout.addLayout(self.SchemeInputLayout)
@@ -650,7 +649,7 @@ class CircuitInputer(QWidget):
         self.Spacer.changeSize(0, 0)
 
     def showSpacer(self):
-        self.Spacer.changeSize(self.sidebar_width, 0)
+        self.Spacer.changeSize(200, 0)
 
     def setTemp(self, args):
         """This method stores the first line in line element drawing during line inputting.
