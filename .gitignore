@@ -43,3 +43,6 @@ ehthumbs.db
 Thumbs.db
 *.pytest_cache
 *.log
+*.venv
+*.egg-info
+
