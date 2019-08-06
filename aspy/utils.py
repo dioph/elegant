@@ -42,10 +42,8 @@ def getSessionsDir():
 
 
 def getTestDbFile():
-    if sys.platform in ('win32', 'win64'):
-        return os.path.join(PACKAGEDIR, 'data/wtestdb')
-    elif sys.platform == 'linux':
-        return os.path.join(PACKAGEDIR, 'data/ltestdb')
+    if sys.platform in ('win32', 'win64', 'linux'):
+        return os.path.join(PACKAGEDIR, 'data/testdb')
     else:
         return '.'
 
