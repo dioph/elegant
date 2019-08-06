@@ -8,33 +8,39 @@ from pylatex import Document, Section, Command, NoEscape, Figure, \
 
 from aspy.core import TL, Bus
 
-_S_FACTOR_ = 3
-_DIST_H = 0.2
-_DIST_V = 0.25
+DIST = 0.25
+MIN_FSIZE = 6
 
 
-def matplotlib_coordpairs(curve, sfactor=_S_FACTOR_):
+def matplotlib_coordpairs(curve):
     coords = np.array(curve.coords)
     x = coords[:, 1]
     y = coords[:, 0]
-    return sfactor * x, sfactor * -y
+    return x, -y
 
 
-def draw_rep_buses(ax, grid, size=250, sfactor=_S_FACTOR_):
+def draw_rep_buses(ax, grid, size=250):
     N = grid.shape[0]
     for y in range(N):
         for x in range(N):
             if isinstance(grid[y, x], Bus):
-                plt.scatter(sfactor * x, sfactor * -y, s=size, c='k', zorder=3)
-                ax.annotate(grid[y, x].bus_id,
-                            xy=(sfactor * x, sfactor * -y),
+                plt.scatter(x, -y, s=size, c='k', zorder=3)
+                ax.annotate(grid[y, x].bus_id + 1,
+                            xy=(x, -y),
                             color='w',
                             fontfamily='monospace',
                             horizontalalignment='center',
                             verticalalignment='center')
 
 
-def collect_line_data(ax, line):
+def collect_abstract_line_data(line):
+    x, y = line.get_data()
+    p1x, p2x, p1y, p2y = x[0], x[1], y[0], y[1]
+    pblx, plx, pbly, ply = x[-2], x[-1], y[-2], y[-1]
+    return np.array([p1x, p1y]), np.array([p2x, p2y]), np.array([pblx, pbly]), np.array([plx, ply])
+
+
+def collect_display_line_data(ax, line):
     x, y = line.get_data()
     p1x, p2x, p1y, p2y = x[0], x[1], y[0], y[1]
     pblx, plx, pbly, ply = x[-2], x[-1], y[-2], y[-1]
@@ -52,7 +58,7 @@ def get_line_slopes(line_data):
     return np.rad2deg(start_slope), np.rad2deg(end_slope)
 
 
-def draw_rep_curves(ax, curves, linewidth=1):
+def draw_all_curves(ax, curves, linewidth=1):
     gcurves = []
     for curve in curves:
         coords = matplotlib_coordpairs(curve)
@@ -68,7 +74,7 @@ def draw_rep_curves(ax, curves, linewidth=1):
 def draw_rep_scheme(grid, curves):
     ax = plt.gca()
     ax.clear()
-    gcurves = draw_rep_curves(ax, curves)
+    gcurves = draw_all_curves(ax, curves)
     draw_rep_buses(ax, grid)
     ax.set_axis_off()
     return gcurves
@@ -138,44 +144,91 @@ def direction_based_correction(extremities):
     return [[corr_ox, corr_oy], [corr_dx, corr_dy], [corr_sslope, corr_eslope]]
 
 
-def annotate_flow(ax, gcurves, curves, sfactor=_S_FACTOR_, disth=_DIST_H, distv=_DIST_V):
+def annotate_flow(ax, gcurves, curves, fontsize):
+    texts = []
     for gcurve, curve in zip(gcurves, curves):
         obj = curve.obj
-        real_data = collect_line_data(ax, gcurve)
-        sslope, eslope = get_line_slopes(real_data)
+        real_data = collect_display_line_data(ax, gcurve)
+        abstract_data = collect_abstract_line_data(gcurve)
+        dys_sslope, dys_eslope = get_line_slopes(real_data)
+        abst_sslope, abst_eslope = get_line_slopes(abstract_data)
         extremities = get_curve_extremities(curve)
         corr = direction_based_correction(extremities)
-        ox, oy, dx, dy = extremities[0], extremities[1], extremities[4], extremities[5]
-        sx = sfactor * (ox + disth * np.cos(np.deg2rad(sslope)) * corr[0][0])
-        sy = sfactor * (oy + distv * np.sin(np.deg2rad(sslope)) * corr[0][1])
-        ex = sfactor * (dx + disth * np.cos(np.deg2rad(eslope)) * corr[1][0])
-        ey = sfactor * (dy + distv * np.sin(np.deg2rad(eslope)) * corr[1][1])
+        ox, oy, dx, dy = extremities[0], extremities[1], extremities[-4], extremities[-3]
+        sx = ox + DIST * np.cos(np.deg2rad(abst_sslope)) * corr[0][0]
+        sy = oy + DIST * np.sin(np.deg2rad(abst_sslope)) * corr[0][1]
+        ex = dx + DIST * np.cos(np.deg2rad(abst_eslope)) * corr[1][0]
+        ey = dy + DIST * np.sin(np.deg2rad(abst_eslope)) * corr[1][1]
         common_config = {'fontfamily': 'monospace',
                          'rotation_mode': 'anchor',
-                         'fontsize': 6,
+                         'fontsize': fontsize,
                          'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
-        ax.annotate('{:.1f}'.format(obj.S1 * 100),
+        ltxt = ax.annotate('{:.1f}'.format(obj.S1 * 100),
                     xy=(sx, sy),
                     horizontalalignment=hmask[corr[0][0]],
-                    rotation=sslope * corr[2][0],
+                    rotation=dys_sslope * corr[2][0],
                     color='b',
                     **common_config)
-        ax.annotate("{:.1f}".format(-obj.S2 * 100),
+        xtxt = ax.annotate("{:.1f}".format(-obj.S2 * 100),
                     xy=(ex, ey),
                     horizontalalignment=hmask[corr[1][0]],
-                    rotation=eslope * corr[2][1],
+                    rotation=dys_eslope * corr[2][1],
                     color='r',
                     **common_config)
+        texts.append(ltxt)
+        texts.append(xtxt)
+    return texts
 
 
-def make_system_schematic(curves, grid, filepath, savefig, ext='pdf'):
+def overlapping_with_gcurves(texts, gcurves):
+    renderer = plt.get_current_fig_manager().canvas.get_renderer()
+    for text in texts:
+        tbbox = text.get_window_extent(renderer=renderer)
+        for gcurve in gcurves:
+            gcbbox = gcurve.get_window_extent(renderer=renderer)
+            if tbbox.overlaps(gcbbox):
+                return True
+    return False
+
+
+def overlapping_with_texts(texts, gcurves):
+    renderer = plt.get_current_fig_manager().canvas.get_renderer()
+    for t in range(len(texts)):
+        popen = texts.pop(t)
+        pbbox = popen.get_window_extent(renderer=renderer)
+        for text in texts:
+            tbbox = text.get_window_extent(renderer=renderer)
+            if pbbox.overlaps(tbbox):
+                texts.insert(t, popen)
+                return True
+            texts.insert(t, popen)
+    return False
+
+
+def clean_from_scene(objs):
+    for obj in objs:
+        obj.remove()
+
+
+def overlapping(texts, gcurves):
+    return overlapping_with_gcurves(texts, gcurves) or overlapping_with_texts(texts, gcurves)
+
+
+def make_system_schematic(curves, grid, initial_fontsize, save=False, filepath=None, show=False, ext='pdf'):
+    fs = initial_fontsize
     ax = plt.gca()
     gcurves = draw_rep_scheme(grid, curves)
-    annotate_flow(ax, gcurves, curves)
-    img = os.path.join(filepath) + '_i.' + ext
-    if savefig:
+    texts = annotate_flow(ax, gcurves, curves, fs)
+    while overlapping(texts, gcurves) and fs >= MIN_FSIZE:
+        clean_from_scene(texts)
+        fs -= 0.5
+        texts = annotate_flow(ax, gcurves, curves, fs)
+    if save:
+        img = os.path.join(filepath) + '_i.' + ext
         plt.savefig(img, bbox_inches='tight')
+    if show:
+        plt.show()
 
 
 def check_inf(x):
@@ -254,7 +307,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                         color = 'lightgray'
                     else:
                         color = None
-                    tbl.add_row((b.bus_id,
+                    tbl.add_row((b.bus_id + 1,
                                  NoEscape('{:.04f}'.format(b.v)),
                                  NoEscape('${:.02f}$'.format(b.delta * 180 / np.pi)),
                                  NoEscape('{:.02f}'.format(b.pg * 100)),
@@ -291,7 +344,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                         color = 'lightgray'
                     else:
                         color = None
-                    tbl.add_row((b.bus_id,
+                    tbl.add_row((b.bus_id + 1,
                                  check_inf(np.abs(b.iTPG)),
                                  NoEscape('${:.02f}$'.format(np.angle(b.iTPG) * 180 / np.pi)),
                                  check_inf(np.abs(b.iSLG)),
@@ -328,7 +381,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                     color = 'lightgray'
                 else:
                     color = None
-                tbl.add_row((NoEscape('{} -- {}'.format(lt.orig.bus_id, lt.dest.bus_id)),
+                tbl.add_row((NoEscape('{} -- {}'.format(lt.orig.bus_id + 1, lt.dest.bus_id + 1)),
                              NoEscape('{:.04f}'.format(lt.Zpu.real * 100)),
                              NoEscape('{:.04f}'.format(lt.Zpu.imag * 100)),
                              NoEscape('{:.04f}'.format(lt.Ypu.imag * 100)),
@@ -363,7 +416,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                     color = 'lightgray'
                 else:
                     color = None
-                tbl.add_row((NoEscape('{} -- {}'.format(tr.orig.bus_id, tr.dest.bus_id)),
+                tbl.add_row((NoEscape('{} -- {}'.format(tr.orig.bus_id + 1, tr.dest.bus_id + 1)),
                              NoEscape('{:.02f}'.format(tr.Z1.imag * 100)),
                              NoEscape('{:.02f}'.format(tr.Z0.imag * 100)),
                              get_scheme(tr),
@@ -375,7 +428,7 @@ def create_report(system, curves, grid, filename, savefig=False):
                             color=color)
 
     filepath = filename.strip('.pdf')
-    make_system_schematic(curves, grid, filepath, savefig=savefig)
+    make_system_schematic(curves, grid, initial_fontsize=9)
     doc.append(NewPage())
     with doc.create(Section('System')):
         with doc.create(Figure(position='h')) as system_pic:
