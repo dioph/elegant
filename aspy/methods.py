@@ -8,18 +8,22 @@ def short(Y1, Y0, V):
 
     Parameters
     ----------
-    Y1: Positive-sequence bus admittance matrix
-    Y0: Zero-sequence bus admittance matrix
-    V: Pre-fault voltage levels for each bus
+    Y1: array, shape (N,N)
+        Positive-sequence bus admittance matrix
+    Y0: array, shape (N,N)
+        Zero-sequence bus admittance matrix
+    V: array, shape (N,)
+        Pre-fault voltage levels for each bus
 
     Returns
     -------
     I: array, shape (N, 4, 3)
         Three-phase current levels for each of the N buses for each of the following fault types:
-        --> Three-phase to ground (TPG);
-        --> Single-line to ground (SLG);
-        --> Double-line to ground (DLG);
-        --> Line-to-line (LL)
+        
+        * Three-phase to ground (TPG);
+        * Single-line to ground (SLG);
+        * Double-line to ground (DLG);
+        * Line-to-line (LL)
     """
     N = len(V)
     if N > 0 and np.linalg.cond(Y1) < 1 / np.finfo(Y1.dtype).eps and \
@@ -54,15 +58,21 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1, Nmax=1000):
 
     Parameters
     ----------
-    Y: Ybus matrix (N,N)
-    V0: Complex initial guess (N,)
-    S: Specified apparent power (N,2)
-    eps: tolerance (optional)
-    Niter: minimum number of iterations (optional default=1)
+    Y: array, shape (N,N)
+        Ybus matrix
+    V0: array, shape (N,)
+        Complex initial guess
+    S: array, shape (N,2)
+        Specified apparent power
+    eps: float, optional
+        Tolerance
+    Niter: int, optional
+        Minimum number of iterations (default=1)
 
     Returns
     -------
-    V: bus voltage approximations array (N,)
+    V: array, shape (N,)
+        Bus voltage approximations 
     """
     N = V0.size
     if N < 1:
