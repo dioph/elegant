@@ -167,7 +167,7 @@ class TL(object):
         return (self.v1 - A * self.v2) / B
 
     @property
-    def I(self):
+    def Ia(self):
         ibase = 1e8 / self.vbase
         return self.Ipu * ibase
 
@@ -285,9 +285,9 @@ class PowerSystem(object):
         extremities = frozenset([line.orig, line.dest])
         self.keys.add_keyobj(extremities, path, line)
 
-    def id2n(self, id):
+    def id2n(self, k):
         for n, bus in enumerate(self.buses):
-            if bus.bus_id == id:
+            if bus.bus_id == k:
                 return n
 
     def remove_bus(self, n):

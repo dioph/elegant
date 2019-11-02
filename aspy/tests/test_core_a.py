@@ -84,10 +84,7 @@ def test_3bus_problem_stevenson():
     slack = system.add_bus()
     pv = system.add_bus()
     pq = system.add_bus()
-    bus_0 = system.buses[1]
-    bus_1 = system.buses[1]
-    bus_2 = system.buses[2]
-    line = TL(bus_2, bus_1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
+    line = TL(pq, pv, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
     Y = np.array([[1 / .12j, 0, -1 / .12j],
                   [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
                   [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])

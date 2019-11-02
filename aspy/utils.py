@@ -47,6 +47,7 @@ def getTestDbFile():
     else:
         return '.'
 
+
 def interface_coordpairs(coords, squarel):
     for k in range(len(coords) - 1):
         yield (np.array([[squarel / 2 + squarel * coords[k][1],

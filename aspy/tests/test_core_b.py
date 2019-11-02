@@ -40,13 +40,13 @@ class Bug(unittest.TestCase):
 
     def test_add_line_with_same_extremes(self):
         self.system.add_line(TL(orig=self.system.buses[self.system.id2n(1)],
-                                    dest=self.system.buses[self.system.id2n(1)]))
+                                dest=self.system.buses[self.system.id2n(1)]))
         self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.lines)))
 
     def test_add_trafo_with_same_extremes(self):
         self.system.add_line(Transformer(orig=self.system.buses[self.system.id2n(1)],
-                                    dest=self.system.buses[self.system.id2n(1)]))
-        self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.xfmrs)))
+                                         dest=self.system.buses[self.system.id2n(1)]))
+        self.assertEqual(len(self.system.lines), 7, 'the number of trafos is {}'.format(len(self.system.trafos)))
 
     def test_adding_lines_without_slack(self):
         self.system.remove_bus(self.system.id2n(0))  # lines 7 -> 6
@@ -71,6 +71,7 @@ class Bug(unittest.TestCase):
                                 dest=self.system.buses[self.system.id2n(1)]))  # lines 12 -> 13
         self.assertEqual(len(self.system.lines), 13)
         self.system.update(Nmax=1)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -86,7 +86,8 @@ class ASPyTests(unittest.TestCase):
         self.aspyqt.ASPy.createSchematic(self.aspyqt.ASPy.circuit.Scene)
         self.assertGreater(len(self.aspyqt.ASPy.circuit.system.buses), 0, 'buses = 0')
         self.assertGreater(len(self.aspyqt.ASPy.circuit.system.lines), 0, 'lines = 0')
-        self.assertFalse(len(self.aspyqt.ASPy.circuit.system.xfmrs) > 0, 'xmfrs > 0')
+        self.assertGreater(len(self.aspyqt.ASPy.circuit.system.trafos), 0,  'trafos > 0')
+
 
 if __name__ == '__main__':
     unittest.main()

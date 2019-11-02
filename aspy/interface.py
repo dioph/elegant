@@ -547,7 +547,7 @@ class CircuitInputer(QWidget):
         self.chosenLineFormLayout.addRow('Vbase (kV)', self.VbaseLineEdit)
         self.chosenLineFormLayout.addRow('R (%pu)', self.TlRLineEdit)
         self.chosenLineFormLayout.addRow('X<sub>L</sub> (%pu)', self.TlXLineEdit)
-        self.chosenLineFormLayout.addRow('Y (%pu)', self.TlYLineEdit)
+        self.chosenLineFormLayout.addRow('B<sub>C</sub> (%pu)', self.TlYLineEdit)
 
         self.removeTLPushButton = QPushButton('Remove TL')
         self.removeTLPushButton.setMinimumWidth(200)
@@ -1369,7 +1369,7 @@ class ASPy(QMainWindow):
         saveAct.setShortcut('Ctrl+S')
         saveAct.triggered.connect(self.saveSession)
 
-        loadAct = QAction('Load current session', self)
+        loadAct = QAction('Open session', self)
         loadAct.setShortcut('Ctrl+O')
         loadAct.triggered.connect(self.loadSession)
 
