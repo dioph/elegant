@@ -58,7 +58,7 @@ class ASPyTests(unittest.TestCase):
 
     def test_initial_ui(self):
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.BusLayout), 'BusLayout is not hidden')
-        self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.LineOrXfmrLayout), 'LineOrXfmrLayout is not hidden')
+        self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.LineOrTrafoLayout), 'LineOrTrafoLayout is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.InputNewLineType), 'InputNewLineType is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.ControlPanelLayout),
                         'ControlPanelLayout is not hidden')

@@ -68,9 +68,9 @@ def test_good_ids():
     for i, b in enumerate(system.buses):
         assert b.bus_id == i + 1
     line = TL(orig=system.buses[0], dest=system.buses[1])
-    xfmr = Transformer(orig=system.buses[0], dest=system.buses[1])
+    trafo = Transformer(orig=system.buses[0], dest=system.buses[1])
     system.add_line(line)  # bus 1 -> bus 2
-    system.add_xfmr(xfmr)  # bus 1 -> bus 2
+    system.add_trafo(trafo)  # bus 1 -> bus 2
     assert system.M == 0
     system.add_bus()  # add slack
     assert system.M == 1
@@ -92,8 +92,8 @@ def test_3bus_problem_stevenson():
                   [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
                   [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])
     system.add_line(line)
-    xfmr = Transformer(bus_0, bus_2, jx0=0.12, jx1=0.12, secondary=DELTA)
-    system.add_xfmr(xfmr)
+    trafo = Transformer(slack, pq, jx0=0.12, jx1=0.12)
+    system.add_trafo(trafo)
     assert np.allclose(system.Y, Y)
     slack.v = 1.01
     pv.pg = 0.08

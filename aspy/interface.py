@@ -147,7 +147,7 @@ class SchemeInputer(QGraphicsScene):
         ----------
         coordinates: coordinates that guide line drawing
         color:  'b' = blue pen (line)
-                'r' = red pen (xfmr)
+                'r' = red pen (trafo)
 
         Returns
         -------
@@ -500,17 +500,17 @@ class CircuitInputer(QWidget):
         self.ControlPanelLayout.addStretch()
 
         # General Layout for TL case
-        self.LineOrXfmrLayout = QVBoxLayout()
+        self.LineOrTrafoLayout = QVBoxLayout()
 
         self.chooseLine = QRadioButton('TL')
-        self.chooseXfmr = QRadioButton('XFMR')
-        self.chooseLine.toggled.connect(self.defineLineOrXfmrVisibility)
-        self.chooseXfmr.toggled.connect(self.defineLineOrXfmrVisibility)
+        self.chooseTrafo = QRadioButton('TRAFO')
+        self.chooseLine.toggled.connect(self.defineLineOrTrafoVisibility)
+        self.chooseTrafo.toggled.connect(self.defineLineOrTrafoVisibility)
 
-        self.chooseLineOrXfmr = QHBoxLayout()
-        self.chooseLineOrXfmr.addWidget(QLabel('TL/XFMR:'))
-        self.chooseLineOrXfmr.addWidget(self.chooseLine)
-        self.chooseLineOrXfmr.addWidget(self.chooseXfmr)
+        self.chooseLineOrTrafo = QHBoxLayout()
+        self.chooseLineOrTrafo.addWidget(QLabel('TL/TRAFO:'))
+        self.chooseLineOrTrafo.addWidget(self.chooseLine)
+        self.chooseLineOrTrafo.addWidget(self.chooseTrafo)
 
         self.chosenLineFormLayout = QFormLayout()
 
@@ -555,68 +555,68 @@ class CircuitInputer(QWidget):
         self.removeTLPushButton.pressed.connect(self.remove_line)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
-        #     The layout should disappear only when a line or xfmr is excluded.
-        #     The conversion xfmr <-> line calls the method remove_selected_(line/xfmr)
+        #     The layout should disappear only when a line or trafo is excluded.
+        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
         self.removeTLPushButton.pressed.connect(self.LayoutManager)
 
-        self.chosenXfmrFormLayout = QFormLayout()
-        self.SNomXfmrLineEdit = QLineEdit()
-        self.SNomXfmrLineEdit.setValidator(QDoubleValidator(bottom=0.))
-        self.XZeroSeqXfmrLineEdit = QLineEdit()
-        self.XZeroSeqXfmrLineEdit.setValidator(QDoubleValidator(bottom=0.))
-        self.XPosSeqXfmrLineEdit = QLineEdit()
-        self.XPosSeqXfmrLineEdit.setValidator(QDoubleValidator(bottom=0.))
+        self.chosenTrafoFormLayout = QFormLayout()
+        self.SNomTrafoLineEdit = QLineEdit()
+        self.SNomTrafoLineEdit.setValidator(QDoubleValidator(bottom=0.))
+        self.XZeroSeqTrafoLineEdit = QLineEdit()
+        self.XZeroSeqTrafoLineEdit.setValidator(QDoubleValidator(bottom=0.))
+        self.XPosSeqTrafoLineEdit = QLineEdit()
+        self.XPosSeqTrafoLineEdit.setValidator(QDoubleValidator(bottom=0.))
 
-        self.XfmrPrimary = QComboBox()
-        self.XfmrPrimary.addItem('Y')
-        self.XfmrPrimary.addItem('Y\u23DA')
-        self.XfmrPrimary.addItem('\u0394')
-        self.XfmrSecondary = QComboBox()
-        self.XfmrSecondary.addItem('Y')
-        self.XfmrSecondary.addItem('Y\u23DA')
-        self.XfmrSecondary.addItem('\u0394')
+        self.TrafoPrimary = QComboBox()
+        self.TrafoPrimary.addItem('Y')
+        self.TrafoPrimary.addItem('Y\u23DA')
+        self.TrafoPrimary.addItem('\u0394')
+        self.TrafoSecondary = QComboBox()
+        self.TrafoSecondary.addItem('Y')
+        self.TrafoSecondary.addItem('Y\u23DA')
+        self.TrafoSecondary.addItem('\u0394')
 
-        self.xfmrSubmitPushButton = QPushButton('Submit xfmr')
-        self.xfmrSubmitPushButton.pressed.connect(self.xfmrProcessing)
-        self.xfmrSubmitPushButton.setMinimumWidth(200)
-        self.xfmrSubmitPushButton.setMaximumWidth(200)
+        self.trafoSubmitPushButton = QPushButton('Submit trafo')
+        self.trafoSubmitPushButton.pressed.connect(self.trafoProcessing)
+        self.trafoSubmitPushButton.setMinimumWidth(200)
+        self.trafoSubmitPushButton.setMaximumWidth(200)
 
-        self.removeXfmrPushButton = QPushButton('Remove xfmr')
-        self.removeXfmrPushButton.pressed.connect(self.remove_xfmr)
+        self.removeTrafoPushButton = QPushButton('Remove trafo')
+        self.removeTrafoPushButton.pressed.connect(self.remove_trafo)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
-        #     The layout should disappear only when a line or xfmr is excluded.
-        #     The conversion xfmr <-> line calls the method remove_selected_(line/xfmr)
+        #     The layout should disappear only when a line or trafo is excluded.
+        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
-        self.removeXfmrPushButton.pressed.connect(self.LayoutManager)
-        self.removeXfmrPushButton.setMinimumWidth(200)
-        self.removeXfmrPushButton.setMaximumWidth(200)
+        self.removeTrafoPushButton.pressed.connect(self.LayoutManager)
+        self.removeTrafoPushButton.setMinimumWidth(200)
+        self.removeTrafoPushButton.setMaximumWidth(200)
 
-        self.chosenXfmrFormLayout.addRow('Snom (MVA)', self.SNomXfmrLineEdit)
-        self.chosenXfmrFormLayout.addRow('x+ (%pu)', self.XPosSeqXfmrLineEdit)
-        self.chosenXfmrFormLayout.addRow('x0 (%pu)', self.XZeroSeqXfmrLineEdit)
-        self.chosenXfmrFormLayout.addRow('Prim.', self.XfmrPrimary)
-        self.chosenXfmrFormLayout.addRow('Sec.', self.XfmrSecondary)
+        self.chosenTrafoFormLayout.addRow('Snom (MVA)', self.SNomTrafoLineEdit)
+        self.chosenTrafoFormLayout.addRow('x+ (%pu)', self.XPosSeqTrafoLineEdit)
+        self.chosenTrafoFormLayout.addRow('x0 (%pu)', self.XZeroSeqTrafoLineEdit)
+        self.chosenTrafoFormLayout.addRow('Prim.', self.TrafoPrimary)
+        self.chosenTrafoFormLayout.addRow('Sec.', self.TrafoSecondary)
 
-        self.LineOrXfmrLayout.addLayout(self.chooseLineOrXfmr)
-        self.LineOrXfmrLayout.addLayout(self.chosenLineFormLayout)
-        self.LineOrXfmrLayout.addLayout(self.chosenXfmrFormLayout)
+        self.LineOrTrafoLayout.addLayout(self.chooseLineOrTrafo)
+        self.LineOrTrafoLayout.addLayout(self.chosenLineFormLayout)
+        self.LineOrTrafoLayout.addLayout(self.chosenTrafoFormLayout)
 
         # Submit and remove buttons for line
-        self.LineOrXfmrLayout.addWidget(self.tlSubmitByModelPushButton)
-        self.LineOrXfmrLayout.addWidget(self.tlSubmitByImpedancePushButton)
-        self.LineOrXfmrLayout.addWidget(self.removeTLPushButton)
+        self.LineOrTrafoLayout.addWidget(self.tlSubmitByModelPushButton)
+        self.LineOrTrafoLayout.addWidget(self.tlSubmitByImpedancePushButton)
+        self.LineOrTrafoLayout.addWidget(self.removeTLPushButton)
 
-        # Buttons submit and remove button for xfmr
-        self.LineOrXfmrLayout.addWidget(self.xfmrSubmitPushButton)
-        self.LineOrXfmrLayout.addWidget(self.removeXfmrPushButton)
+        # Buttons submit and remove button for trafo
+        self.LineOrTrafoLayout.addWidget(self.trafoSubmitPushButton)
+        self.LineOrTrafoLayout.addWidget(self.removeTrafoPushButton)
 
         # Layout that holds bus inspector and Stretches
         self.InspectorAreaLayout = QVBoxLayout()
         self.InspectorLayout.addStretch()
         self.InspectorLayout.addLayout(self.BusLayout)
-        self.InspectorLayout.addLayout(self.LineOrXfmrLayout)
+        self.InspectorLayout.addLayout(self.LineOrTrafoLayout)
         self.InspectorLayout.addStretch()
         self.InspectorAreaLayout.addLayout(self.InspectorLayout)
 
@@ -632,7 +632,7 @@ class CircuitInputer(QWidget):
 
         # All layouts hidden at first moment
         self.setLayoutHidden(self.BusLayout, True)
-        self.setLayoutHidden(self.LineOrXfmrLayout, True)
+        self.setLayoutHidden(self.LineOrTrafoLayout, True)
         self.setLayoutHidden(self.InputNewLineType, True)
         self.setLayoutHidden(self.ControlPanelLayout, True)
         self.showSpacer()
@@ -709,8 +709,8 @@ class CircuitInputer(QWidget):
                 return curve
         return None
 
-    def checkLineAndXfmrCrossing(self):
-        """Searches for crossing between current inputting line/xfmr and existent line/xfmr"""
+    def checkLineAndTrafoCrossing(self):
+        """Searches for crossing between current inputting line/trafo and existent line/trafo"""
         for curve in self.curves:
             if self._currElementCoords in curve.coords and not isinstance(self.Scene.grid[self._currElementCoords],
                                                                           Bus):
@@ -724,12 +724,12 @@ class CircuitInputer(QWidget):
             new_curve = LineSegment(obj=new_line,
                                     coords=[self._line_origin, self._currElementCoords],
                                     dlines=[self._temp])
-            if self.checkLineAndXfmrCrossing():
+            if self.checkLineAndTrafoCrossing():
                 new_curve.remove = True
             self.curves.append(new_curve)
         else:
             curr_curve = self.curves[-1]
-            if self.checkLineAndXfmrCrossing():
+            if self.checkLineAndTrafoCrossing():
                 curr_curve.remove = True
             curr_curve.dlines.append(self._temp)
             curr_curve.coords.append(self._currElementCoords)
@@ -750,7 +750,7 @@ class CircuitInputer(QWidget):
         return "No model"
 
     def findParametersSetFromComboBox(self):
-        """Find parameters set based on current selected line or xfmr inspector combo box
+        """Find parameters set based on current selected line or trafo inspector combo box
         If the line was set with impedance/admittance, return 'None'
         """
         set_name = self.chooseLineModel.currentText()
@@ -831,49 +831,49 @@ class CircuitInputer(QWidget):
             if self.chooseLineModel.isVisible() and self.chooseLineModel.findText(line_name) < 0:
                 self.chooseLineModel.addItem(line_name)
 
-    def defineLineOrXfmrVisibility(self):
-        """Show line or xfmr options in adding line/xfmr section"""
-        if not self.chooseLine.isHidden() and not self.chooseXfmr.isHidden():
+    def defineLineOrTrafoVisibility(self):
+        """Show line or trafo options in adding line/trafo section"""
+        if not self.chooseLine.isHidden() and not self.chooseTrafo.isHidden():
             if self.chooseLine.isChecked():
                 # Line
                 self.setLayoutHidden(self.chosenLineFormLayout, False)
-                self.setLayoutHidden(self.chosenXfmrFormLayout, True)
+                self.setLayoutHidden(self.chosenTrafoFormLayout, True)
                 self.removeTLPushButton.setHidden(False)
                 self.tlSubmitByImpedancePushButton.setHidden(False)
                 self.tlSubmitByModelPushButton.setHidden(False)
-                self.xfmrSubmitPushButton.setHidden(True)
-                self.removeXfmrPushButton.setHidden(True)
-            elif self.chooseXfmr.isChecked():
-                # Xfmr
+                self.trafoSubmitPushButton.setHidden(True)
+                self.removeTrafoPushButton.setHidden(True)
+            elif self.chooseTrafo.isChecked():
+                # Trafo
                 self.setLayoutHidden(self.chosenLineFormLayout, True)
-                self.setLayoutHidden(self.chosenXfmrFormLayout, False)
+                self.setLayoutHidden(self.chosenTrafoFormLayout, False)
                 self.removeTLPushButton.setHidden(True)
                 self.tlSubmitByImpedancePushButton.setHidden(True)
                 self.tlSubmitByModelPushButton.setHidden(True)
-                self.xfmrSubmitPushButton.setHidden(False)
-                self.removeXfmrPushButton.setHidden(False)
+                self.trafoSubmitPushButton.setHidden(False)
+                self.removeTrafoPushButton.setHidden(False)
 
-    def updateXfmrInspector(self):
-        """Update xfmr inspector
+    def updateTrafoInspector(self):
+        """Update trafo inspector
         Calls
         -----
-        LayoutManager, xfmrProcessing
+        LayoutManager, trafoProcessing
         """
-        xfmr_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
+        trafo_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
         curve = self.getCurveFromGridPos(self._currElementCoords)
         if curve is not None:
-            xfmr = curve.obj
-            self.SNomXfmrLineEdit.setText('{:.3g}'.format(xfmr.snom / 1e6))
-            self.XZeroSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx0 * 100))
-            self.XPosSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx1 * 100))
-            self.XfmrPrimary.setCurrentText(xfmr_code[xfmr.primary])
-            self.XfmrSecondary.setCurrentText(xfmr_code[xfmr.secondary])
+            trafo = curve.obj
+            self.SNomTrafoLineEdit.setText('{:.3g}'.format(trafo.snom / 1e6))
+            self.XZeroSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx0 * 100))
+            self.XPosSeqTrafoLineEdit.setText('{:.3g}'.format(trafo.jx1 * 100))
+            self.TrafoPrimary.setCurrentText(trafo_code[trafo.primary])
+            self.TrafoSecondary.setCurrentText(trafo_code[trafo.secondary])
         else:
-            self.SNomXfmrLineEdit.setText('100')
-            self.XZeroSeqXfmrLineEdit.setText('0.0')
-            self.XPosSeqXfmrLineEdit.setText('0.0')
-            self.XfmrPrimary.setCurrentText(xfmr_code[1])
-            self.XfmrSecondary.setCurrentText(xfmr_code[1])
+            self.SNomTrafoLineEdit.setText('100')
+            self.XZeroSeqTrafoLineEdit.setText('0.0')
+            self.XPosSeqTrafoLineEdit.setText('0.0')
+            self.TrafoPrimary.setCurrentText(trafo_code[1])
+            self.TrafoSecondary.setCurrentText(trafo_code[1])
 
     def updateLineInspector(self):
         """Updates the line inspector
@@ -958,14 +958,14 @@ class CircuitInputer(QWidget):
 
         # Even if there are two elements in a same square, only one will be identified
         # Bus has high priority
-        # After, lines and xfmr have equal priority
+        # After, lines and trafo have equal priority
         bus = self.getBusFromGridPos(self._currElementCoords)
         curve = self.getCurveFromGridPos(self._currElementCoords)
         if bus is not None:
             # Show bus inspect
             self.hideSpacer()
             self.setLayoutHidden(self.InputNewLineType, True)
-            self.setLayoutHidden(self.LineOrXfmrLayout, True)
+            self.setLayoutHidden(self.LineOrTrafoLayout, True)
             self.setLayoutHidden(self.ControlPanelLayout, True)
             self.setLayoutHidden(self.BusLayout, False)
             self.updateBusInspector(bus)
@@ -975,36 +975,36 @@ class CircuitInputer(QWidget):
                 self.hideSpacer()
                 self.setLayoutHidden(self.InputNewLineType, True)
                 self.setLayoutHidden(self.BusLayout, True)
-                self.setLayoutHidden(self.LineOrXfmrLayout, False)
+                self.setLayoutHidden(self.LineOrTrafoLayout, False)
                 self.chooseLine.setChecked(True)
-                self.setLayoutHidden(self.chosenXfmrFormLayout, True)
+                self.setLayoutHidden(self.chosenTrafoFormLayout, True)
                 self.setLayoutHidden(self.chosenLineFormLayout, False)
-                self.xfmrSubmitPushButton.setHidden(True)
-                self.removeXfmrPushButton.setHidden(True)
+                self.trafoSubmitPushButton.setHidden(True)
+                self.removeTrafoPushButton.setHidden(True)
                 self.setLayoutHidden(self.ControlPanelLayout, True)
                 self.removeTLPushButton.setHidden(False)
                 self.updateLineModelOptions()
                 self.updateLineInspector()
             elif isinstance(curve.obj, Transformer):
-                # Show xfmr inspect
+                # Show trafo inspect
                 self.setLayoutHidden(self.InputNewLineType, True)
                 self.hideSpacer()
                 self.setLayoutHidden(self.BusLayout, True)
-                self.setLayoutHidden(self.LineOrXfmrLayout, False)
-                self.chooseXfmr.setChecked(True)
-                self.setLayoutHidden(self.chosenXfmrFormLayout, False)
+                self.setLayoutHidden(self.LineOrTrafoLayout, False)
+                self.chooseTrafo.setChecked(True)
+                self.setLayoutHidden(self.chosenTrafoFormLayout, False)
                 self.setLayoutHidden(self.chosenLineFormLayout, True)
-                self.xfmrSubmitPushButton.setHidden(False)
-                self.removeXfmrPushButton.setHidden(False)
+                self.trafoSubmitPushButton.setHidden(False)
+                self.removeTrafoPushButton.setHidden(False)
                 self.removeTLPushButton.setHidden(True)
                 self.tlSubmitByModelPushButton.setHidden(True)
                 self.tlSubmitByImpedancePushButton.setHidden(True)
                 self.setLayoutHidden(self.ControlPanelLayout, True)
-                self.updateXfmrInspector()
+                self.updateTrafoInspector()
         else:
             # No element case
             self.setLayoutHidden(self.BusLayout, True)
-            self.setLayoutHidden(self.LineOrXfmrLayout, True)
+            self.setLayoutHidden(self.LineOrTrafoLayout, True)
             self.setLayoutHidden(self.InputNewLineType, True)
             self.setLayoutHidden(self.ControlPanelLayout, True)
             self.showSpacer()
@@ -1013,9 +1013,9 @@ class CircuitInputer(QWidget):
         self.curves.append(curve)
         self.system.add_line(curve.obj, tuple(curve.coords))
 
-    def add_xfmr(self, curve):
+    def add_trafo(self, curve):
         self.curves.append(curve)
-        self.system.add_xfmr(curve.obj, tuple(curve.coords))
+        self.system.add_trafo(curve.obj, tuple(curve.coords))
 
     def add_bus(self):
         """
@@ -1034,7 +1034,7 @@ class CircuitInputer(QWidget):
     def lineProcessing(self, mode):
         """
         Updates the line parameters based on Y and Z or parameters from LINE_TYPES,
-        or converts a xfmr into a line and update its parameters following
+        or converts a trafo into a line and update its parameters following
         Called by: tlSubmitByImpedancePushButton.pressed, tlSubmitByModelPushButton.pressed
 
         Parameters
@@ -1072,17 +1072,17 @@ class CircuitInputer(QWidget):
                 self.LayoutManager()
                 self.statusMsg.emit_sig('Update line with impedances')
         elif isinstance(curve.obj, Transformer):
-            # The element is a xfmr and will be converted into a line
-            xfmr = curve.obj
-            self.remove_xfmr(curve)
-            new_line = TL(orig=xfmr.orig, dest=xfmr.dest)
+            # The element is a trafo and will be converted into a line
+            trafo = curve.obj
+            self.remove_trafo(curve)
+            new_line = TL(orig=trafo.orig, dest=trafo.dest)
             if mode == 'parameters':
                 param_values = self.findParametersSetFromComboBox()
                 if param_values is not None:
                     ell = float(self.EllLineEdit.text()) * 1e3
                     vbase = float(self.VbaseLineEdit.text()) * 1e3
                     self.updateLineWithParameters(new_line, param_values, ell, vbase)
-                    self.statusMsg.emit_sig('xfmr -> line, updated with parameters')
+                    self.statusMsg.emit_sig('trafo -> line, updated with parameters')
                 else:
                     self.statusMsg.emit_sig('You have to choose a valid model')
             elif mode == 'impedance':
@@ -1094,7 +1094,7 @@ class CircuitInputer(QWidget):
                 ell = float(self.EllLineEdit.text()) * 1e3
                 vbase = float(self.VbaseLineEdit.text()) * 1e3
                 self.updateLineWithImpedances(new_line, Z, Y, ell, vbase)
-                self.statusMsg.emit_sig('xfmr -> line, updated with impedances')
+                self.statusMsg.emit_sig('trafo -> line, updated with impedances')
             new_curve = LineSegment(obj=new_line,
                                     dlines=curve.dlines,
                                     coords=curve.coords)
@@ -1107,28 +1107,28 @@ class CircuitInputer(QWidget):
             self.add_line(new_curve)
             self.LayoutManager()
 
-    def xfmrProcessing(self):
+    def trafoProcessing(self):
         """
-        Updates a xfmr with the given parameters if the current element is a xfmr
-        or converts a line into a xfmr with the inputted parameters
-        Called by: xfmrSubmitPushButton.pressed
+        Updates a trafo with the given parameters if the current element is a trafo
+        or converts a line into a trafo with the inputted parameters
+        Called by: trafoSubmitPushButton.pressed
         """
-        xfmr_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
+        trafo_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
         curve = self.getCurveFromGridPos(self._currElementCoords)
         if isinstance(curve.obj, TL):
-            # Transform line into a xfmr
+            # Transform line into a trafo
             line = curve.obj
             self.remove_line(curve)
-            new_xfmr = Transformer(
+            new_trafo = Transformer(
                 orig=line.orig,
                 dest=line.dest,
-                snom=float(self.SNomXfmrLineEdit.text()) * 1e6,
-                jx0=float(self.XZeroSeqXfmrLineEdit.text()) / 100,
-                jx1=float(self.XPosSeqXfmrLineEdit.text()) / 100,
-                primary=xfmr_code[self.XfmrPrimary.currentText()],
-                secondary=xfmr_code[self.XfmrSecondary.currentText()]
+                snom=float(self.SNomTrafoLineEdit.text()) * 1e6,
+                jx0=float(self.XZeroSeqTrafoLineEdit.text()) / 100,
+                jx1=float(self.XPosSeqTrafoLineEdit.text()) / 100,
+                primary=trafo_code[self.TrafoPrimary.currentText()],
+                secondary=trafo_code[self.TrafoSecondary.currentText()]
             )
-            new_curve = LineSegment(obj=new_xfmr,
+            new_curve = LineSegment(obj=new_trafo,
                                     dlines=curve.dlines,
                                     coords=curve.coords)
             for line_drawing in new_curve.dlines:
@@ -1137,19 +1137,19 @@ class CircuitInputer(QWidget):
                 blue_pen.setWidthF(2.5)
                 line_drawing.setPen(blue_pen)
                 self.Scene.addItem(line_drawing)
-            self.add_xfmr(new_curve)
+            self.add_trafo(new_curve)
             self.LayoutManager()
-            self.statusMsg.emit_sig('Line -> xfmr')
+            self.statusMsg.emit_sig('Line -> trafo')
         elif isinstance(curve.obj, Transformer):
-            # Update parameters of selected xfmr
-            xfmr = curve.obj
-            xfmr.snom = float(self.SNomXfmrLineEdit.text()) * 1e6
-            xfmr.jx0 = float(self.XZeroSeqXfmrLineEdit.text()) / 100
-            xfmr.jx1 = float(self.XPosSeqXfmrLineEdit.text()) / 100
-            xfmr.primary = xfmr_code[self.XfmrPrimary.currentText()]
-            xfmr.secondary = xfmr_code[self.XfmrSecondary.currentText()]
+            # Update parameters of selected trafo
+            trafo = curve.obj
+            trafo.snom = float(self.SNomTrafoLineEdit.text()) * 1e6
+            trafo.jx0 = float(self.XZeroSeqTrafoLineEdit.text()) / 100
+            trafo.jx1 = float(self.XPosSeqTrafoLineEdit.text()) / 100
+            trafo.primary = trafo_code[self.TrafoPrimary.currentText()]
+            trafo.secondary = trafo_code[self.TrafoSecondary.currentText()]
             self.LayoutManager()
-            self.statusMsg.emit_sig('Updated xfmr parameters')
+            self.statusMsg.emit_sig('Updated trafo parameters')
 
     def remove_curve(self, curve=None):
         if curve is None:
@@ -1158,18 +1158,18 @@ class CircuitInputer(QWidget):
             self.Scene.removeItem(linedrawing)
         self.curves.remove(curve)
 
-    def remove_xfmr(self, curve=None):
-        """Remove a xfmr (draw and electrical representation)
+    def remove_trafo(self, curve=None):
+        """Remove a trafo (draw and electrical representation)
         Parameters
         ----------
-        curve: curve of xfmr to be removed.
-            If it is None, current selected xfmr in interface will be removed
+        curve: curve of trafo to be removed.
+            If it is None, current selected trafo in interface will be removed
         """
         if curve is None:
             curve = self.getCurveFromGridPos(self._currElementCoords)
         self.remove_curve(curve)
-        self.system.remove_xfmr(curve.obj, tuple(curve.coords))
-        self.statusMsg.emit_sig('Removed xfmr')
+        self.system.remove_trafo(curve.obj, tuple(curve.coords))
+        self.statusMsg.emit_sig('Removed trafo')
 
     def remove_line(self, curve=None):
         """Remove a line (draw and electrical representation)
@@ -1411,7 +1411,7 @@ class ASPy(QMainWindow):
 
     def configureSimulation(self):
         self.circuit.setLayoutHidden(self.circuit.BusLayout, True)
-        self.circuit.setLayoutHidden(self.circuit.LineOrXfmrLayout, True)
+        self.circuit.setLayoutHidden(self.circuit.LineOrTrafoLayout, True)
         self.circuit.setLayoutHidden(self.circuit.ControlPanelLayout, False)
         self.circuit.updateNmaxSlider(self.circuit.nmax, self.circuit.op_mode)
         self.circuit.updateNmaxLabel(self.circuit.nmax, self.circuit.op_mode)
@@ -1465,7 +1465,7 @@ class ASPy(QMainWindow):
     def addLineType(self):
         self.circuit.setLayoutHidden(self.circuit.InputNewLineType, False)
         self.circuit.setLayoutHidden(self.circuit.BusLayout, True)
-        self.circuit.setLayoutHidden(self.circuit.LineOrXfmrLayout, True)
+        self.circuit.setLayoutHidden(self.circuit.LineOrTrafoLayout, True)
         self.displayStatusMsg('Adding new line model')
 
     def editLineType(self):
@@ -1503,7 +1503,7 @@ class ASPy(QMainWindow):
         for bus in self.circuit.system.buses:
             assert bus in self.circuit.Scene.grid
         for curve in self.circuit.curves:
-            assert curve.obj in self.circuit.system.lines or curve.obj in self.circuit.system.xfmrs
+            assert curve.obj in self.circuit.system.lines or curve.obj in self.circuit.system.trafos
 
     def storeData(self, file):
         filtered_curves = []

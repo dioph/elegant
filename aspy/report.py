@@ -248,7 +248,7 @@ def get_scheme(tr):
 
 def create_report(system, curves, grid, filename, savefig=False):
     lines = system.lines
-    xfmrs = system.xfmrs
+    trafos = system.trafos
     buses = system.buses
 
     geometry_options = {"tmargin": "1cm",
@@ -391,10 +391,10 @@ def create_report(system, curves, grid, filename, savefig=False):
                              NoEscape('{:.02f}'.format(lt.S2.imag * 100)),
                              NoEscape('{:.02f}'.format(np.abs(lt.I) / lt.imax * 100))),
                             color=color)
-    with doc.create(Section('XFMRs')):
+    with doc.create(Section('Trafos')):
         with doc.create(LongTable('c|cccccccc')) as tbl:
             tbl.add_hline()
-            tbl.add_row((MultiRow(2, data='XFMR'),
+            tbl.add_row((MultiRow(2, data='Trafo'),
                          MultiColumn(3, align='c', data='Parametrization'),
                          MultiColumn(2, align='c', data='Loss'),
                          MultiColumn(3, align='c', data='Flow')))
@@ -411,7 +411,7 @@ def create_report(system, curves, grid, filename, savefig=False):
             tbl.add_hline()
             tbl.end_table_last_footer()
 
-            for i, tr in enumerate(xfmrs):
+            for i, tr in enumerate(trafos):
                 if i % 2 == 0:
                     color = 'lightgray'
                 else:

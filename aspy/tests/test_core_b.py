@@ -43,7 +43,7 @@ class Bug(unittest.TestCase):
                                     dest=self.system.buses[self.system.id2n(1)]))
         self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.lines)))
 
-    def test_add_xfmr_with_same_extremes(self):
+    def test_add_trafo_with_same_extremes(self):
         self.system.add_line(Transformer(orig=self.system.buses[self.system.id2n(1)],
                                     dest=self.system.buses[self.system.id2n(1)]))
         self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.xfmrs)))
