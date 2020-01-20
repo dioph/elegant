@@ -16,8 +16,7 @@ setup(
     version=version,
     author="Eduardo Nunes & Fernando Dantas",
     author_email="diofanto.nunes@gmail.com",
-    license="MIT",
-    description="Power Flow Solutions",
+    description="Educational Power System Analysis",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/dioph/aspy",
@@ -26,8 +25,8 @@ setup(
     install_requires=["networkx", "numpy", "scipy"],
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
-        "Intended Audience :: Science/Research",
+        "Intended Audience :: Education",
     ],
 )

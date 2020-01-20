@@ -266,7 +266,7 @@ class PowerSystem(object):
     def __init__(self):
         self.buses = []
         self.lines = []
-        self.xfmrs = []
+        self.trafos = []
         self.keys = Keys()
         self.graph = nx.MultiGraph()
         self.status = ""
@@ -295,9 +295,9 @@ class PowerSystem(object):
         extremities = frozenset([line.orig, line.dest])
         self.keys.add_keyobj(extremities, path, line)
 
-    def id2n(self, id):
+    def id2n(self, k):
         for n, bus in enumerate(self.buses):
-            if bus.bus_id == id:
+            if bus.bus_id == k:
                 return n
 
     def remove_bus(self, n):
@@ -307,17 +307,17 @@ class PowerSystem(object):
         self.buses.remove(bus)
         self.sort_buses()
 
-    def add_xfmr(self, xfmr, path=None):
-        if (xfmr.orig, xfmr.dest, path) in self.graph.edges:
+    def add_trafo(self, trafo, path=None):
+        if (trafo.orig, trafo.dest, path) in self.graph.edges:
             self.status = "key already exists!"
             return
-        if xfmr.orig == xfmr.dest:
+        if trafo.orig == trafo.dest:
             self.status = "key already exists!"
             return
-        self.xfmrs.append(xfmr)
-        path = self.graph.add_edge(xfmr.orig, xfmr.dest, path)
-        extremities = frozenset([xfmr.orig, xfmr.dest])
-        self.keys.add_keyobj(extremities, path, xfmr)
+        self.trafos.append(trafo)
+        path = self.graph.add_edge(trafo.orig, trafo.dest, path)
+        extremities = frozenset([trafo.orig, trafo.dest])
+        self.keys.add_keyobj(extremities, path, trafo)
 
     def remove_line(self, line, key=None):
         if key is not None and (line.orig, line.dest, key) not in self.graph.edges:
@@ -327,12 +327,12 @@ class PowerSystem(object):
         self.graph.remove_edge(line.orig, line.dest, key)
         self.status = "removed line"
 
-    def remove_xfmr(self, xfmr, key=None):
-        if key is not None and (xfmr.orig, xfmr.dest, key) not in self.graph.edges:
+    def remove_trafo(self, trafo, key=None):
+        if key is not None and (trafo.orig, trafo.dest, key) not in self.graph.edges:
             self.status = "key does not exist!"
             return
-        self.xfmrs.remove(xfmr)
-        self.graph.remove_edge(xfmr.orig, xfmr.dest, key)
+        self.trafos.remove(trafo)
+        self.graph.remove_edge(trafo.orig, trafo.dest, key)
         self.status = "removed transformer"
 
     def sort_buses(self):
@@ -345,8 +345,8 @@ class PowerSystem(object):
         ids = [bus.bus_id for bus in self.buses]
         for line in self.lines:
             assert line.dest.bus_id in ids and line.orig.bus_id in ids
-        for xfmr in self.xfmrs:
-            assert xfmr.dest.bus_id in ids and xfmr.orig.bus_id in ids
+        for trafo in self.trafos:
+            assert trafo.dest.bus_id in ids and trafo.orig.bus_id in ids
 
     def remove_elements_linked_to(self, bus):
         linked = []
@@ -360,7 +360,7 @@ class PowerSystem(object):
             if isinstance(obj, TransmissionLine):
                 self.remove_line(obj, path)
             elif isinstance(obj, Transformer):
-                self.remove_xfmr(obj, path)
+                self.remove_trafo(obj, path)
 
     @property
     def N(self):
@@ -417,25 +417,25 @@ class PowerSystem(object):
         return masked_lines
 
     @property
-    def masked_xfmrs(self):
+    def masked_trafos(self):
         good_ids = self.good_ids
-        mask_xfmrs = np.ones(len(self.xfmrs), bool)
-        for i in range(len(self.xfmrs)):
-            xfmr = self.xfmrs[i]
-            if xfmr.orig.bus_id not in good_ids:
-                mask_xfmrs[i] = False
-        if len(self.xfmrs) > 0:
-            masked_xfmrs = np.array(self.xfmrs)[mask_xfmrs]
+        mask_trafos = np.ones(len(self.trafos), bool)
+        for i in range(len(self.trafos)):
+            trafo = self.trafos[i]
+            if trafo.orig.bus_id not in good_ids:
+                mask_trafos[i] = False
+        if len(self.trafos) > 0:
+            masked_trafos = np.array(self.trafos)[mask_trafos]
         else:
-            masked_xfmrs = np.array([])
-        return masked_xfmrs
+            masked_trafos = np.array([])
+        return masked_trafos
 
     @property
     def Y(self):
         N = self.M
         hsh = self.hsh
         lines = self.masked_lines
-        xfmrs = self.masked_xfmrs
+        trafos = self.masked_trafos
         Y = np.zeros((N, N), complex)
         for line in lines:
             node1 = hsh[line.orig.bus_id]
@@ -444,13 +444,13 @@ class PowerSystem(object):
             Y[node2, node2] += 1 / line.Zpu + line.Ypu / 2
             Y[node1, node2] -= 1 / line.Zpu
             Y[node2, node1] -= 1 / line.Zpu
-        for xfmr in xfmrs:
-            node1 = hsh[xfmr.orig.bus_id]
-            node2 = hsh[xfmr.dest.bus_id]
-            Y[node1, node1] += 1 / xfmr.Z1
-            Y[node2, node2] += 1 / xfmr.Z1
-            Y[node1, node2] -= 1 / xfmr.Z1
-            Y[node2, node1] -= 1 / xfmr.Z1
+        for trafo in trafos:
+            node1 = hsh[trafo.orig.bus_id]
+            node2 = hsh[trafo.dest.bus_id]
+            Y[node1, node1] += 1 / trafo.Z1
+            Y[node2, node2] += 1 / trafo.Z1
+            Y[node1, node2] -= 1 / trafo.Z1
+            Y[node2, node1] -= 1 / trafo.Z1
         return Y
 
     @property
@@ -459,7 +459,7 @@ class PowerSystem(object):
         hsh = self.hsh
         buses = self.masked_buses
         lines = self.masked_lines
-        xfmrs = self.masked_xfmrs
+        trafos = self.masked_trafos
         Y0 = np.zeros((N, N), complex)
         for bus in buses:
             node = hsh[bus.bus_id]
@@ -474,21 +474,21 @@ class PowerSystem(object):
             Y0[node2, node2] += 1 / line.Zpu + line.Ypu / 2
             Y0[node1, node2] -= 1 / line.Zpu
             Y0[node2, node1] -= 1 / line.Zpu
-        for xfmr in xfmrs:
-            if xfmr.primary == EARTH:
-                if xfmr.secondary == EARTH:
-                    node1 = hsh[xfmr.orig.bus_id]
-                    node2 = hsh[xfmr.dest.bus_id]
-                    Y0[node1, node1] += 1 / xfmr.Z0
-                    Y0[node2, node2] += 1 / xfmr.Z0
-                    Y0[node1, node2] -= 1 / xfmr.Z0
-                    Y0[node2, node1] -= 1 / xfmr.Z0
-                elif xfmr.secondary == DELTA:
-                    node = hsh[xfmr.orig.bus_id]
-                    Y0[node, node] += 1 / xfmr.Z0
-            elif xfmr.primary == DELTA and xfmr.secondary == EARTH:
-                node = hsh[xfmr.dest.bus_id]
-                Y0[node, node] += 1 / xfmr.Z0
+        for trafo in trafos:
+            if trafo.primary == EARTH:
+                if trafo.secondary == EARTH:
+                    node1 = hsh[trafo.orig.bus_id]
+                    node2 = hsh[trafo.dest.bus_id]
+                    Y0[node1, node1] += 1 / trafo.Z0
+                    Y0[node2, node2] += 1 / trafo.Z0
+                    Y0[node1, node2] -= 1 / trafo.Z0
+                    Y0[node2, node1] -= 1 / trafo.Z0
+                elif trafo.secondary == DELTA:
+                    node = hsh[trafo.orig.bus_id]
+                    Y0[node, node] += 1 / trafo.Z0
+            elif trafo.primary == DELTA and trafo.secondary == EARTH:
+                node = hsh[trafo.dest.bus_id]
+                Y0[node, node] += 1 / trafo.Z0
         return Y0
 
     @property
@@ -497,7 +497,7 @@ class PowerSystem(object):
         hsh = self.hsh
         buses = self.masked_buses
         lines = self.masked_lines
-        xfmrs = self.masked_xfmrs
+        trafos = self.masked_trafos
         Y1 = np.zeros((N, N), complex)
         for bus in buses:
             node = hsh[bus.bus_id]
@@ -511,19 +511,19 @@ class PowerSystem(object):
             Y1[node2, node2] += 1 / line.Zpu + line.Ypu / 2
             Y1[node1, node2] -= 1 / line.Zpu
             Y1[node2, node1] -= 1 / line.Zpu
-        for xfmr in xfmrs:
-            node1 = hsh[xfmr.orig.bus_id]
-            node2 = hsh[xfmr.dest.bus_id]
-            Y1[node1, node1] += 1 / xfmr.Z1
-            Y1[node2, node2] += 1 / xfmr.Z1
-            Y1[node1, node2] -= 1 / xfmr.Z1
-            Y1[node2, node1] -= 1 / xfmr.Z1
+        for trafo in trafos:
+            node1 = hsh[trafo.orig.bus_id]
+            node2 = hsh[trafo.dest.bus_id]
+            Y1[node1, node1] += 1 / trafo.Z1
+            Y1[node2, node2] += 1 / trafo.Z1
+            Y1[node1, node2] -= 1 / trafo.Z1
+            Y1[node2, node1] -= 1 / trafo.Z1
         return Y1
 
     def update(self, Nmax=100):
         buses = self.masked_buses
         lines = self.masked_lines
-        xfmrs = self.masked_xfmrs
+        trafos = self.masked_trafos
         hsh = self.hsh
         V, S = self.update_flow(Nmax=Nmax)
         for bus in buses:
@@ -536,11 +536,11 @@ class PowerSystem(object):
             node2 = hsh[line.dest.bus_id]
             line.v1 = V[node1]
             line.v2 = V[node2]
-        for xfmr in xfmrs:
-            node1 = hsh[xfmr.orig.bus_id]
-            node2 = hsh[xfmr.dest.bus_id]
-            xfmr.v1 = V[node1]
-            xfmr.v2 = V[node2]
+        for trafo in trafos:
+            node1 = hsh[trafo.orig.bus_id]
+            node2 = hsh[trafo.dest.bus_id]
+            trafo.v1 = V[node1]
+            trafo.v2 = V[node2]
         If = self.update_short()
         for bus in buses:
             bus.iTPG = If[hsh[bus.bus_id], 0, 0]
