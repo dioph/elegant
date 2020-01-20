@@ -4,6 +4,8 @@ from scipy.stats.mstats import gmean
 
 from .methods import newton_raphson, short
 
+NAME = "PoSyS"
+
 CORR = np.exp(-.25)
 SQ2 = np.sqrt(2.)
 OMEGA = 2 * np.pi * 60.
@@ -13,12 +15,20 @@ EPS = 8.854e-12
 STAR = 0
 EARTH = 1
 DELTA = 2
+STAR_SYMBOL = "Y"
+EARTH_SYMBOL = "Y\u23DA"
+DELTA_SYMBOL = "\u0394"
 
+PY_TO_SYMBOL = {STAR: STAR_SYMBOL, EARTH: EARTH_SYMBOL, DELTA: DELTA_SYMBOL}
+SYMBOL_TO_PY = {STAR_SYMBOL: STAR, EARTH_SYMBOL: EARTH, DELTA_SYMBOL: DELTA}
+
+
+# ToDo defasagem dos trafos
 
 class Bus(object):
     def __init__(self, bus_id, v=1.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
                  xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None,
-                 gen_ground=False, load_ground=True):
+                 gen_ground=False, load_ground=STAR):
         self.bus_id = bus_id
         self.v = v
         self.delta = delta
@@ -50,7 +60,7 @@ class Bus(object):
         return np.inf
 
 
-class TL(object):
+class TransmissionLine(object):
     def __init__(self, orig, dest, ell=10e3, r=1e-2, d12=1, d23=1, d31=1, d=0.5, rho=1.78e-8, m=1,
                  vbase=1e4, imax=np.inf, v1=0., v2=0., z=None, y=None):
         self.orig = orig
@@ -347,7 +357,7 @@ class PowerSystem(object):
                 obj = self.keys.get_keyobj(extremities, path)
                 linked.append([obj, path])
         for obj, path in linked:
-            if isinstance(obj, TL):
+            if isinstance(obj, TransmissionLine):
                 self.remove_line(obj, path)
             elif isinstance(obj, Transformer):
                 self.remove_trafo(obj, path)

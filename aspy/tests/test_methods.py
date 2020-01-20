@@ -1,60 +1,45 @@
 from ..core import *
 from ..methods import *
+import unittest
 
 
-def setup():
-    line = TL(2, 1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2, vbase=1.0e4)
-    Y = np.array([[1 / .12j, 0, -1 / .12j],
-                  [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
-                  [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])
-    V0 = np.array([1.01, 1.02, 1.0], complex)
-    S0 = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
-    return line, Y, V0, S0
+class TestMethods(unittest.TestCase):
+    def setUp(self):
+        self.line = TransmissionLine(2, 1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2, vbase=1.0e4)
+        self.Y = np.array([[1 / .12j, 0, -1 / .12j],
+                           [0, 1 / self.line.Zpu + self.line.Ypu / 2, -1 / self.line.Zpu],
+                           [-1 / .12j, -1 / self.line.Zpu, 1 / .12j + 1 / self.line.Zpu + self.line.Ypu / 2]])
+        self.V0 = np.array([1.01, 1.02, 1.0], complex)
+        self.S0 = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
+
+    def test_gauss_seidel(self):
+        niter, delta, V = gauss_seidel(self.Y, self.V0, self.S0, Niter=2)
+        self.assertEqual(2, niter)
+        self.assertAlmostEqual(1.01, V[0])
+        self.assertAlmostEqual(1.02, np.abs(V[1]))
+        self.assertAlmostEqual(44.643, np.rad2deg(np.angle(V[1])), places=3)
+        self.assertAlmostEqual(0.99725, np.abs(V[2]), places=5)
+        self.assertAlmostEqual(-0.3078, np.rad2deg(np.angle(V[2])), places=4)
+        self.assertLess(1e-12, delta)
+
+    def test_newton_raphson(self):
+        niter, delta, V = newton_raphson(self.Y, self.V0, self.S0, Niter=2)
+        self.assertEqual(2, niter)
+        self.assertAlmostEqual(1.01, V[0])
+        self.assertAlmostEqual(1.02, np.abs(V[1]))
+        self.assertAlmostEqual(47.86, np.rad2deg(np.angle(V[1])), places=2)
+        self.assertAlmostEqual(0.9968, np.abs(V[2]), places=4)
+        self.assertAlmostEqual(-0.2804, np.rad2deg(np.angle(V[2])), places=5)
+        self.assertLess(1e-12, delta)
+
+    def test_scalc(self):
+        niter, delta, V = newton_raphson(self.Y, self.V0, self.S0, Niter=2)
+        Scalc = V * np.conjugate(np.dot(self.Y, V))
+        S = np.zeros_like(self.S0)
+        S[:, 0] = Scalc.real
+        S[:, 1] = Scalc.imag
+        self.assertTrue(np.allclose(S[np.isfinite(self.S0)], self.S0[np.isfinite(self.S0)], atol=1e-3))
 
 
-def test_gauss_seidel():
-    line, Y, V0, S0 = setup()
-    niter, delta, V = gauss_seidel(Y, V0, S0, Niter=2)
-    assert niter == 2
-    assert np.isclose(V[0], 1.01)
-    assert np.isclose(np.abs(V[1]), 1.02)
-    assert np.isclose(np.angle(V[1]) * 180 / np.pi, 44.643)
-    assert np.isclose(np.abs(V[2]), 0.99725)
-    assert np.isclose(np.angle(V[2]) * 180 / np.pi, -0.3078, atol=1e-5)
-
-
-def test_gauss_seidel_eps():
-    line, Y, V0, S0 = setup()
-    niter, delta, V = gauss_seidel(Y, V0, S0, eps=1e-12)
-    assert delta < 1e-12
-    assert np.isclose(np.angle(V[1]) * 180 / np.pi, 48.125, atol=1e-5)
-    assert np.isclose(np.abs(V[2]), 0.9967)
-
-
-def test_newton_raphson():
-    line, Y, V0, S0 = setup()
-    niter, delta, V = newton_raphson(Y, V0, S0, Niter=2)
-    assert niter == 2
-    assert np.isclose(V[0], 1.01)
-    assert np.isclose(np.abs(V[1]), 1.02)
-    assert np.isclose(np.angle(V[1]) * 180 / np.pi, 47.86)
-    assert np.isclose(np.abs(V[2]), 0.9968)
-    assert np.isclose(np.angle(V[2]) * 180 / np.pi, -0.2804, atol=1e-5)
-
-
-def test_newton_raphson_eps():
-    line, Y, V0, S0 = setup()
-    niter, delta, V = newton_raphson(Y, V0, S0, eps=1e-12)
-    assert delta < 1e-12
-    assert np.isclose(np.angle(V[1]) * 180 / np.pi, 48.125, atol=1e-5)
-    assert np.isclose(np.abs(V[2]), 0.9967)
-
-
-def test_Scalc():
-    line, Y, V0, S0 = setup()
-    niter, err, V = newton_raphson(Y, V0, S0, eps=1e-12)
-    Scalc = V * np.conjugate(np.dot(Y, V))
-    S = np.zeros_like(S0)
-    S[:, 0] = Scalc.real
-    S[:, 1] = Scalc.imag
-    assert np.allclose(S[np.isfinite(S0)], S0[np.isfinite(S0)])
+if __name__ == '__main__':
+    unittest.main()

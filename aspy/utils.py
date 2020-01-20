@@ -42,10 +42,7 @@ def getSessionsDir():
 
 
 def getTestDbFile():
-    if sys.platform in ('win32', 'win64', 'linux'):
-        return os.path.join(PACKAGEDIR, 'data/testdb')
-    else:
-        return '.'
+    return os.path.join(PACKAGEDIR, 'tests/testdb')
 
 
 def interface_coordpairs(coords, squarel):
@@ -62,4 +59,5 @@ def debug(f):
             f(*args, **kwargs)
         except Exception:
             logging.error(traceback.format_exc())
+
     return wrapper
