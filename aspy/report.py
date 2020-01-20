@@ -6,10 +6,14 @@ import numpy as np
 from pylatex import Document, Section, Command, NoEscape, Figure, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable, NewPage
 
-from aspy.core import TL, Bus
+from aspy.core import TransmissionLine, Bus
 
-DIST = 0.25
-MIN_FSIZE = 6
+DIST = 0.30
+MIN_FSIZE = 4
+
+
+# ToDo: it seems that texts ever overlaps with curves. Maybe overlapping_with_gcurves is unnecessary
+# ToDo: Remove trafos Ploss column
 
 
 def matplotlib_coordpairs(curve):
@@ -62,7 +66,7 @@ def draw_all_curves(ax, curves, linewidth=1):
     gcurves = []
     for curve in curves:
         coords = matplotlib_coordpairs(curve)
-        if isinstance(curve.obj, TL):
+        if isinstance(curve.obj, TransmissionLine):
             color = 'b'
         else:
             color = 'r'
@@ -165,44 +169,28 @@ def annotate_flow(ax, gcurves, curves, fontsize):
                          'verticalalignment': 'bottom'}
         hmask = {1: 'left', -1: 'right'}
         ltxt = ax.annotate('{:.1f}'.format(obj.S1 * 100),
-                    xy=(sx, sy),
-                    horizontalalignment=hmask[corr[0][0]],
-                    rotation=dys_sslope * corr[2][0],
-                    color='b',
-                    **common_config)
+                           xy=(sx, sy),
+                           horizontalalignment=hmask[corr[0][0]],
+                           rotation=dys_sslope * corr[2][0],
+                           color='b',
+                           **common_config)
         xtxt = ax.annotate("{:.1f}".format(-obj.S2 * 100),
-                    xy=(ex, ey),
-                    horizontalalignment=hmask[corr[1][0]],
-                    rotation=dys_eslope * corr[2][1],
-                    color='r',
-                    **common_config)
+                           xy=(ex, ey),
+                           horizontalalignment=hmask[corr[1][0]],
+                           rotation=dys_eslope * corr[2][1],
+                           color='r',
+                           **common_config)
         texts.append(ltxt)
         texts.append(xtxt)
     return texts
 
 
-def overlapping_with_gcurves(texts, gcurves):
+def overlapping_with_texts(texts):
     renderer = plt.get_current_fig_manager().canvas.get_renderer()
-    for text in texts:
-        tbbox = text.get_window_extent(renderer=renderer)
-        for gcurve in gcurves:
-            gcbbox = gcurve.get_window_extent(renderer=renderer)
-            if tbbox.overlaps(gcbbox):
-                return True
-    return False
-
-
-def overlapping_with_texts(texts, gcurves):
-    renderer = plt.get_current_fig_manager().canvas.get_renderer()
-    for t in range(len(texts)):
-        popen = texts.pop(t)
-        pbbox = popen.get_window_extent(renderer=renderer)
-        for text in texts:
-            tbbox = text.get_window_extent(renderer=renderer)
-            if pbbox.overlaps(tbbox):
-                texts.insert(t, popen)
-                return True
-            texts.insert(t, popen)
+    bboxes = np.array([t.get_window_extent(renderer=renderer) for t in texts], dtype=object)
+    for k in range(np.size(bboxes)):
+        if bboxes[k].count_overlaps(np.delete(bboxes, k)) > 0:
+            return True
     return False
 
 
@@ -211,8 +199,8 @@ def clean_from_scene(objs):
         obj.remove()
 
 
-def overlapping(texts, gcurves):
-    return overlapping_with_gcurves(texts, gcurves) or overlapping_with_texts(texts, gcurves)
+def overlapping(texts):
+    return overlapping_with_texts(texts)
 
 
 def make_system_schematic(curves, grid, initial_fontsize, save=False, filepath=None, show=False, ext='pdf'):
@@ -220,9 +208,9 @@ def make_system_schematic(curves, grid, initial_fontsize, save=False, filepath=N
     ax = plt.gca()
     gcurves = draw_rep_scheme(grid, curves)
     texts = annotate_flow(ax, gcurves, curves, fs)
-    while overlapping(texts, gcurves) and fs >= MIN_FSIZE:
+    while overlapping(texts) and fs > MIN_FSIZE:
         clean_from_scene(texts)
-        fs -= 0.5
+        fs -= 0.25
         texts = annotate_flow(ax, gcurves, curves, fs)
     if save:
         img = os.path.join(filepath) + '_i.' + ext
@@ -246,7 +234,7 @@ def get_scheme(tr):
     return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
 
 
-def create_report(system, curves, grid, filename, savefig=False):
+def create_report(system, curves, grid, filename):
     lines = system.lines
     xfmrs = system.xfmrs
     buses = system.buses

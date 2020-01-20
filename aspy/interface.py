@@ -106,8 +106,6 @@ class SchemeInputer(QGraphicsScene):
                           self.oneSquareSideLength * (self.N + 4),
                           self.oneSquareSideLength * (self.N + 4))
 
-
-
     @staticmethod
     def distance(interface_point, point):
         """
@@ -172,31 +170,18 @@ class SchemeInputer(QGraphicsScene):
         -------
         QRect: drawn square (PyQt5 object)
         """
-        pen = QPen()
-        pen.setColor(Qt.yellow)
-        brush = QBrush()
-        brush.setColor(Qt.yellow)
-        brush.setStyle(Qt.Dense7Pattern)
+        pen = QPen(Qt.yellow)
+        brush = QBrush(Qt.yellow, Qt.Dense7Pattern)
         x, y = coordinates
         rect = self.addRect(x, y, self.oneSquareSideLength, self.oneSquareSideLength, pen, brush)
         return rect
 
     def drawBus(self, coordinates):
-        """
-        Parameters
-        ----------
-        coordinates: coordinates that guide bus drawing
-
-        Returns
-        -------
-        QRect: drawn bus (PyQt5 object)
-        """
-        pixmap = QPixmap(os.path.join(PACKAGEDIR, 'data/icons/DOT.jpg'))
-        pixmap = pixmap.scaled(self.oneSquareSideLength, self.oneSquareSideLength, Qt.KeepAspectRatio)
-        sceneItem = self.addPixmap(pixmap)
-        pixmap_coords = coordinates[0] - self.oneSquareSideLength / 2, coordinates[1] - self.oneSquareSideLength / 2
-        sceneItem.setPos(pixmap_coords[0], pixmap_coords[1])
-        return sceneItem
+        c = np.array(coordinates) - self.oneSquareSideLength / 4
+        pen = QPen(Qt.black)
+        brush = QBrush(Qt.SolidPattern)
+        ellipse = self.addEllipse(*c, self.oneSquareSideLength / 2, self.oneSquareSideLength / 2, pen, brush)
+        return ellipse
 
     def get_central_point(self, event):
         coordinates = event.scenePos().x(), event.scenePos().y()
@@ -300,7 +285,7 @@ class CircuitInputer(QWidget):
         # General initializations
         super(CircuitInputer, self).__init__(parent)
         self.system = PowerSystem()
-        self.line_types = {'Default': TL(orig=None, dest=None)}
+        self.line_types = {'Default': TransmissionLine(orig=None, dest=None)}
         self.curves = []
         self.nmax = 20
         self.op_mode = 0
@@ -386,7 +371,7 @@ class CircuitInputer(QWidget):
         self.GenGround.setEnabled(False)
 
         # Adding Pg, Qg to add generation FormLayout
-        self.AddGenerationFormLayout.addRow('x\'d (%pu)', self.XdLineEdit)
+        self.AddGenerationFormLayout.addRow('x (%pu)', self.XdLineEdit)
         self.AddGenerationFormLayout.addRow('P<sub>G</sub> (MW)', self.PgInput)
         self.AddGenerationFormLayout.addRow('Q<sub>G</sub> (Mvar)', self.QgInput)
         self.AddGenerationFormLayout.addRow('Y', self.GenGround)
@@ -408,7 +393,11 @@ class CircuitInputer(QWidget):
         self.QlInput.setEnabled(False)
 
         # Check box to load ground
-        self.LoadGround = QCheckBox("\u23DA")
+        # self.LoadGround = QCheckBox("\u23DA")
+        self.LoadGround = QComboBox()
+        self.LoadGround.addItem("Y")
+        self.LoadGround.addItem("Y\u23DA")
+        self.LoadGround.addItem("\u0394")
         self.LoadGround.setEnabled(False)
 
         # Adding Pl and Ql to add load FormLayout
@@ -721,7 +710,7 @@ class CircuitInputer(QWidget):
     def add_segment(self):
         if self._startNewTL:
             bus_orig = self.Scene.grid[self._line_origin]
-            new_line = TL(orig=bus_orig, dest=None)
+            new_line = TransmissionLine(orig=bus_orig, dest=None)
             new_curve = LineSegment(obj=new_line,
                                     coords=[self._line_origin, self._currElementCoords],
                                     dlines=[self._temp])
@@ -775,7 +764,7 @@ class CircuitInputer(QWidget):
             m=float_or_nan(self.mLineEdit.text()),
             imax=float_or_nan(self.imaxLineEdit.text())
         )
-        line = TL(orig=None, dest=None)
+        line = TransmissionLine(orig=None, dest=None)
         line.__dict__.update(new_param)
         if name in self.line_types.keys():
             self.statusMsg.emit_sig('Duplicated name. Insert another valid name')
@@ -860,21 +849,20 @@ class CircuitInputer(QWidget):
         -----
         LayoutManager, xfmrProcessing
         """
-        xfmr_code = {0: 'Y', 1: 'Y\u23DA', 2: '\u0394'}
         curve = self.getCurveFromGridPos(self._currElementCoords)
         if curve is not None:
             xfmr = curve.obj
             self.SNomXfmrLineEdit.setText('{:.3g}'.format(xfmr.snom / 1e6))
             self.XZeroSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx0 * 100))
             self.XPosSeqXfmrLineEdit.setText('{:.3g}'.format(xfmr.jx1 * 100))
-            self.XfmrPrimary.setCurrentText(xfmr_code[xfmr.primary])
-            self.XfmrSecondary.setCurrentText(xfmr_code[xfmr.secondary])
+            self.XfmrPrimary.setCurrentText(PY_TO_SYMBOL[xfmr.primary])
+            self.XfmrSecondary.setCurrentText(PY_TO_SYMBOL[xfmr.secondary])
         else:
             self.SNomXfmrLineEdit.setText('100')
             self.XZeroSeqXfmrLineEdit.setText('0.0')
             self.XPosSeqXfmrLineEdit.setText('0.0')
-            self.XfmrPrimary.setCurrentText(xfmr_code[1])
-            self.XfmrSecondary.setCurrentText(xfmr_code[1])
+            self.XfmrPrimary.setCurrentText(PY_TO_SYMBOL[1])
+            self.XfmrSecondary.setCurrentText(PY_TO_SYMBOL[1])
 
     def updateLineInspector(self):
         """Updates the line inspector
@@ -919,10 +907,12 @@ class CircuitInputer(QWidget):
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.remove_load)
+                self.LoadGround.setCurrentText(PY_TO_SYMBOL[bus.load_ground])
             else:
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.add_load)
+                self.LoadGround.setCurrentText(PY_TO_SYMBOL[STAR])
             if (bus.pg > 0 or bus.qg > 0) and bus.bus_id > 0:
                 self.AddGenerationButton.setText('-')
                 self.AddGenerationButton.disconnect()
@@ -943,7 +933,7 @@ class CircuitInputer(QWidget):
             self.PlInput.setText('{:.4g}'.format(bus.pl * 100))
             self.XdLineEdit.setText('{:.3g}'.format(bus.xd))
             self.GenGround.setChecked(bus.gen_ground)
-            self.LoadGround.setChecked(bus.load_ground)
+
         if bus.xd == np.inf:
             self.XdLineEdit.setText('\u221E')
         else:
@@ -971,7 +961,7 @@ class CircuitInputer(QWidget):
             self.setLayoutHidden(self.BusLayout, False)
             self.updateBusInspector(bus)
         elif curve is not None:
-            if isinstance(curve.obj, TL):
+            if isinstance(curve.obj, TransmissionLine):
                 # Show line inspect
                 self.hideSpacer()
                 self.setLayoutHidden(self.InputNewLineType, True)
@@ -1043,7 +1033,7 @@ class CircuitInputer(QWidget):
         mode: either 'parameters' or 'impedance'
         """
         curve = self.getCurveFromGridPos(self._currElementCoords)
-        if isinstance(curve.obj, TL):
+        if isinstance(curve.obj, TransmissionLine):
             # The element already is a line
             line = curve.obj
             if mode == 'parameters':
@@ -1076,7 +1066,7 @@ class CircuitInputer(QWidget):
             # The element is a xfmr and will be converted into a line
             xfmr = curve.obj
             self.remove_xfmr(curve)
-            new_line = TL(orig=xfmr.orig, dest=xfmr.dest)
+            new_line = TransmissionLine(orig=xfmr.orig, dest=xfmr.dest)
             if mode == 'parameters':
                 param_values = self.findParametersSetFromComboBox()
                 if param_values is not None:
@@ -1114,9 +1104,8 @@ class CircuitInputer(QWidget):
         or converts a line into a xfmr with the inputted parameters
         Called by: xfmrSubmitPushButton.pressed
         """
-        xfmr_code = {'Y': 0, 'Y\u23DA': 1, '\u0394': 2}
         curve = self.getCurveFromGridPos(self._currElementCoords)
-        if isinstance(curve.obj, TL):
+        if isinstance(curve.obj, TransmissionLine):
             # Transform line into a xfmr
             line = curve.obj
             self.remove_line(curve)
@@ -1126,8 +1115,8 @@ class CircuitInputer(QWidget):
                 snom=float(self.SNomXfmrLineEdit.text()) * 1e6,
                 jx0=float(self.XZeroSeqXfmrLineEdit.text()) / 100,
                 jx1=float(self.XPosSeqXfmrLineEdit.text()) / 100,
-                primary=xfmr_code[self.XfmrPrimary.currentText()],
-                secondary=xfmr_code[self.XfmrSecondary.currentText()]
+                primary=SYMBOL_TO_PY[self.XfmrPrimary.currentText()],
+                secondary=SYMBOL_TO_PY[self.XfmrSecondary.currentText()]
             )
             new_curve = LineSegment(obj=new_xfmr,
                                     dlines=curve.dlines,
@@ -1147,8 +1136,8 @@ class CircuitInputer(QWidget):
             xfmr.snom = float(self.SNomXfmrLineEdit.text()) * 1e6
             xfmr.jx0 = float(self.XZeroSeqXfmrLineEdit.text()) / 100
             xfmr.jx1 = float(self.XPosSeqXfmrLineEdit.text()) / 100
-            xfmr.primary = xfmr_code[self.XfmrPrimary.currentText()]
-            xfmr.secondary = xfmr_code[self.XfmrSecondary.currentText()]
+            xfmr.primary = SYMBOL_TO_PY[self.XfmrPrimary.currentText()]
+            xfmr.secondary = SYMBOL_TO_PY[self.XfmrSecondary.currentText()]
             self.LayoutManager()
             self.statusMsg.emit_sig('Updated xfmr parameters')
 
@@ -1295,7 +1284,7 @@ class CircuitInputer(QWidget):
             bus = self.getBusFromGridPos(coords)
             bus.pl = float(self.PlInput.text()) / 100
             bus.ql = float(self.QlInput.text()) / 100
-            bus.load_ground = self.LoadGround.isChecked()
+            bus.load_ground = SYMBOL_TO_PY[self.LoadGround.currentText()]
             self.PlInput.setEnabled(False)
             self.QlInput.setEnabled(False)
             self.LoadGround.setEnabled(False)
@@ -1313,7 +1302,7 @@ class CircuitInputer(QWidget):
             bus = self.getBusFromGridPos(coords)
             bus.pl = 0
             bus.ql = 0
-            bus.load_ground = True
+            bus.load_ground = EARTH
             self.updateBusInspector(bus)
             self.AddLoadButton.setText('+')
             self.AddLoadButton.disconnect()
@@ -1348,9 +1337,9 @@ class CircuitInputer(QWidget):
         self.LayoutManager()
 
 
-class ASPy(QMainWindow):
+class Software(QMainWindow):
     def __init__(self):
-        super(ASPy, self).__init__()
+        super(Software, self).__init__()
         # Central widget
         self.circuit = CircuitInputer()
         self.circuit.statusMsg.signal.connect(lambda args: self.displayStatusMsg(args))
@@ -1405,7 +1394,7 @@ class ASPy(QMainWindow):
         settings = menubar.addMenu('S&ettings')
         settings.addAction(configure_simulation)
 
-        self.setWindowTitle('ASPy')
+        self.setWindowTitle(NAME)
         self.setGeometry(50, 50, 1000, 600)
         self.setMinimumWidth(1000)
         self.show()
@@ -1530,7 +1519,7 @@ class ASPy(QMainWindow):
                     scene.pixmap[i, j] = drawbus
         for curve in self.circuit.curves:
             for pairs in interface_coordpairs(curve.coords, squarel):
-                if isinstance(curve.obj, TL):
+                if isinstance(curve.obj, TransmissionLine):
                     dline = scene.drawLine(pairs, color='b')
                 else:
                     dline = scene.drawLine(pairs, color='r')
@@ -1539,5 +1528,5 @@ class ASPy(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    ASPy()
+    Software()
     sys.exit(app.exec_())

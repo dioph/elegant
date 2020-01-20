@@ -40,8 +40,10 @@ def getSessionsDir():
         os.mkdir(sessions_dir)
     return sessions_dir
 
+
 def getTestDbFile():
-    return os.path.join(PACKAGEDIR, 'data/testdb')
+    return os.path.join(PACKAGEDIR, 'tests/testdb')
+
 
 def interface_coordpairs(coords, squarel):
     for k in range(len(coords) - 1):
@@ -57,4 +59,5 @@ def debug(f):
             f(*args, **kwargs)
         except Exception:
             logging.error(traceback.format_exc())
+
     return wrapper
