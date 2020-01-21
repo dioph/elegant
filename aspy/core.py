@@ -28,7 +28,7 @@ SYMBOL_TO_PY = {STAR_SYMBOL: STAR, EARTH_SYMBOL: EARTH, DELTA_SYMBOL: DELTA}
 class Bus(object):
     def __init__(self, bus_id, v=1.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
                  xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None,
-                 gen_ground=False, load_ground=STAR):
+                 gen_ground=False, load_ground=EARTH):
         self.bus_id = bus_id
         self.v = v
         self.delta = delta
@@ -465,7 +465,7 @@ class PowerSystem(object):
             node = hsh[bus.bus_id]
             if bus.gen_ground and np.isfinite(bus.xd):
                 Y0[node, node] -= 1j / bus.xd
-            if bus.load_ground:
+            if bus.load_ground == EARTH:
                 Y0[node, node] += 1 / bus.Z
         for line in lines:
             node1 = hsh[line.orig.bus_id]

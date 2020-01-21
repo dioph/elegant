@@ -912,7 +912,7 @@ class CircuitInputer(QWidget):
                 self.AddLoadButton.setText('+')
                 self.AddLoadButton.disconnect()
                 self.AddLoadButton.pressed.connect(self.add_load)
-                self.LoadGround.setCurrentText(PY_TO_SYMBOL[STAR])
+                self.LoadGround.setCurrentText(PY_TO_SYMBOL[EARTH])
             if (bus.pg > 0 or bus.qg > 0) and bus.bus_id > 0:
                 self.AddGenerationButton.setText('-')
                 self.AddGenerationButton.disconnect()
