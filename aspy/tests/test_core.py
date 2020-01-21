@@ -108,10 +108,10 @@ class EightBusesCoreTests(unittest.TestCase):
     def test_bus_load_connections_types(self):
         bus = Bus(bus_id=0)
         # Star
-        self.assertEqual(0, bus.load_ground)
-        # Grounded start
-        bus.load_ground = EARTH
         self.assertEqual(1, bus.load_ground)
+        # Grounded start
+        bus.load_ground = STAR
+        self.assertEqual(0, bus.load_ground)
         # Delta
         bus.load_ground = DELTA
         self.assertEqual(2, bus.load_ground)
