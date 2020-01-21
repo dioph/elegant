@@ -59,5 +59,4 @@ def debug(f):
             f(*args, **kwargs)
         except Exception:
             logging.error(traceback.format_exc())
-
     return wrapper

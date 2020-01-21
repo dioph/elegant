@@ -62,7 +62,7 @@ class EightBusesCoreTests(unittest.TestCase):
                                               dest=self.system.buses[self.system.id2n(1)]))
         self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.lines)))
 
-    def test_add_xfmr_with_same_extremes(self):
+    def test_add_trafo_with_same_extremes(self):
         self.system.add_line(Transformer(orig=self.system.buses[self.system.id2n(1)],
                                          dest=self.system.buses[self.system.id2n(1)]))
         self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.trafos)))
@@ -101,10 +101,10 @@ class EightBusesCoreTests(unittest.TestCase):
     def test_bus_load_connections_types(self):
         bus = Bus(bus_id=0)
         # Star
-        self.assertEqual(0, bus.load_ground)
-        # Grounded start
-        bus.load_ground = EARTH
         self.assertEqual(1, bus.load_ground)
+        # Grounded start
+        bus.load_ground = STAR
+        self.assertEqual(0, bus.load_ground)
         # Delta
         bus.load_ground = DELTA
         self.assertEqual(2, bus.load_ground)
@@ -142,9 +142,9 @@ class RealCasesCoreTests(unittest.TestCase):
         for i, b in enumerate(self.system.buses):
             assert b.bus_id == i + 1
         line = TransmissionLine(orig=self.system.buses[0], dest=self.system.buses[1])
-        xfmr = Transformer(orig=self.system.buses[0], dest=self.system.buses[1])
+        trafo = Transformer(orig=self.system.buses[0], dest=self.system.buses[1])
         self.system.add_line(line)  # bus 1 -> bus 2
-        self.system.add_trafo(xfmr)  # bus 1 -> bus 2
+        self.system.add_trafo(trafo)  # bus 1 -> bus 2
         assert self.system.M == 0
         self.system.add_bus()  # add slack
         assert self.system.M == 1
@@ -164,8 +164,8 @@ class RealCasesCoreTests(unittest.TestCase):
                       [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
                       [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])
         self.system.add_line(line)
-        xfmr = Transformer(bus_0, bus_2, jx0=0.12, jx1=0.12, secondary=DELTA)
-        self.system.add_trafo(xfmr)
+        trafo = Transformer(bus_0, bus_2, jx0=0.12, jx1=0.12, secondary=DELTA)
+        self.system.add_trafo(trafo)
         self.assertTrue(np.allclose(self.system.Y, Y))
         slack.v = 1.01
         pv.pg = 0.08

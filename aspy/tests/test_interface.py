@@ -45,7 +45,7 @@ class ASPyQt(QWidget):
         return len([d for d in ditems if (isinstance(d, QGraphicsLineItem) and d.pen().color().name() == '#0000ff')])
 
     @property
-    def dxfmrs_amount(self):
+    def dtrafos_amount(self):
         ditems = self.get_ditems()
         return len([d for d in ditems if (isinstance(d, QGraphicsLineItem) and d.pen().color().name() == '#ff0000')])
 
@@ -73,7 +73,7 @@ class InterfaceTests(unittest.TestCase):
 
     def test_initial_ui(self):
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.BusLayout), 'BusLayout is not hidden')
-        self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.LineOrXfmrLayout), 'LineOrXfmrLayout is not hidden')
+        self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.LineOrTrafoLayout), 'LineOrTrafoLayout is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.InputNewLineType), 'InputNewLineType is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.ControlPanelLayout),
                         'ControlPanelLayout is not hidden')
@@ -98,7 +98,7 @@ class InterfaceTests(unittest.TestCase):
         p = self.aspyqt.PoSyS.circuit.Scene.drawBus((1, 0))
         self.assertEqual(type(p), QGraphicsEllipseItem)
         self.assertEqual(0, self.aspyqt.dlines_amount)
-        self.assertEqual(0, self.aspyqt.dxfmrs_amount)
+        self.assertEqual(0, self.aspyqt.dtrafos_amount)
 
     def test_bus_clearing(self):
         b = self.aspyqt.PoSyS.circuit.Scene.drawBus((0, 0))
@@ -111,7 +111,7 @@ class InterfaceTests(unittest.TestCase):
 
     def test_load_session(self):
         self.aspyqt.load_test_session()
-        self.assertEqual(18, self.aspyqt.dbuses_amount)
+        self.assertEqual(3, self.aspyqt.dbuses_amount)
 
     def test_reset_session(self):
         self.aspyqt.load_test_session()
@@ -121,28 +121,28 @@ class InterfaceTests(unittest.TestCase):
 
     def test_branches_amount(self):
         self.aspyqt.load_test_session()
-        self.assertEqual(17, len(self.aspyqt.PoSyS.circuit.curves))
+        self.assertEqual(2, len(self.aspyqt.PoSyS.circuit.curves))
 
     def test_bus_type_change(self):
         self.aspyqt.PoSyS.circuit.add_bus()
         bus = self.circuit.system.buses[0]
-        self.assertEqual(STAR, bus.load_ground)
+        self.assertEqual(EARTH, bus.load_ground)
         self.aspyqt.update_bus_inspector(bus)
 
         # Default case
-        self.assertEqual(STAR_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
+        self.assertEqual(EARTH_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
 
         bus.load_ground = DELTA
         # Interface does not change (pl = 0)
         self.aspyqt.update_bus_inspector(bus)
-        self.assertEqual(STAR_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
+        self.assertEqual(EARTH_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
 
         bus.pl = 10
 
         # Interface changes (pl > 0)
-        bus.load_ground = EARTH
+        bus.load_ground = STAR
         self.aspyqt.update_bus_inspector(bus)
-        self.assertEqual(EARTH_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
+        self.assertEqual(STAR_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
 
         bus.load_ground = DELTA
         self.aspyqt.update_bus_inspector(bus)
@@ -151,7 +151,7 @@ class InterfaceTests(unittest.TestCase):
         bus.pl = 0
         # Default case (because pl = 0)
         self.aspyqt.update_bus_inspector(bus)
-        self.assertEqual(STAR_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
+        self.assertEqual(EARTH_SYMBOL, self.aspyqt.PoSyS.circuit.LoadGround.currentText())
 
 
 if __name__ == '__main__':
