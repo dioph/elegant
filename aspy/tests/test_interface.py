@@ -45,7 +45,7 @@ class ASPyQt(QWidget):
         return len([d for d in ditems if (isinstance(d, QGraphicsLineItem) and d.pen().color().name() == '#0000ff')])
 
     @property
-    def dxfmrs_amount(self):
+    def dtrafos_amount(self):
         ditems = self.get_ditems()
         return len([d for d in ditems if (isinstance(d, QGraphicsLineItem) and d.pen().color().name() == '#ff0000')])
 
@@ -73,7 +73,7 @@ class InterfaceTests(unittest.TestCase):
 
     def test_initial_ui(self):
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.BusLayout), 'BusLayout is not hidden')
-        self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.LineOrXfmrLayout), 'LineOrXfmrLayout is not hidden')
+        self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.LineOrTrafoLayout), 'LineOrTrafoLayout is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.InputNewLineType), 'InputNewLineType is not hidden')
         self.assertTrue(self.aspyqt.is_layout_hidden(self.circuit.ControlPanelLayout),
                         'ControlPanelLayout is not hidden')
@@ -98,7 +98,7 @@ class InterfaceTests(unittest.TestCase):
         p = self.aspyqt.PoSyS.circuit.Scene.drawBus((1, 0))
         self.assertEqual(type(p), QGraphicsEllipseItem)
         self.assertEqual(0, self.aspyqt.dlines_amount)
-        self.assertEqual(0, self.aspyqt.dxfmrs_amount)
+        self.assertEqual(0, self.aspyqt.dtrafos_amount)
 
     def test_bus_clearing(self):
         b = self.aspyqt.PoSyS.circuit.Scene.drawBus((0, 0))

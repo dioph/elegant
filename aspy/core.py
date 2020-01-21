@@ -177,7 +177,7 @@ class TransmissionLine(object):
         return (self.v1 - A * self.v2) / B
 
     @property
-    def I(self):
+    def Ia(self):
         ibase = 1e8 / self.vbase
         return self.Ipu * ibase
 
