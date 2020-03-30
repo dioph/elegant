@@ -1,6 +1,6 @@
-====
+=======
 elegant
-====
+=======
 
 ``elegant`` is a Pure Python Power Systems Simulator.
 The latest development version can be found `here <https://github.com/dioph/aspy>`_.
