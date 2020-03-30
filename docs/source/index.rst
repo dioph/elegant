@@ -1,13 +1,13 @@
 ====
-aspy
+elegant
 ====
 
-``aspy`` is a Pure Python Power Systems Simulator.
+``elegant`` is a Pure Python Power Systems Simulator.
 The latest development version can be found `here <https://github.com/dioph/aspy>`_.
 
 Installation
 ============
-``aspy`` requires
+``elegant`` requires
 ``numpy`` (for linear algebra),
 ``PyQt5`` (for the GUI),
 ``pylatex`` (to generate reports),

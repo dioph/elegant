@@ -30,10 +30,10 @@ class GenericSignal(QObject):
 def getSessionsDir():
     if sys.platform in ('win32', 'win64'):
         home_dir = os.getenv('userprofile')
-        sessions_dir = os.path.join(home_dir, 'Documents\\aspy')
+        sessions_dir = os.path.join(home_dir, 'Documents\\elegant')
     elif sys.platform == 'linux':
         home_dir = os.getenv('HOME')
-        sessions_dir = os.path.join(home_dir, 'aspy')
+        sessions_dir = os.path.join(home_dir, 'elegant')
     else:
         sessions_dir = '.'
     if not os.path.exists(sessions_dir):

@@ -1,7 +1,7 @@
 import unittest
 
-from aspy.interface import *
-from aspy.report import *
+from elegant.interface import *
+from elegant.report import *
 
 file = getTestDbFile()
 with open(file, 'br') as file:

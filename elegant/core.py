@@ -4,7 +4,7 @@ from scipy.stats.mstats import gmean
 
 from .methods import newton_raphson, short
 
-NAME = "PoSyS"
+NAME = "Elegant"
 
 CORR = np.exp(-.25)
 SQ2 = np.sqrt(2.)

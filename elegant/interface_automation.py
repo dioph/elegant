@@ -19,7 +19,7 @@ _TRANSLATOR_ = {
 }
 
 
-def move_to_initial_position(win_name='ASPy'):
+def move_to_initial_position(win_name='Elegant'):
     left_upper_corner = autoit.win_get_pos(win_name)
     pyautogui.moveTo(left_upper_corner[0] + 272, left_upper_corner[1] + 298)
 

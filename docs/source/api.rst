@@ -2,12 +2,12 @@
 API
 ===
 
-This page details the methods and classes provided by the ``aspy`` module.
+This page details the methods and classes provided by the ``elegant`` module.
 
 Top-Level classes
 =================
 
-.. automodule:: aspy.core
+.. automodule:: elegant.core
     :members:
     :undoc-members:
     :private-members:
@@ -16,7 +16,7 @@ Top-Level classes
 Numerical Methods
 =================
 
-.. automodule:: aspy.methods
+.. automodule:: elegant.methods
     :members:
     :undoc-members:
     :private-members:
@@ -25,7 +25,7 @@ Numerical Methods
 Report files
 ============
 
-.. automodule:: aspy.report
+.. automodule:: elegant.report
     :members:
     :undoc-members:
     :private-members:
