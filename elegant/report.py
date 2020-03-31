@@ -6,7 +6,7 @@ import numpy as np
 from pylatex import Document, Section, Command, NoEscape, Figure, \
     Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable, NewPage
 
-from elegant.core import TransmissionLine, Bus
+from .core import TransmissionLine, Bus
 
 DIST = 0.30
 MIN_FSIZE = 4

@@ -3,7 +3,7 @@ elegant
 =======
 
 ``elegant`` is a Pure Python Power Systems Simulator.
-The latest development version can be found `here <https://github.com/dioph/aspy>`_.
+The latest development version can be found `here <https://github.com/dioph/elegant>`_.
 
 Installation
 ============
@@ -16,12 +16,12 @@ Installation
 
 Installing the most recent stable version of the package is as easy as::
 
-    pip install aspy
+    python3 -m pip install elegant
 
 Changelog
 =========
 
-1.0 (2019-00-00)
+1.0 (2020-00-00)
 ----------------
 
 Initial beta release
