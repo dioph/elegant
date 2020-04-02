@@ -111,7 +111,7 @@ class InterfaceTests(unittest.TestCase):
 
     def test_load_session(self):
         self.elegantqt.load_test_session()
-        self.assertEqual(3, self.elegantqt.dbuses_amount)
+        self.assertEqual(18, self.elegantqt.dbuses_amount)
 
     def test_reset_session(self):
         self.elegantqt.load_test_session()
@@ -121,7 +121,7 @@ class InterfaceTests(unittest.TestCase):
 
     def test_branches_amount(self):
         self.elegantqt.load_test_session()
-        self.assertEqual(2, len(self.elegantqt.software.circuit.curves))
+        self.assertEqual(17, len(self.elegantqt.software.circuit.curves))
 
     def test_bus_type_change(self):
         self.elegantqt.software.circuit.add_bus()

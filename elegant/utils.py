@@ -42,7 +42,7 @@ def getSessionsDir():
 
 
 def getTestDbFile():
-    return os.path.join(PACKAGEDIR, 'tests/testdb')
+    return os.path.join(PACKAGEDIR, 'tests/testcase.json')
 
 
 def interface_coordpairs(coords, squarel):
