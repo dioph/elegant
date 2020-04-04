@@ -22,7 +22,7 @@ setup(
     url="https://github.com/dioph/elegant",
     packages=["elegant"],
     entry_points={"console_scripts": ['elegant=elegant.interface:main']},
-    install_requires=["networkx", "numpy", "scipy"],
+    install_requires=["networkx", "numpy"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
