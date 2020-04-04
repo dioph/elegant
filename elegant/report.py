@@ -262,14 +262,14 @@ def text_report(system, curves, grid, filename):
     f.write('1.1 Power-Flow Solution\n')
     f.write('=======================\n\n')
     f.write('Bus |V|(pu)  \u03B4(deg) Pg(MW)'
-            ' Pl(MW) Qg(Mvar) Ql(Mvar) Zl(pu)\n')
+            ' Qg(Mvar) Pl(MW) Ql(Mvar) Zl(pu)\n')
     for b in buses:
         f.write(f'{b.bus_id + 1:3d} '
                 f'{b.v:7.04f} '
                 f'{b.delta*180/np.pi:7.02f} '
                 f'{b.pg*100:6.02f} '
-                f'{b.qg*100:6.02f} '
-                f'{b.pl*100:8.02f} '
+                f'{b.qg*100:8.02f} '
+                f'{b.pl*100:6.02f} '
                 f'{b.ql*100:8.02f} '
                 f'{np.abs(b.Z):5.02f}<{np.angle(b.Z):.02f}\n')
     f.write('\n1.2 Fault Calculations\n')
