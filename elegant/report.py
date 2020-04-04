@@ -268,7 +268,7 @@ def text_report(system, curves, grid, filename):
     f.write('========\n')
     f.write('1. Buses\n')
     f.write('========\n\n')
-    f.write('1.1 Power-Flow Solution\n')
+    f.write('1.1 Load-Flow Solution\n')
     f.write('=======================\n\n')
     f.write('Bus |V|(pu)  \u03B4(deg) Pg(MW)'
             ' Qg(Mvar) Pl(MW) Ql(Mvar) Zl(pu)\n')
@@ -371,7 +371,7 @@ def latex_report(system, curves, grid, filename):
     doc.append(why_comm)
     doc.add_color(name="lightgray", model="gray", description="0.80")
     with doc.create(Section('Buses')):
-        with doc.create(Subsection('Power-Flow Solution')):
+        with doc.create(Subsection('Load-Flow Solution')):
             with doc.create(LongTable('c|ccccccc')) as tbl:
                 tbl.add_hline()
                 tbl.add_row(('Bus', NoEscape('$|V|$ (pu)'), NoEscape('$\\delta$ (deg)'),
