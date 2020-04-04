@@ -3,4 +3,3 @@ networkx
 numpy
 pylatex
 PyQt5
-scipy

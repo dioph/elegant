@@ -1,8 +1,12 @@
 import networkx as nx
 import numpy as np
-from scipy.stats.mstats import gmean
 
 from .methods import newton_raphson, short
+
+
+def gmean(arr):
+    return np.prod(arr) ** (1 / len(arr))
+
 
 NAME = "Elegant"
 
@@ -22,8 +26,6 @@ DELTA_SYMBOL = "\u0394"
 PY_TO_SYMBOL = {STAR: STAR_SYMBOL, EARTH: EARTH_SYMBOL, DELTA: DELTA_SYMBOL}
 SYMBOL_TO_PY = {STAR_SYMBOL: STAR, EARTH_SYMBOL: EARTH, DELTA_SYMBOL: DELTA}
 
-
-# ToDo defasagem dos trafos
 
 class Bus(object):
     def __init__(self, bus_id, v=1.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
