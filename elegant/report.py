@@ -218,24 +218,33 @@ def make_system_schematic(curves, grid, initial_fontsize, save=False, filepath=N
         plt.show()
 
 
-def check_inf(x):
-    if np.isfinite(x) and np.abs(x) < 1e6:
-        if isinstance(x, complex):
-            return NoEscape('{:.02f}\\angle{:.02f}'.format(np.abs(x), np.angle(x, deg=True)))
+def check_inf(x, is_tex=True):
+    if is_tex:
+        if np.abs(x) < 1e6:
+            if isinstance(x, complex):
+                return NoEscape(f'{np.abs(x):.02f}'
+                                f'\\angle{np.angle(x, deg=True):.02f}')
+            else:
+                return NoEscape(f'{np.abs(x):.04f}')
         else:
-            return NoEscape('{:.04f}'.format(x))
+            return NoEscape('$\\infty$')
     else:
-        return NoEscape('$\\infty$')
+        if np.abs(x) < 1e3:
+            return f'{np.abs(x):6.02f}'
+        else:
+            if np.abs(x) < 1e6:
+                return f'{np.abs(x):6.02E}'.replace('+0', '')
+            else:
+                return f'{np.inf:6.02f}'
 
 
-def get_scheme(tr):
+def get_scheme(tr, is_tex=True):
     code = {0: '$\\why{}$', 1: '$\\wye{}$', 2: '$\\Delta$'}
-    return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
-
-
-def get_scheme_txt(tr):
-    code = {0: 'Y', 1: 'G', 2: '\u0394'}
-    return f'  {code[tr.primary]}-{code[tr.secondary]}  '
+    if is_tex:
+        return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
+    else:
+        code = {0: 'Y', 1: 'G', 2: '\u0394'}
+        return f'  {code[tr.primary]}-{code[tr.secondary]}  '
 
 
 def create_report(system, curves, grid, filename):
@@ -280,16 +289,16 @@ def text_report(system, curves, grid, filename):
             '\u03B4b(deg) Ic(pu) \u03B4c(deg) Ib(pu) \u03B4b(deg)\n')
     for b in buses:
         f.write(f'{b.bus_id + 1:3d} '
-                f'{np.abs(b.iTPG):6.02f} '
-                f'{np.angle(b.iTPG):7.02f} '
-                f'{np.abs(b.iSLG):6.02f} '
-                f'{np.angle(b.iSLG):7.02f} '
-                f'{np.abs(b.iDLGb):6.02f} '
-                f'{np.angle(b.iDLGb):7.02f} '
-                f'{np.abs(b.iDLGc):6.02f} '
-                f'{np.angle(b.iDLGc):7.02f} '
-                f'{np.abs(b.iLL):6.02f} '
-                f'{np.angle(b.iLL):7.02f}\n')
+                f'{check_inf(b.iTPG, is_tex=False)} '
+                f'{np.angle(b.iTPG, deg=True):7.02f} '
+                f'{check_inf(b.iSLG, is_tex=False)} '
+                f'{np.angle(b.iSLG, deg=True):7.02f} '
+                f'{check_inf(b.iDLGb, is_tex=False)} '
+                f'{np.angle(b.iDLGb, deg=True):7.02f} '
+                f'{check_inf(b.iDLGc, is_tex=False)} '
+                f'{np.angle(b.iDLGc, deg=True):7.02f} '
+                f'{check_inf(b.iLL, is_tex=False)} '
+                f'{np.angle(b.iLL, deg=True):7.02f}\n')
     f.write('\n========\n')
     f.write('2. Lines\n')
     f.write('========\n\n')
@@ -315,7 +324,7 @@ def text_report(system, curves, grid, filename):
         f.write(f'{tr.orig.bus_id+1:2d}-{tr.dest.bus_id+1:<2d} '
                 f'{tr.Z1.imag*100:7.02f} '
                 f'{tr.Z0.imag*100:7.02f} '
-                f'{get_scheme_txt(tr)} '
+                f'{get_scheme(tr, is_tex=False)} '
                 f'{tr.Sper.imag*100:7.02f} '
                 f'{tr.S2.real*100:6.02f} '
                 f'{tr.S2.imag*100:7.02f} '
