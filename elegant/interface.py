@@ -288,7 +288,6 @@ class CircuitInputer(QWidget):
         self.line_types = {'Default': TransmissionLine(orig=None, dest=None)}
         self.curves = []
         self.nmax = 20
-        self.op_mode = 0
         self.sidebar_width = 200
 
         self.Scene = SchemeInputer()
@@ -463,29 +462,17 @@ class CircuitInputer(QWidget):
         # Layout for simulation control panel
         self.ControlPanelLayout = QVBoxLayout()
 
-        self.SimulationControlHbox = QHBoxLayout()
-        self.RealTimeRadioButton = QRadioButton()
-        self.RealTimeRadioButton.setChecked(True)
-        self.RealTimeRadioButton.toggled.connect(lambda: self.setOperationMode(0))
-        self.InsertionModeRadioButton = QRadioButton()
-        self.InsertionModeRadioButton.toggled.connect(lambda: self.setOperationMode(1))
-        self.SimulationControlHbox.addWidget(QLabel('INSERTION'))
-        self.SimulationControlHbox.addWidget(self.InsertionModeRadioButton)
-        self.SimulationControlHbox.addWidget(QLabel('REAL-TIME'))
-        self.SimulationControlHbox.addWidget(self.RealTimeRadioButton)
-
         self.NmaxHbox = QHBoxLayout()
         self.NmaxSlider = QSlider()
         self.NmaxSlider.setMinimum(0)
         self.NmaxSlider.setMaximum(50)
-        self.NmaxSlider.setOrientation(Qt.Horizontal)
+        self.NmaxSlider.setOrientation(Qt.Vertical)
         self.NmaxLabel = QLabel('Nmax: {:02d}'.format(self.nmax))
         self.NmaxSlider.valueChanged.connect(lambda: self.setNmaxValue(self.NmaxSlider.value()))
-        self.NmaxHbox.addWidget(self.NmaxSlider)
         self.NmaxHbox.addWidget(self.NmaxLabel)
+        self.NmaxHbox.addWidget(self.NmaxSlider)
 
         self.ControlPanelLayout.addStretch()
-        self.ControlPanelLayout.addLayout(self.SimulationControlHbox)
         self.ControlPanelLayout.addLayout(self.NmaxHbox)
         self.ControlPanelLayout.addStretch()
 
@@ -662,28 +649,16 @@ class CircuitInputer(QWidget):
         for children_layout in litems:
             self.setLayoutHidden(children_layout, visible)
 
-    def updateRealOrInsertionRadio(self, op_mode):
-        self.RealTimeRadioButton.setChecked(not op_mode)
-        self.InsertionModeRadioButton.setChecked(op_mode)
+    def updateNmaxLabel(self, nmax):
+        self.NmaxLabel.setText('Nmax: {}'.format(nmax).zfill(2))
 
-    def updateNmaxLabel(self, nmax, op_mode):
-        if not op_mode:
-            self.NmaxLabel.setText('Nmax: {}'.format(nmax).zfill(2))
-        else:
-            self.NmaxLabel.setText('Nmax: --')
-
-    def updateNmaxSlider(self, nmax, op_mode):
-        self.NmaxSlider.setEnabled(not op_mode)
+    def updateNmaxSlider(self, nmax):
+        self.NmaxSlider.setEnabled(True)
         self.NmaxSlider.setValue(nmax)
 
     def setNmaxValue(self, nmax):
         self.nmax = nmax
-        self.updateNmaxLabel(self.nmax, self.op_mode)
-
-    def setOperationMode(self, mode):
-        self.op_mode = mode
-        self.updateNmaxSlider(self.nmax, self.op_mode)
-        self.updateNmaxLabel(self.nmax, self.op_mode)
+        self.updateNmaxLabel(self.nmax)
 
     def getBusFromGridPos(self, coords):
         """Returns a Bus object that occupies grid in `coords` position"""
@@ -1332,8 +1307,7 @@ class CircuitInputer(QWidget):
                 assert curve.obj.dest is not None
                 assert curve.obj.dest != curve.obj.orig
 
-        if not self.op_mode:
-            self.system.update(Nmax=self.nmax)
+        self.system.update(Nmax=self.nmax)
         self.LayoutManager()
 
 
@@ -1403,9 +1377,8 @@ class Software(QMainWindow):
         self.circuit.setLayoutHidden(self.circuit.BusLayout, True)
         self.circuit.setLayoutHidden(self.circuit.LineOrTrafoLayout, True)
         self.circuit.setLayoutHidden(self.circuit.ControlPanelLayout, False)
-        self.circuit.updateNmaxSlider(self.circuit.nmax, self.circuit.op_mode)
-        self.circuit.updateNmaxLabel(self.circuit.nmax, self.circuit.op_mode)
-        self.circuit.updateRealOrInsertionRadio(self.circuit.op_mode)
+        self.circuit.updateNmaxSlider(self.circuit.nmax)
+        self.circuit.updateNmaxLabel(self.circuit.nmax)
 
     def displayStatusMsg(self, args):
         self.statusBar().showMessage(args)
