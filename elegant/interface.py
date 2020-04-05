@@ -1,4 +1,5 @@
 import pickle
+import shutil
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
@@ -1444,10 +1445,14 @@ class Software(QMainWindow):
         sessions_dir = getSessionsDir()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
+        if shutil.which("latexmk") is not None:
+            filetype = "PDF Files (*.pdf)"
+        else:
+            filetype = "Data Files (*.dat)"
         filename, _ = QFileDialog.getSaveFileName(parent=self,
                                                   caption="Save Report",
                                                   directory=sessions_dir,
-                                                  filter="PDF Files (*.pdf)",
+                                                  filter=filetype,
                                                   options=options)
         if filename:
             create_report(self.circuit.system, self.circuit.curves, self.circuit.Scene.grid, filename)
