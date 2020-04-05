@@ -1398,7 +1398,6 @@ class Software(QMainWindow):
                 file.close()
 
     def loadSession(self):
-        self.startNewSession()
         sessions_dir = getSessionsDir()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
@@ -1408,6 +1407,7 @@ class Software(QMainWindow):
                                                   filter="All Files (*)",
                                                   options=options)
         if filename:
+            self.startNewSession()
             with open(filename, 'br') as file:
                 self.createLocalData(file)
                 file.close()
