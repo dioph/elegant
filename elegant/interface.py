@@ -877,7 +877,7 @@ class CircuitInputer(QWidget):
             if bus.bus_id == 0:
                 self.BusTitle.setText('Slack')
             else:
-                self.BusTitle.setText('Bus {}'.format(bus.bus_id))
+                self.BusTitle.setText('Bus {}'.format(bus.bus_id + 1))
             if bus.pl > 0 or bus.ql > 0:
                 self.AddLoadButton.setText('-')
                 self.AddLoadButton.disconnect()
