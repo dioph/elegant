@@ -13,7 +13,7 @@ class TestMethods(unittest.TestCase):
         self.S0 = np.array([[np.nan, np.nan], [0.08, np.nan], [-0.12, -0.076]])
 
     def test_gauss_seidel(self):
-        niter, delta, V = gauss_seidel(self.Y, self.V0, self.S0, Niter=2)
+        niter, delta, V = gauss_seidel(self.Y, self.V0, self.S0, min_niter=2)
         self.assertEqual(2, niter)
         self.assertAlmostEqual(1.01, V[0])
         self.assertAlmostEqual(1.02, np.abs(V[1]))
@@ -23,7 +23,7 @@ class TestMethods(unittest.TestCase):
         self.assertLess(1e-12, delta)
 
     def test_newton_raphson(self):
-        niter, delta, V = newton_raphson(self.Y, self.V0, self.S0, Niter=2)
+        niter, delta, V = newton_raphson(self.Y, self.V0, self.S0, min_niter=2)
         self.assertEqual(2, niter)
         self.assertAlmostEqual(1.01, V[0])
         self.assertAlmostEqual(1.02, np.abs(V[1]))
@@ -33,7 +33,7 @@ class TestMethods(unittest.TestCase):
         self.assertLess(1e-12, delta)
 
     def test_scalc(self):
-        niter, delta, V = newton_raphson(self.Y, self.V0, self.S0, Niter=2)
+        niter, delta, V = newton_raphson(self.Y, self.V0, self.S0, min_niter=2)
         Scalc = V * np.conjugate(np.dot(self.Y, V))
         S = np.zeros_like(self.S0)
         S[:, 0] = Scalc.real

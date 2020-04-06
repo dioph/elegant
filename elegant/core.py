@@ -582,7 +582,7 @@ class PowerSystem(object):
         lines = self.masked_lines
         trafos = self.masked_trafos
         hsh = self.hsh
-        V, S = self.update_flow(Nmax=Nmax)
+        V, S = self.update_flow(max_niter=Nmax)
         for bus in buses:
             bus.v = np.abs(V[hsh[bus.bus_id]])
             bus.delta = np.angle(V[hsh[bus.bus_id]])
@@ -606,7 +606,7 @@ class PowerSystem(object):
             bus.iDLGc = If[hsh[bus.bus_id], 2, 2]
             bus.iLL = If[hsh[bus.bus_id], 3, 1]
 
-    def update_flow(self, Nmax=100):
+    def update_flow(self, max_niter=100):
         N = self.M
         Y = self.Y
         buses = self.masked_buses
@@ -622,7 +622,7 @@ class PowerSystem(object):
             else:
                 V0[i] = 1.0
                 S0[i] = np.array([-buses[i].pl, -buses[i].ql])
-        niter, delta, V = newton_raphson(Y, V0, S0, eps=1e-12, Nmax=Nmax)
+        niter, delta, V = newton_raphson(Y, V0, S0, eps=1e-12, max_niter=max_niter)
         Scalc = V * np.conjugate(np.dot(Y, V))
         S = np.zeros_like(S0)
         S[:, 0] = Scalc.real
