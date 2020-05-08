@@ -17,16 +17,6 @@ class LineSegment(object):
         self.remove = remove
 
 
-class GenericSignal(QObject):
-    signal = pyqtSignal(object)
-
-    def __init__(self):
-        super(GenericSignal, self).__init__()
-
-    def emit_sig(self, args):
-        self.signal.emit(args)
-
-
 def getSessionsDir():
     if sys.platform in ('win32', 'win64'):
         home_dir = os.getenv('userprofile')
