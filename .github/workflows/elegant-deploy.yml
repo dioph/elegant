@@ -1,0 +1,45 @@
+name: Upload Python Package
+
+on: [release]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel twine
+      - name: Build and publish
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          python setup.py sdist bdist_wheel
+          twine upload dist/*
+
+  nsis:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install pynsist
+        run: |
+          python -m pip install --upgrade pip
+          pip install pynsist
+      - name: Generate an nsi script
+        run: |
+          pynsist --no-makensis installer.cfg
+      - name: Run NSIS
+        uses: joncloud/makensis-action@v1.1
+        with:
+          script-file: windows/installer.nsi
+      - name: Archive installer
+        uses: actions/upload-artifact@v1
+        with:
+          name: installer
+          path: windows/elegant-lite_1.0b1.exe
