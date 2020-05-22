@@ -1174,29 +1174,36 @@ class Window(QMainWindow):
         # Actions
         new_sys = QAction("Start new system", self)
         new_sys.setShortcut("Ctrl+N")
+        new_sys.setStatusTip("Start new system (clears current one)")
         new_sys.triggered.connect(self.start_new_session)
 
         save_act = QAction("Save current session", self)
         save_act.setShortcut("Ctrl+S")
+        save_act.setStatusTip("Save current session to a file")
         save_act.triggered.connect(self.save_session)
 
         load_act = QAction("Open session", self)
         load_act.setShortcut("Ctrl+O")
+        load_act.setStatusTip("Open file")
         load_act.triggered.connect(self.load_session)
 
-        create_report = QAction("Generate report", self)
-        create_report.setShortcut("Ctrl+R")
-        create_report.triggered.connect(self.report)
+        report_act = QAction("Generate report", self)
+        report_act.setShortcut("Ctrl+R")
+        report_act.setStatusTip("Generate report")
+        report_act.triggered.connect(self.report)
 
         add_line_act = QAction("Add line type", self)
         add_line_act.setShortcut("Ctrl+L")
+        add_line_act.setStatusTip("New line model")
         add_line_act.triggered.connect(self.add_line_type)
 
         edit_line_act = QAction("Edit line type", self)
+        edit_line_act.setStatusTip("Edit line model (not implemented)")
         edit_line_act.triggered.connect(self.edit_line_type)
 
         configure_simulation = QAction("Configure simulation", self)
         configure_simulation.setShortcut("Ctrl+X")
+        configure_simulation.setStatusTip("Change maximum number of iterations")
         configure_simulation.triggered.connect(self.configure_simulation)
 
         # Menu bar
@@ -1205,7 +1212,7 @@ class Window(QMainWindow):
         file_menu = menu_bar.addMenu('&Session')
         file_menu.addAction(save_act)
         file_menu.addAction(load_act)
-        file_menu.addAction(create_report)
+        file_menu.addAction(report_act)
         file_menu.addAction(new_sys)
 
         line_menu = menu_bar.addMenu('&Lines')
