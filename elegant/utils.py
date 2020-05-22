@@ -49,3 +49,10 @@ def debug(f):
         except Exception:
             logging.error(traceback.format_exc())
     return wrapper
+
+
+def safe_repr(val, unit=1.0, fmt="{:.3g}"):
+    if val == np.inf:
+        return "\u221E"
+    else:
+        return fmt.format(val / unit)

@@ -784,8 +784,7 @@ class MainWidget(QWidget):
         # Bus voltage
         bus_v_value = QLineEdit("{:.3g}".format(bus.v))
         bus_v_value.setValidator(QDoubleValidator(bottom=0., top=100.))
-        if not edit_gen:
-            bus_v_value.setEnabled(False)
+        bus_v_value.setEnabled(edit_gen)
         # Bus angle
         bus_angle_value = QLineEdit("{:.3g}".format(bus.delta * 180 / np.pi))
         bus_angle_value.setEnabled(False)
@@ -801,18 +800,13 @@ class MainWidget(QWidget):
         add_generation_label.setAlignment(Qt.AlignCenter)
 
         # Line edit to Xd bus
-        if bus.xd == np.inf:
-            xd_line_edit = QLineEdit("\u221E")
-        else:
-            xd_line_edit = QLineEdit("{:.3g}".format(bus.xd * 100))
+        xd_line_edit = QLineEdit(safe_repr(bus.xd, unit=0.01, fmt="{:.3g}"))
         xd_line_edit.setValidator(QDoubleValidator())
-        if not edit_gen:
-            xd_line_edit.setEnabled(False)
+        xd_line_edit.setEnabled(edit_gen)
         # Line edit to input bus Pg
         pg_input = QLineEdit("{:.4g}".format(bus.pg * 100))
         pg_input.setValidator(QDoubleValidator(bottom=0.))
-        if is_slack or not edit_gen:
-            pg_input.setEnabled(False)
+        pg_input.setEnabled(edit_gen and not is_slack)
         # Line edit to input bus Qg
         qg_input = QLineEdit("{:.4g}".format(bus.qg * 100))
         qg_input.setValidator(QDoubleValidator())
@@ -820,8 +814,7 @@ class MainWidget(QWidget):
         # Check box for generation ground
         gen_ground = QCheckBox("\u23DA")
         gen_ground.setChecked(bus.gen_ground)
-        if not edit_gen:
-            gen_ground.setEnabled(False)
+        gen_ground.setEnabled(edit_gen)
 
         # Button to add generation
         if edit_gen:
@@ -863,17 +856,15 @@ class MainWidget(QWidget):
         ql_input.setValidator(QDoubleValidator())
         pl_input = QLineEdit("{:.4g}".format(bus.pl * 100))
         pl_input.setValidator(QDoubleValidator())
-        if not edit_load:
-            pl_input.setEnabled(False)
-            ql_input.setEnabled(False)
+        pl_input.setEnabled(edit_load)
+        ql_input.setEnabled(edit_load)
         # Check box to load ground
         load_ground = QComboBox()
         load_ground.addItem("Y")
         load_ground.addItem("Y\u23DA")
         load_ground.addItem("\u0394")
         load_ground.setCurrentText(PY_TO_SYMBOL[bus.load_ground])
-        if not edit_load:
-            load_ground.setEnabled(False)
+        load_ground.setEnabled(edit_load)
 
         # PushButton that binds to three different methods
         if edit_load:
