@@ -28,6 +28,27 @@ SYMBOL_TO_PY = {STAR_SYMBOL: STAR, EARTH_SYMBOL: EARTH, DELTA_SYMBOL: DELTA}
 
 
 class Bus(object):
+    """Generic bus class
+
+    Attributes
+    ----------
+    bus_id: int
+        Integer identifier
+    v, delta: float, optional
+        Complex voltage magnitude and phase (default=1.0)
+    pg, qg: float, optional
+        Generated active and reactive power (default=0.0)
+    pl, ql: float, optional
+        Load active and reactive power (default=0.0)
+    xd: float, optional
+        Subtransient reactance of the generator (default=`np.inf`)
+    iTPG, iSLG, iDLGb, iDLGc, iLL: float or None
+        Calculated short-circuit fault currents (default=None)
+    gen_ground: bool, optional
+        True if generator is grounded (default=False)
+    load_ground: {STAR, EARTH, DELTA}
+        Load connection type (default=EARTH)
+    """
     def __init__(self, bus_id, v=1.0, delta=0.0, pg=0.0, qg=0.0, pl=0.0, ql=0.0,
                  xd=np.inf, iTPG=None, iSLG=None, iDLGb=None, iDLGc=None, iLL=None,
                  gen_ground=False, load_ground=EARTH):
@@ -49,20 +70,56 @@ class Bus(object):
 
     @property
     def P(self):
+        """
+        Scheduled active power leaving the bus :math:`(P_{G,k}-P_{L,k})`
+        """
         return self.pg - self.pl
 
     @property
     def Q(self):
+        """
+        Scheduled reactive power leaving the bus :math:`(Q_{G,k}-Q_{L,k})`
+        """
         return self.qg - self.ql
 
     @property
     def Z(self):
+        """
+        Load impedance (constant)
+
+        It is given by :math:`V_k^2/S_k^*` or `np.inf` if :math:`S_k=0`
+        """
         if self.pl != 0 or self.ql != 0:
             return self.v ** 2 / (self.pl - 1j * self.ql)
         return np.inf
 
 
 class TransmissionLine(object):
+    """Transmission line class
+
+    Attributes
+    ----------
+    orig, dest: Bus object
+        Origin and destination buses
+    ell: float, optional
+        Line length in meters (default=10e3)
+    r: float, optional
+        Conductor radius in meters (default=1e-2)
+    d12, d23, d31: float, optional
+        Distances between each phase (default=1)
+    d: float, optional
+        Distances between conductors in each phase (default=0.5)
+    rho: float, optional
+        Conductor resistivity (default=1.78e-8)
+    m: {1, 2, 3, 4}
+        Number of conductors per phase (default=1)
+    vbase: float, optional
+        Voltage base (default=1e4)
+    imax: float, optional
+        Maximum supported ampacity (default=np.inf)
+    z, y: float or None:
+        Line distributed parameters (overwrites the line model)
+    """
     def __init__(self, orig, dest, ell=10e3, r=1e-2, d12=1, d23=1, d31=1, d=0.5, rho=1.78e-8, m=1,
                  vbase=1e4, imax=np.inf, v1=0., v2=0., z=None, y=None):
         self.orig = orig
@@ -527,7 +584,7 @@ class PowerSystem(object):
         lines = self.masked_lines
         trafos = self.masked_trafos
         hsh = self.hsh
-        V, S = self.update_flow(Nmax=Nmax)
+        V, S = self.update_flow(max_niter=Nmax)
         for bus in buses:
             bus.v = np.abs(V[hsh[bus.bus_id]])
             bus.delta = np.angle(V[hsh[bus.bus_id]])
@@ -551,7 +608,7 @@ class PowerSystem(object):
             bus.iDLGc = If[hsh[bus.bus_id], 2, 2]
             bus.iLL = If[hsh[bus.bus_id], 3, 1]
 
-    def update_flow(self, Nmax=100):
+    def update_flow(self, max_niter=100):
         N = self.M
         Y = self.Y
         buses = self.masked_buses
@@ -567,7 +624,7 @@ class PowerSystem(object):
             else:
                 V0[i] = 1.0
                 S0[i] = np.array([-buses[i].pl, -buses[i].ql])
-        niter, delta, V = newton_raphson(Y, V0, S0, eps=1e-12, Nmax=Nmax)
+        niter, delta, V = newton_raphson(Y, V0, S0, eps=1e-12, max_niter=max_niter)
         Scalc = V * np.conjugate(np.dot(Y, V))
         S = np.zeros_like(S0)
         S[:, 0] = Scalc.real

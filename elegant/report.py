@@ -23,6 +23,17 @@ def matplotlib_coordpairs(curve):
 
 
 def draw_rep_buses(ax, grid, size=250):
+    """Creates a scatter plot with the buses and annotate the Bus IDs.
+
+    Parameters
+    ----------
+    ax: Axes object
+        Instance where to plot.
+    grid: array-like
+        Positions of Bus objects in the canvas.
+    size: scalar, optional
+        The marker size in points**2. Default is 250.
+    """
     N = grid.shape[0]
     for y in range(N):
         for x in range(N):
@@ -62,6 +73,21 @@ def get_line_slopes(line_data):
 
 
 def draw_all_curves(ax, curves, linewidth=1):
+    """
+    Parameters
+    ----------
+    ax: Axes object
+        Instance where to plot.
+    curves: list of LineSegment objects
+        Used to draw the system schematic.
+    linewidth: float, optional
+        Line width, in points. Default is 1.
+
+    Returns
+    -------
+    gcurves: list of Line2D objects
+        Represents the plotted data.
+    """
     gcurves = []
     for curve in curves:
         coords = matplotlib_coordpairs(curve)
@@ -75,6 +101,19 @@ def draw_all_curves(ax, curves, linewidth=1):
 
 
 def draw_rep_scheme(grid, curves):
+    """
+    Parameters
+    ----------
+    grid: array-like
+        Positions of Bus objects in the canvas
+    curves: list of LineSegment objects
+        Used to draw the system schematic
+
+    Returns
+    -------
+    gcurves: list of Line2D objects
+        Represents the plotted data.
+    """
     ax = plt.gca()
     ax.clear()
     gcurves = draw_all_curves(ax, curves)

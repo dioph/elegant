@@ -1,6 +1,6 @@
 import numpy as np
 
-__all__ = ['short', 'gauss_seidel', 'newton_raphson']
+__all__ = ['gauss_seidel', 'newton_raphson', 'short']
 
 
 def short(Y1, Y0, V):
@@ -8,12 +8,12 @@ def short(Y1, Y0, V):
 
     Parameters
     ----------
-    Y1: array, shape (N,N)
-        Positive-sequence bus admittance matrix
-    Y0: array, shape (N,N)
-        Zero-sequence bus admittance matrix
+    Y1: array, shape (N, N)
+        Positive-sequence bus admittance matrix.
+    Y0: array, shape (N, N)
+        Zero-sequence bus admittance matrix.
     V: array, shape (N,)
-        Pre-fault voltage levels for each bus
+        Pre-fault voltage levels for each bus.
 
     Returns
     -------
@@ -53,26 +53,44 @@ def short(Y1, Y0, V):
     return np.array(I)
 
 
-def gauss_seidel(Y, V0, S, eps=None, Niter=1, Nmax=1000):
+def gauss_seidel(Y, V0, S, eps=np.inf, min_niter=1, max_niter=1000):
     """Gauss-Seidel Method
 
     Parameters
     ----------
-    Y: array, shape (N,N)
-        Ybus matrix
+    Y: array, shape (N, N)
+        Ybus matrix.
     V0: array, shape (N,)
-        Complex initial guess
-    S: array, shape (N,2)
-        Specified apparent power
+        Initial guesses for the voltages.
+    S: array, shape (N, 2)
+        Specified apparent power.
+        The first and second columns correspond to the real and
+        reactive power, respectively.
     eps: float, optional
-        Tolerance
-    Niter: int, optional
-        Minimum number of iterations (default=1)
+        Tolerance :math:`\varepsilon` for termination by the change of the
+         calculated voltages.
+        Default is ``np.inf``. The process is stopped when
+        :math:`||dV||_\infty<\varepsilon` within specified limits on the
+         number of iterations (see ``min_niter`` and ``max_niter``).
+    min_niter: int, optional
+        Minimum number of iterations (default=1).
+        When ``eps`` is not specified, this controls the convergence
+        condition.
+    max_niter: int, optional
+        Upper limit to the number of iterations (default=1000).
+        This avoids excessive computation when convergence is not
+        attainable.
 
     Returns
     -------
+    niter: int
+        Number of performed iterations.
+        Should be within ``min_niter`` and ``max_niter``.
+    delta: float
+        :math:`\mathcal{L}_\infty` norm of the last iteration error.
+        Should be lower than ``eps``.
     V: array, shape (N,)
-        Bus voltage approximations 
+        Bus voltage approximations.
     """
     N = V0.size
     if N < 1:
@@ -80,10 +98,8 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1, Nmax=1000):
     Vold = np.copy(V0)
     V = np.copy(V0)
     delta = np.inf
-    if eps is None:
-        eps = np.inf
-    count = 0
-    while (delta > eps or count < Niter) and count < Nmax:
+    niter = 0
+    while (delta > eps or niter < min_niter) and niter < max_niter:
         for i in range(N):
             I = np.dot(Y[i], V)
             P, Q = S[i]
@@ -97,23 +113,48 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1, Nmax=1000):
                 V[i] = ((P - 1j * Q) / np.conjugate(V[i]) - (I - Y[i, i] * V[i])) / Y[i, i]
         delta = max(np.abs(V - Vold))
         Vold = np.copy(V)
-        count += 1
-    return count, delta, V
+        niter += 1
+    return niter, delta, V
 
 
-def newton_raphson(Y, V0, S, eps=None, Niter=1, Nmax=1000):
-    """
+def newton_raphson(Y, V0, S, eps=np.inf, min_niter=1, max_niter=1000):
+    """Newton-Raphson Method
+
     Parameters
     ----------
-    Y: admittance matrix
-    V0: array with initial estimates (1, N)
-    S: array with specified powers in each bar (N, 2)
-    eps: defined tolerance, default = None
-    Niter: max number of iterations, default = 1
+    Y: array, shape (N, N)
+        Ybus matrix.
+    V0: array, shape (N,)
+        Initial guesses for the voltages.
+    S: array, shape (N, 2)
+        Specified apparent power.
+        The first and second columns correspond to the real and
+        reactive power, respectively.
+    eps: float, optional
+        Tolerance :math:`\varepsilon` for termination by the change of the
+         calculated voltages.
+        Default is ``np.inf``. The process is stopped when
+        :math:`||dV||_\infty<\varepsilon` within specified limits on the
+         number of iterations (see ``min_niter`` and ``max_niter``).
+    min_niter: int, optional
+        Minimum number of iterations (default=1).
+        When ``eps`` is not specified, this controls the convergence
+        condition.
+    max_niter: int, optional
+        Upper limit to the number of iterations (default=1000).
+        This avoids excessive computation when convergence is not
+        attainable.
 
     Returns
     -------
-    V0: updated array with estimates to the node tensions (1, N)
+    niter: int
+        Number of performed iterations.
+        Should be within ``min_niter`` and ``max_niter``.
+    delta: float
+        :math:`\mathcal{L}_\infty` norm of the last iteration error.
+        Should be lower than ``eps``.
+    V: array, shape (N,)
+        Bus voltage approximations.
     """
     N = V0.size
     if N < 1:
@@ -121,10 +162,8 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1, Nmax=1000):
     V = np.copy(V0)
     Vold = np.copy(V0)
     delta = np.inf
-    if eps is None:
-        eps = np.inf
-    count = 0
-    while (delta > eps or count < Niter) and count < Nmax:
+    niter = 0
+    while (delta > eps or niter < min_niter) and niter < max_niter:
         deltaPQ = np.zeros((2 * N, 1))
         for i in range(N):
             P, Q = S[i]
@@ -138,8 +177,8 @@ def newton_raphson(Y, V0, S, eps=None, Niter=1, Nmax=1000):
         V = update_V(deltaPQ, N, V, Y)
         delta = max(np.abs(V - Vold))
         Vold = np.copy(V)
-        count += 1
-    return count, delta, V
+        niter += 1
+    return niter, delta, V
 
 
 def Gij(i, j, Y):
