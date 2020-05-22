@@ -1,12 +1,11 @@
 import pickle
-import shutil
 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from .core import *
-from .report import create_report
+from .report import create_report, PDF_SUPPORT
 from .utils import *
 
 STAR = 0
@@ -1273,7 +1272,7 @@ class Window(QMainWindow):
         sessions_dir = getSessionsDir()
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        if shutil.which("latexmk") is not None:
+        if PDF_SUPPORT:
             file_type = "PDF Files (*.pdf)"
         else:
             file_type = "Data Files (*.dat)"
