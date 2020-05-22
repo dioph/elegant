@@ -19,7 +19,7 @@ def short(Y1, Y0, V):
     -------
     I: array, shape (N, 4, 3)
         Three-phase current levels for each of the N buses for each of the following fault types:
-        
+
         * Three-phase to ground (TPG);
         * Single-line to ground (SLG);
         * Double-line to ground (DLG);
@@ -72,7 +72,7 @@ def gauss_seidel(Y, V0, S, eps=None, Niter=1, Nmax=1000):
     Returns
     -------
     V: array, shape (N,)
-        Bus voltage approximations 
+        Bus voltage approximations
     """
     N = V0.size
     if N < 1:

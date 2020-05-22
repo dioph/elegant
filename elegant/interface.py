@@ -1,13 +1,18 @@
 import pickle
 import shutil
+import sys
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+import numpy as np
+from PyQt5.QtCore import pyqtSignal, Qt, QRegExp
+from PyQt5.QtGui import QPen, QBrush, QDoubleValidator, QRegExpValidator, QIntValidator
+from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget, QHBoxLayout, \
+    QVBoxLayout, QLayout, QRadioButton, QGroupBox, QFormLayout, QLineEdit, QComboBox, \
+    QPushButton, QSlider, QLabel, QCheckBox, QMainWindow, QAction, QFileDialog, \
+    QApplication
 
-from .core import *
+from .core import Bus, TransmissionLine, Transformer, PowerSystem
 from .report import create_report
-from .utils import *
+from .utils import LineSegment, getSessionsDir, safe_repr, interface_coordpairs
 
 STAR = 0
 EARTH = 1
@@ -197,7 +202,7 @@ class Editor(QGraphicsScene):
         if self.cursor is not None:
             self.removeItem(self.cursor)
         self.selectorHistory.set_current(x - self.square_length / 2,
-                                          y - self.square_length / 2)
+                                         y - self.square_length / 2)
         self.cursor = self.draw_square(self.selectorHistory.current)
 
     def is_drawing_blocked(self):
@@ -555,7 +560,7 @@ class MainWidget(QWidget):
         remove_trafo_push_button = QPushButton("Remove trafo")
         remove_trafo_push_button.pressed.connect(self.remove_trafo)
         """
-        Reason of direct button bind to self.update_layout: 
+        Reason of direct button bind to self.update_layout:
         The layout should disappear only when a line or trafo is excluded.
         The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
@@ -634,10 +639,10 @@ class MainWidget(QWidget):
         tl_submit_by_impedance_button.pressed.connect(submit_line_by_impedance)
 
         def submit_line_by_model():
-            line_model = self.line_types[choose_line_model.currentText()]
+            selected_model = self.line_types[choose_line_model.currentText()]
             ell = float(ell_line_edit.text()) * 1e3
             vbase = float(vbase_line_edit.text()) * 1e3
-            self.submit_line_by_model(line_model, ell, vbase)
+            self.submit_line_by_model(selected_model, ell, vbase)
         tl_submit_by_model_button = QPushButton("Submit by model")
         tl_submit_by_model_button.pressed.connect(submit_line_by_model)
         tl_submit_by_model_button.setMinimumWidth(self.sidebar_width)
@@ -654,10 +659,10 @@ class MainWidget(QWidget):
         remove_tl_push_button.setMinimumWidth(self.sidebar_width)
         remove_tl_push_button.setMaximumWidth(self.sidebar_width)
         remove_tl_push_button.pressed.connect(self.remove_line)
-        """" 
-        # Reason of direct button bind to self.LayoutManager: 
-        #     The layout should disappear only when a line or trafo is excluded.
-        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
+        """
+        Reason of direct button bind to self.update_layout:
+        The layout should disappear only when a line or trafo is excluded.
+        The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
         remove_tl_push_button.pressed.connect(self.update_layout)
 
@@ -1158,10 +1163,6 @@ class MainWidget(QWidget):
             self._start_line = True
             if curr_curve.remove:
                 self.remove_curve(curr_curve)
-            for curve in self.curves:
-                assert curve.obj.orig is not None
-                assert curve.obj.dest is not None
-                assert curve.obj.dest != curve.obj.orig
         if self.max_niter > 0:
             self.system.update(Nmax=self.max_niter)
         self.update_layout()
@@ -1176,9 +1177,9 @@ class Window(QMainWindow):
         self.main_widget.status_msg.connect(self.status_bar.showMessage)
         self.setCentralWidget(self.main_widget)
 
-        self.initUI()
+        self.init_ui()
 
-    def initUI(self):
+    def init_ui(self):
         self.status_bar.showMessage("Ready")
         # Actions
         new_sys = QAction("Start new system", self)
@@ -1323,11 +1324,6 @@ class Window(QMainWindow):
         self.main_widget.curves = db['CURVES']
         self.main_widget.line_types = db['LINE_TYPES']
         self.main_widget.editor.bus_grid = db['GRID']
-        for bus in self.main_widget.system.buses:
-            assert bus in self.main_widget.editor.bus_grid
-        for curve in self.main_widget.curves:
-            assert curve.obj in self.main_widget.system.lines or\
-                   curve.obj in self.main_widget.system.trafos
 
     def store_data(self, file):
         filtered_curves = []

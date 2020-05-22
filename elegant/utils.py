@@ -4,7 +4,6 @@ import sys
 import traceback
 
 import numpy as np
-from PyQt5.QtCore import QObject, pyqtSignal
 
 from . import PACKAGEDIR
 
@@ -32,7 +31,7 @@ def getSessionsDir():
 
 
 def getTestDbFile():
-    return os.path.join(PACKAGEDIR, 'tests/testcase.json')
+    return os.path.join(PACKAGEDIR, 'tests/testcase.pickle')
 
 
 def interface_coordpairs(coords, squarel):

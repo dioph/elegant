@@ -1,19 +1,21 @@
 import unittest
 
-from ..core import *
+import numpy as np
+
+from elegant.core import PowerSystem, TransmissionLine, Transformer, Bus, STAR, DELTA
 
 
 def ids_seq(system):
     buses = system.buses
     for i in range(len(buses) - 1):
-        yield (buses[i].bus_id, buses[i + 1].bus_id)
+        yield buses[i].bus_id, buses[i + 1].bus_id
 
 
 def ids_slack(system):
     buses = system.buses.copy()
     _ = buses.pop(system.id2n(0))
     for i in range(len(buses)):
-        yield (0, buses[i].bus_id)
+        yield 0, buses[i].bus_id
 
 
 def buses_ids(system):
@@ -26,14 +28,8 @@ class EightBusesCoreTests(unittest.TestCase):
         for i in range(8):
             self.system.add_bus()
         for ido, idd in ids_seq(self.system):
-            self.system.add_line(TransmissionLine(orig=self.system.buses[ido], dest=self.system.buses[idd]))
-
-    # ToDo: temporary test
-    # def test_packagedir(self):
-    #     self.assertEqual(
-    #         '/home/fernando/git/aspy/aspy/data/icons/DOT.jpg',
-    #         os.path.join(PACKAGEDIR, 'data/icons/DOT.jpg'),
-    #     )
+            self.system.add_line(TransmissionLine(orig=self.system.buses[ido],
+                                                  dest=self.system.buses[idd]))
 
     def test_TL_impedance(self):
         line = TransmissionLine(0, 0, z=1, y=1)
@@ -67,12 +63,14 @@ class EightBusesCoreTests(unittest.TestCase):
     def test_add_line_with_same_extremes(self):
         self.system.add_line(TransmissionLine(orig=self.system.buses[self.system.id2n(1)],
                                               dest=self.system.buses[self.system.id2n(1)]))
-        self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.lines)))
+        self.assertEqual(len(self.system.lines), 7,
+                         "the number of lines is {}".format(len(self.system.lines)))
 
     def test_add_trafo_with_same_extremes(self):
         self.system.add_line(Transformer(orig=self.system.buses[self.system.id2n(1)],
                                          dest=self.system.buses[self.system.id2n(1)]))
-        self.assertEqual(len(self.system.lines), 7, 'the number of lines is {}'.format(len(self.system.trafos)))
+        self.assertEqual(len(self.system.trafos), 0,
+                         "the number of trafos is {}".format(len(self.system.trafos)))
 
     def test_adding_lines_without_slack(self):
         self.system.remove_bus(self.system.id2n(0))  # lines 7 -> 6
@@ -94,7 +92,7 @@ class EightBusesCoreTests(unittest.TestCase):
         self.assertEqual(self.system.M, 1)
         self.assertEqual(self.system.N, 8)
         self.system.add_line(TransmissionLine(orig=self.system.buses[self.system.id2n(0)],
-                                              dest=self.system.buses[self.system.id2n(1)]))  # lines 12 -> 13
+                                              dest=self.system.buses[self.system.id2n(1)]))
         self.assertEqual(len(self.system.lines), 13)
         self.system.update(Nmax=1)
 
@@ -166,7 +164,8 @@ class RealCasesCoreTests(unittest.TestCase):
         bus_0 = self.system.buses[0]
         bus_1 = self.system.buses[1]
         bus_2 = self.system.buses[2]
-        line = TransmissionLine(bus_2, bus_1, ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
+        line = TransmissionLine(bus_2, bus_1,
+                                ell=32e3, r=2.5e-2, d12=4.5, d23=3.0, d31=7.5, d=0.4, m=2)
         Y = np.array([[1 / .12j, 0, -1 / .12j],
                       [0, 1 / line.Zpu + line.Ypu / 2, -1 / line.Zpu],
                       [-1 / .12j, -1 / line.Zpu, 1 / .12j + 1 / line.Zpu + line.Ypu / 2]])

@@ -1,7 +1,9 @@
+import os
+import pickle
 import unittest
 
-from elegant.interface import *
-from elegant.report import *
+from elegant.report import create_report
+from elegant.utils import getTestDbFile, getSessionsDir
 
 file = getTestDbFile()
 with open(file, 'br') as file:
@@ -17,4 +19,9 @@ class ReportTests(unittest.TestCase):
     def test_report(self):
         filename = os.path.join(SESSIONS_DIR, 'report_test.pdf')
         create_report(system, curves, grid, filename)
-        self.assertTrue(os.path.exists(filename), 'the pdf test file was not successfully generated')
+        self.assertTrue(os.path.exists(filename),
+                        "the pdf test file was not successfully generated")
+
+
+if __name__ == '__main__':
+    unittest.main()
