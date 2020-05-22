@@ -86,6 +86,13 @@ class ScrollView(QGraphicsView):
 
 
 class Editor(QGraphicsScene):
+    """Overwrites mouse events of a QGraphicsScene object to enable drawing
+    the network within a grid-like canvas
+    """
+    pointer_signal = pyqtSignal(object)
+    method_signal = pyqtSignal(object)
+    data_signal = pyqtSignal(object)
+
     def __init__(self, size=20, length=50):
         super(Editor, self).__init__()
         self.size = size
@@ -100,10 +107,6 @@ class Editor(QGraphicsScene):
         self.block = Block()
         self.selectorHistory = HistoryData()
         self.cursor = None
-
-        self.pointer_signal = GenericSignal()
-        self.method_signal = GenericSignal()
-        self.data_signal = GenericSignal()
 
         # Visible portion of Scene to View
         self.setSceneRect(0, 0,
@@ -206,7 +209,7 @@ class Editor(QGraphicsScene):
         self.move_history.reset()
         self.block.start = True
         self.block.end = False
-        self.method_signal.emit_sig(3)
+        self.method_signal.emit('UPDATE')
 
     def mouseDoubleClickEvent(self, event):
         coord = [event.scenePos().x(), event.scenePos().y()]
@@ -215,8 +218,8 @@ class Editor(QGraphicsScene):
             x, y = self.coord_grid[i, j]
             circle = self.draw_bus((x, y))
             self.drawings[i, j] = circle
-            self.pointer_signal.emit_sig((i, j))
-            self.method_signal.emit_sig(0)
+            self.pointer_signal.emit((i, j))
+            self.method_signal.emit('ADD_BUS')
 
     def mousePressEvent(self, event):
         coord = [event.scenePos().x(), event.scenePos().y()]
@@ -224,9 +227,9 @@ class Editor(QGraphicsScene):
             i, j = self.get_central_point(coord)
             x, y = self.coord_grid[i, j]
             self.redraw_cursor(x, y)
-            self.pointer_signal.emit_sig((i, j))
-            self.method_signal.emit_sig(4)
-            self.method_signal.emit_sig(2)
+            self.pointer_signal.emit((i, j))
+            self.method_signal.emit('START_LINE')
+            self.method_signal.emit('LAYOUT')
 
     def mouseMoveEvent(self, event):
         coord = [event.scenePos().x(), event.scenePos().y()]
@@ -245,14 +248,16 @@ class Editor(QGraphicsScene):
                 coord_2 = self.move_history.current
                 line = self.draw_line(coord_1, coord_2, color='b')
                 self.move_history.reset()
-                self.pointer_signal.emit_sig((i, j))
-                self.data_signal.emit_sig(line)
-                self.method_signal.emit_sig(1)
+                self.pointer_signal.emit((i, j))
+                self.data_signal.emit(line)
+                self.method_signal.emit('APPEND')
                 if isinstance(self.bus_grid[i, j], Bus):
                     self.block.end = True
 
 
 class MainWidget(QWidget):
+    status_msg = pyqtSignal(object)
+
     def __init__(self, parent=None):
         # General initializations
         super(MainWidget, self).__init__(parent)
@@ -264,7 +269,6 @@ class MainWidget(QWidget):
 
         self.editor = Editor()
 
-        # self.View = QGraphicsView(self.Scene)
         self.view = self.editor.view
         self.editor_layout = QHBoxLayout()  # Layout for editor
         self.editor_layout.addWidget(self.view)
@@ -272,15 +276,14 @@ class MainWidget(QWidget):
         self._start_line = True
         self._line_origin = None
         self._temp = None
-        self.status_msg = GenericSignal()
-        self.__calls = {0: self.add_bus,
-                        1: self.add_segment,
-                        2: self.update_layout,
-                        3: self.update_values,
-                        4: self.store_line_origin}
-        self.editor.pointer_signal.signal.connect(self.set_current_coord)
-        self.editor.data_signal.signal.connect(self.set_temp)
-        self.editor.method_signal.signal.connect(self.methods_trigger)
+        self.__calls = {'ADD_BUS': self.add_bus,
+                        'APPEND': self.add_segment,
+                        'LAYOUT': self.update_layout,
+                        'UPDATE': self.update_values,
+                        'START_LINE': self.store_line_origin}
+        self.editor.pointer_signal.connect(self.set_current_coord)
+        self.editor.data_signal.connect(self.set_temp)
+        self.editor.method_signal.connect(self.methods_trigger)
 
         # Inspectors
         self.left_sidebar_layout = QHBoxLayout()
@@ -372,7 +375,7 @@ class MainWidget(QWidget):
                     bus_dest = self.editor.bus_grid[self._curr_element_coord]
                     curr_curve.obj.dest = bus_dest
         self._start_line = False
-        self.status_msg.emit_sig("Adding line...")
+        self.status_msg.emit("Adding line...")
 
     def find_line_model(self, line):
         """Return the name of parameters set of a existent line or
@@ -389,16 +392,16 @@ class MainWidget(QWidget):
         line = TransmissionLine(orig=None, dest=None)
         line.__dict__.update(new_param)
         if name in self.line_types.keys():
-            self.status_msg.emit_sig("Duplicated name. Insert another valid name")
+            self.status_msg.emit("Duplicated name. Insert another valid name")
             return
         if any(np.isnan(list(new_param.values()))):
-            self.status_msg.emit_sig("Undefined parameter. Fill all parameters")
+            self.status_msg.emit("Undefined parameter. Fill all parameters")
             return
         if any(map(lambda x: line.param == x.param, self.line_types.values())):
-            self.status_msg.emit_sig("A similar model was identified. The model has not been stored")
+            self.status_msg.emit("A similar model was identified. The model has not been stored")
             return
         self.line_types[name] = line
-        self.status_msg.emit_sig("The model has been stored")
+        self.status_msg.emit("The model has been stored")
 
     def submit_line_by_model(self, line_model, ell, vbase):
         """Update a line with parameters
@@ -416,7 +419,7 @@ class MainWidget(QWidget):
             line.__dict__.update(line_model.param)
             line.vbase = vbase
             line.ell = ell
-            self.status_msg.emit_sig("Updated line with model")
+            self.status_msg.emit("Updated line with model")
         elif isinstance(curve.obj, Transformer):
             trafo = curve.obj
             self.remove_trafo(curve)
@@ -425,7 +428,7 @@ class MainWidget(QWidget):
             new_line.__dict__.update(line_model.param)
             new_line.vbase = vbase
             new_line.ell = ell
-            self.status_msg.emit_sig("Trafo -> line, updated with model")
+            self.status_msg.emit("Trafo -> line, updated with model")
             new_curve = LineSegment(obj=new_line,
                                     dlines=curve.dlines,
                                     coords=curve.coords)
@@ -459,7 +462,7 @@ class MainWidget(QWidget):
             line.ell = ell
             line.vbase = vbase
             line.m = 0
-            self.status_msg.emit_sig("Updated line with impedance")
+            self.status_msg.emit("Updated line with impedance")
         elif isinstance(curve.obj, Transformer):
             trafo = curve.obj
             self.remove_trafo(curve)
@@ -471,7 +474,7 @@ class MainWidget(QWidget):
             new_line.ell = ell
             new_line.vbase = vbase
             new_line.m = 0
-            self.status_msg.emit_sig("Trafo -> line, updated with impedance")
+            self.status_msg.emit("Trafo -> line, updated with impedance")
             new_curve = LineSegment(obj=new_line,
                                     dlines=curve.dlines,
                                     coords=curve.coords)
@@ -952,11 +955,11 @@ class MainWidget(QWidget):
         if not is_bus and curve is None:
             bus = self.system.add_bus()
             self.editor.bus_grid[coord] = bus
-            self.status_msg.emit_sig("Added bus")
+            self.status_msg.emit("Added bus")
             self.update_values()
         else:
             self.editor.removeItem(self.editor.drawings[coord])
-            self.status_msg.emit_sig("There is an element in this position!")
+            self.status_msg.emit("There is an element in this position!")
 
     def submit_trafo(self, snom, x0, x1, primary, secondary):
         """
@@ -988,7 +991,7 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
             self.add_trafo(new_curve)
-            self.status_msg.emit_sig("Line -> trafo")
+            self.status_msg.emit("Line -> trafo")
             self.update_values()
         elif isinstance(curve.obj, Transformer):
             # Update parameters of selected trafo
@@ -998,7 +1001,7 @@ class MainWidget(QWidget):
             trafo.jx1 = x1
             trafo.primary = primary
             trafo.secondary = secondary
-            self.status_msg.emit_sig("Updated trafo parameters")
+            self.status_msg.emit("Updated trafo parameters")
             self.update_values()
 
     def remove_curve(self, curve=None):
@@ -1019,7 +1022,7 @@ class MainWidget(QWidget):
             curve = self.curve_at(self._curr_element_coord)
         self.remove_curve(curve)
         self.system.remove_trafo(curve.obj, tuple(curve.coords))
-        self.status_msg.emit_sig("Removed trafo")
+        self.status_msg.emit("Removed trafo")
         self.update_values()
 
     def remove_line(self, curve=None):
@@ -1034,7 +1037,7 @@ class MainWidget(QWidget):
             curve = self.curve_at(self._curr_element_coord)
         self.remove_curve(curve)
         self.system.remove_line(curve.obj, tuple(curve.coords))
-        self.status_msg.emit_sig("Removed line")
+        self.status_msg.emit("Removed line")
         self.update_values()
 
     def remove_elements_linked_to(self, bus):
@@ -1073,7 +1076,7 @@ class MainWidget(QWidget):
         """
         bus = self.bus_at(self._curr_element_coord)
         self.bus_menu(bus, edit_gen=True)
-        self.status_msg.emit_sig("Input generation data...")
+        self.status_msg.emit("Input generation data...")
 
     def submit_gen(self, bus_v, pg, gen_ground, xd):
         """Updates bus parameters with the user input in bus inspector
@@ -1086,7 +1089,7 @@ class MainWidget(QWidget):
             bus.pg = pg
             bus.gen_ground = gen_ground
             bus.xd = xd
-            self.status_msg.emit_sig("Added generation")
+            self.status_msg.emit("Added generation")
             self.update_values()
 
     def remove_gen(self):
@@ -1100,7 +1103,7 @@ class MainWidget(QWidget):
             bus.pg = 0
             bus.xd = np.inf
             bus.gen_ground = False
-            self.status_msg.emit_sig("Removed generation")
+            self.status_msg.emit("Removed generation")
             self.update_values()
 
     def add_load(self):
@@ -1109,7 +1112,7 @@ class MainWidget(QWidget):
         """
         bus = self.bus_at(self._curr_element_coord)
         self.bus_menu(bus, edit_load=True)
-        self.status_msg.emit_sig("Input load data...")
+        self.status_msg.emit("Input load data...")
 
     def submit_load(self, pl, ql, load_ground):
         """
@@ -1121,7 +1124,7 @@ class MainWidget(QWidget):
             bus.pl = pl
             bus.ql = ql
             bus.load_ground = load_ground
-            self.status_msg.emit_sig("Added load")
+            self.status_msg.emit("Added load")
             self.update_values()
 
     def remove_load(self):
@@ -1134,7 +1137,7 @@ class MainWidget(QWidget):
             bus.pl = 0
             bus.ql = 0
             bus.load_ground = EARTH
-            self.status_msg.emit_sig("Removed load")
+            self.status_msg.emit("Removed load")
             self.update_values()
 
     def update_values(self):
@@ -1170,7 +1173,7 @@ class Window(QMainWindow):
         self.status_bar = self.statusBar()
         # Central widget
         self.main_widget = MainWidget()
-        self.main_widget.status_msg.signal.connect(self.status_bar.showMessage)
+        self.main_widget.status_msg.connect(self.status_bar.showMessage)
         self.setCentralWidget(self.main_widget)
 
         self.initUI()
