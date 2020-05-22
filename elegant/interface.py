@@ -436,6 +436,7 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
                 self.add_line(new_curve)
+        self.update_values()
 
     def submit_line_by_impedance(self, tl_r, tl_x, tl_b, ell, vbase):
         """Update a line with impedance/admittance
@@ -481,6 +482,7 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
             self.add_line(new_curve)
+        self.update_values()
 
     def toggle_line_trafo(self, check):
         """Show line or trafo options in adding line/trafo section"""
@@ -951,6 +953,7 @@ class MainWidget(QWidget):
             bus = self.system.add_bus()
             self.editor.bus_grid[coord] = bus
             self.status_msg.emit_sig("Added bus")
+            self.update_values()
         else:
             self.editor.removeItem(self.editor.drawings[coord])
             self.status_msg.emit_sig("There is an element in this position!")
@@ -985,8 +988,8 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
             self.add_trafo(new_curve)
-            self.update_layout()
             self.status_msg.emit_sig("Line -> trafo")
+            self.update_values()
         elif isinstance(curve.obj, Transformer):
             # Update parameters of selected trafo
             trafo = curve.obj
@@ -995,8 +998,8 @@ class MainWidget(QWidget):
             trafo.jx1 = x1
             trafo.primary = primary
             trafo.secondary = secondary
-            self.update_layout()
             self.status_msg.emit_sig("Updated trafo parameters")
+            self.update_values()
 
     def remove_curve(self, curve=None):
         if curve is None:
@@ -1017,6 +1020,7 @@ class MainWidget(QWidget):
         self.remove_curve(curve)
         self.system.remove_trafo(curve.obj, tuple(curve.coords))
         self.status_msg.emit_sig("Removed trafo")
+        self.update_values()
 
     def remove_line(self, curve=None):
         """Remove a line (draw and electrical representation)
@@ -1031,6 +1035,7 @@ class MainWidget(QWidget):
         self.remove_curve(curve)
         self.system.remove_line(curve.obj, tuple(curve.coords))
         self.status_msg.emit_sig("Removed line")
+        self.update_values()
 
     def remove_elements_linked_to(self, bus):
         """
@@ -1060,6 +1065,7 @@ class MainWidget(QWidget):
             self.editor.removeItem(self.editor.drawings[coord])
             self.editor.drawings[coord] = 0
             self.editor.bus_grid[coord] = 0
+            self.update_values()
 
     def add_gen(self):
         """Adds generation to the bus, make some QLineEdits activated
@@ -1081,7 +1087,7 @@ class MainWidget(QWidget):
             bus.gen_ground = gen_ground
             bus.xd = xd
             self.status_msg.emit_sig("Added generation")
-            self.bus_menu(bus)
+            self.update_values()
 
     def remove_gen(self):
         """
@@ -1094,8 +1100,8 @@ class MainWidget(QWidget):
             bus.pg = 0
             bus.xd = np.inf
             bus.gen_ground = False
-            self.bus_menu(bus)
             self.status_msg.emit_sig("Removed generation")
+            self.update_values()
 
     def add_load(self):
         """
@@ -1116,7 +1122,7 @@ class MainWidget(QWidget):
             bus.ql = ql
             bus.load_ground = load_ground
             self.status_msg.emit_sig("Added load")
-            self.bus_menu(bus)
+            self.update_values()
 
     def remove_load(self):
         """
@@ -1128,8 +1134,8 @@ class MainWidget(QWidget):
             bus.pl = 0
             bus.ql = 0
             bus.load_ground = EARTH
-            self.bus_menu(bus)
             self.status_msg.emit_sig("Removed load")
+            self.update_values()
 
     def update_values(self):
         """
