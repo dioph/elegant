@@ -439,6 +439,7 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
                 self.add_line(new_curve)
+        self.update_values()
 
     def submit_line_by_impedance(self, tl_r, tl_x, tl_b, ell, vbase):
         """Update a line with impedance/admittance
@@ -484,6 +485,7 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
             self.add_line(new_curve)
+        self.update_values()
 
     def toggle_line_trafo(self, check):
         """Show line or trafo options in adding line/trafo section"""
@@ -954,6 +956,7 @@ class MainWidget(QWidget):
             bus = self.system.add_bus()
             self.editor.bus_grid[coord] = bus
             self.status_msg.emit("Added bus")
+            self.update_values()
         else:
             self.editor.removeItem(self.editor.drawings[coord])
             self.status_msg.emit("There is an element in this position!")
@@ -988,8 +991,8 @@ class MainWidget(QWidget):
                 line_drawing.setPen(blue_pen)
                 self.editor.addItem(line_drawing)
             self.add_trafo(new_curve)
-            self.update_layout()
             self.status_msg.emit("Line -> trafo")
+            self.update_values()
         elif isinstance(curve.obj, Transformer):
             # Update parameters of selected trafo
             trafo = curve.obj
@@ -998,8 +1001,8 @@ class MainWidget(QWidget):
             trafo.jx1 = x1
             trafo.primary = primary
             trafo.secondary = secondary
-            self.update_layout()
             self.status_msg.emit("Updated trafo parameters")
+            self.update_values()
 
     def remove_curve(self, curve=None):
         if curve is None:
@@ -1020,6 +1023,7 @@ class MainWidget(QWidget):
         self.remove_curve(curve)
         self.system.remove_trafo(curve.obj, tuple(curve.coords))
         self.status_msg.emit("Removed trafo")
+        self.update_values()
 
     def remove_line(self, curve=None):
         """Remove a line (draw and electrical representation)
@@ -1034,6 +1038,7 @@ class MainWidget(QWidget):
         self.remove_curve(curve)
         self.system.remove_line(curve.obj, tuple(curve.coords))
         self.status_msg.emit("Removed line")
+        self.update_values()
 
     def remove_elements_linked_to(self, bus):
         """
@@ -1063,6 +1068,7 @@ class MainWidget(QWidget):
             self.editor.removeItem(self.editor.drawings[coord])
             self.editor.drawings[coord] = 0
             self.editor.bus_grid[coord] = 0
+            self.update_values()
 
     def add_gen(self):
         """Adds generation to the bus, make some QLineEdits activated
@@ -1084,7 +1090,7 @@ class MainWidget(QWidget):
             bus.gen_ground = gen_ground
             bus.xd = xd
             self.status_msg.emit("Added generation")
-            self.bus_menu(bus)
+            self.update_values()
 
     def remove_gen(self):
         """
@@ -1097,8 +1103,8 @@ class MainWidget(QWidget):
             bus.pg = 0
             bus.xd = np.inf
             bus.gen_ground = False
-            self.bus_menu(bus)
             self.status_msg.emit("Removed generation")
+            self.update_values()
 
     def add_load(self):
         """
@@ -1119,7 +1125,7 @@ class MainWidget(QWidget):
             bus.ql = ql
             bus.load_ground = load_ground
             self.status_msg.emit("Added load")
-            self.bus_menu(bus)
+            self.update_values()
 
     def remove_load(self):
         """
@@ -1131,8 +1137,8 @@ class MainWidget(QWidget):
             bus.pl = 0
             bus.ql = 0
             bus.load_ground = EARTH
-            self.bus_menu(bus)
             self.status_msg.emit("Removed load")
+            self.update_values()
 
     def update_values(self):
         """
@@ -1177,29 +1183,36 @@ class Window(QMainWindow):
         # Actions
         new_sys = QAction("Start new system", self)
         new_sys.setShortcut("Ctrl+N")
+        new_sys.setStatusTip("Start new system (clears current one)")
         new_sys.triggered.connect(self.start_new_session)
 
         save_act = QAction("Save current session", self)
         save_act.setShortcut("Ctrl+S")
+        save_act.setStatusTip("Save current session to a file")
         save_act.triggered.connect(self.save_session)
 
         load_act = QAction("Open session", self)
         load_act.setShortcut("Ctrl+O")
+        load_act.setStatusTip("Open file")
         load_act.triggered.connect(self.load_session)
 
-        create_report = QAction("Generate report", self)
-        create_report.setShortcut("Ctrl+R")
-        create_report.triggered.connect(self.report)
+        report_act = QAction("Generate report", self)
+        report_act.setShortcut("Ctrl+R")
+        report_act.setStatusTip("Generate report")
+        report_act.triggered.connect(self.report)
 
         add_line_act = QAction("Add line type", self)
         add_line_act.setShortcut("Ctrl+L")
+        add_line_act.setStatusTip("New line model")
         add_line_act.triggered.connect(self.add_line_type)
 
         edit_line_act = QAction("Edit line type", self)
+        edit_line_act.setStatusTip("Edit line model (not implemented)")
         edit_line_act.triggered.connect(self.edit_line_type)
 
         configure_simulation = QAction("Configure simulation", self)
         configure_simulation.setShortcut("Ctrl+X")
+        configure_simulation.setStatusTip("Change maximum number of iterations")
         configure_simulation.triggered.connect(self.configure_simulation)
 
         # Menu bar
@@ -1208,7 +1221,7 @@ class Window(QMainWindow):
         file_menu = menu_bar.addMenu('&Session')
         file_menu.addAction(save_act)
         file_menu.addAction(load_act)
-        file_menu.addAction(create_report)
+        file_menu.addAction(report_act)
         file_menu.addAction(new_sys)
 
         line_menu = menu_bar.addMenu('&Lines')
