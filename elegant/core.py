@@ -268,6 +268,19 @@ class TransmissionLine(object):
 
 
 class Transformer(object):
+    """Transformer class
+
+    Attributes
+    ----------
+    orig, dest: Bus object
+        Origin and destination buses.
+    snom: float, optional
+        Nominal power specification (default=1e8).
+    jx0, jx1: float, optional
+        Zero- and positive-sequence equivalent series impedances (default=0.5).
+    primary, secondary: {STAR, EARTH, DELTA}
+        Configuration of the primary/secondary windings (default=STAR).
+    """
     def __init__(self, orig, dest, snom=1e8, jx0=0.5, jx1=0.5, primary=STAR, secondary=STAR, v1=0., v2=0.):
         self.orig = orig
         self.dest = dest
@@ -305,6 +318,7 @@ class Transformer(object):
 
 
 class Keys:
+    # todo: remove this class
     def __init__(self):
         self.keys = {}
 
@@ -322,6 +336,16 @@ class Keys:
 
 
 class PowerSystem(object):
+    """Power system class
+
+    Parameters
+    ----------
+    buses: list of Bus
+    lines: list of TransmissionLine
+    trafos: list of Transformer
+    graph: nx.MultiGraph
+    status: str
+    """
     def __init__(self):
         self.buses = []
         self.lines = []
@@ -331,6 +355,16 @@ class PowerSystem(object):
         self.status = ""
 
     def add_bus(self):
+        """Inserts new bus to the system.
+
+        If bus 0 (slack) is not currently on the system, inserts a slack.
+        Keeps bus list sorted.
+
+        Returns
+        -------
+        bus: Bus
+            Inserted bus.
+        """
         if 0 not in [bus.bus_id for bus in self.buses] or self.N == 0:
             bus = Bus(bus_id=0)
             self.buses.insert(0, bus)
@@ -360,6 +394,7 @@ class PowerSystem(object):
                 return n
 
     def remove_bus(self, n):
+        """Removes the nth bus from the system."""
         bus = self.buses[n]
         self.remove_elements_linked_to(bus)
         self.graph.remove_node(bus)

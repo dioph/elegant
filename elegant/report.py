@@ -278,6 +278,7 @@ def check_inf(x, is_tex=True):
 
 
 def get_scheme(tr, is_tex=True):
+    """Returns a string repr for the transformer config"""
     code = {0: '$\\why{}$', 1: '$\\wye{}$', 2: '$\\Delta$'}
     if is_tex:
         return NoEscape('{} {}'.format(code[tr.primary], code[tr.secondary]))
