@@ -265,7 +265,6 @@ class MainWidget(QWidget):
         self.line_types = {"Default": TransmissionLine(orig=None, dest=None)}
         self.curves = []
         self.max_niter = 20
-        self.sidebar_width = 200
 
         self.editor = Editor()
 
@@ -287,9 +286,11 @@ class MainWidget(QWidget):
 
         # Inspectors
         self.left_sidebar_layout = QHBoxLayout()
+        self.left_sidebar_widget = QWidget()
+        self.left_sidebar_widget.setLayout(self.left_sidebar_layout)
         self.right_sidebar_layout = QHBoxLayout()
         self.top_layout = QHBoxLayout()
-        self.top_layout.addLayout(self.left_sidebar_layout)
+        self.top_layout.addWidget(self.left_sidebar_widget)
         self.top_layout.addLayout(self.editor_layout)
         self.top_layout.addLayout(self.right_sidebar_layout)
         self.setLayout(self.top_layout)
@@ -496,7 +497,6 @@ class MainWidget(QWidget):
 
     def no_menu(self):
         no_layout = QHBoxLayout()
-        no_layout.addSpacing(self.sidebar_width)
         self.clear_layout(self.left_sidebar_layout)
         self.clear_layout(self.right_sidebar_layout)
         self.left_sidebar_layout.addLayout(no_layout)
@@ -549,8 +549,6 @@ class MainWidget(QWidget):
 
         trafo_submit_push_button = QPushButton("Submit trafo")
         trafo_submit_push_button.pressed.connect(submit_trafo)
-        trafo_submit_push_button.setMinimumWidth(self.sidebar_width)
-        trafo_submit_push_button.setMaximumWidth(self.sidebar_width)
 
         remove_trafo_push_button = QPushButton("Remove trafo")
         remove_trafo_push_button.pressed.connect(self.remove_trafo)
@@ -560,8 +558,6 @@ class MainWidget(QWidget):
         The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
         remove_trafo_push_button.pressed.connect(self.update_layout)
-        remove_trafo_push_button.setMinimumWidth(self.sidebar_width)
-        remove_trafo_push_button.setMaximumWidth(self.sidebar_width)
 
         trafo_form_layout.addRow("Snom (MVA)", s_nom_trafo_line_edit)
         trafo_form_layout.addRow("x+ (%pu)", x_pos_seq_trafo_line_edit)
@@ -629,8 +625,6 @@ class MainWidget(QWidget):
             vbase = float(vbase_line_edit.text()) * 1e3
             self.submit_line_by_impedance(tl_r, tl_x, tl_b, ell, vbase)
         tl_submit_by_impedance_button = QPushButton("Submit by impedance")
-        tl_submit_by_impedance_button.setMinimumWidth(self.sidebar_width)
-        tl_submit_by_impedance_button.setMaximumWidth(self.sidebar_width)
         tl_submit_by_impedance_button.pressed.connect(submit_line_by_impedance)
 
         def submit_line_by_model():
@@ -640,8 +634,6 @@ class MainWidget(QWidget):
             self.submit_line_by_model(line_model, ell, vbase)
         tl_submit_by_model_button = QPushButton("Submit by model")
         tl_submit_by_model_button.pressed.connect(submit_line_by_model)
-        tl_submit_by_model_button.setMinimumWidth(self.sidebar_width)
-        tl_submit_by_model_button.setMaximumWidth(self.sidebar_width)
 
         line_form_layout.addRow("Model", choose_line_model)
         line_form_layout.addRow("\u2113 (km)", ell_line_edit)
@@ -651,8 +643,6 @@ class MainWidget(QWidget):
         line_form_layout.addRow("B<sub>C</sub> (%pu)", tl_b_line_edit)
 
         remove_tl_push_button = QPushButton("Remove TL")
-        remove_tl_push_button.setMinimumWidth(self.sidebar_width)
-        remove_tl_push_button.setMaximumWidth(self.sidebar_width)
         remove_tl_push_button.pressed.connect(self.remove_line)
         """" 
         # Reason of direct button bind to self.LayoutManager: 
@@ -729,8 +719,6 @@ class MainWidget(QWidget):
             self.add_new_line_model(name, new_param)
 
         submit_new_line_type_push_button = QPushButton("Submit")
-        submit_new_line_type_push_button.setMinimumWidth(self.sidebar_width)
-        submit_new_line_type_push_button.setMaximumWidth(self.sidebar_width)
         submit_new_line_type_push_button.pressed.connect(add_new_line_model)
         new_line_type.addWidget(submit_new_line_type_push_button)
         new_line_type.addStretch()
@@ -773,8 +761,6 @@ class MainWidget(QWidget):
         else:
             bus_title = QLabel("Bus {}".format(bus.bus_id + 1))
         bus_title.setAlignment(Qt.AlignCenter)
-        bus_title.setMinimumWidth(self.sidebar_width)
-        bus_title.setMaximumWidth(self.sidebar_width)
 
         # Bus voltage
         bus_v_value = QLineEdit("{:.3g}".format(bus.v))
@@ -1232,9 +1218,18 @@ class Window(QMainWindow):
         settings.addAction(configure_simulation)
 
         self.setWindowTitle("Electrical Grid Analysis Tool")
-        self.setGeometry(50, 50, 1000, 600)
-        self.setMinimumWidth(1000)
+        screen_resolution = QDesktopWidget().availableGeometry()
+        max_width = screen_resolution.width()
+        max_height = screen_resolution.height()
+        self.setGeometry(50, 50, .7 * max_width, .7 * max_height)
         self.show()
+
+    def resizeEvent(self, event):
+        new_width = event.size().width()
+        sidebar_width = 0.2 * new_width
+        self.main_widget.left_sidebar_widget.setMaximumWidth(sidebar_width)
+        self.main_widget.left_sidebar_widget.setMinimumWidth(sidebar_width)
+        QMainWindow.resizeEvent(self, event)
 
     def configure_simulation(self):
         self.main_widget.control_panel_menu()
