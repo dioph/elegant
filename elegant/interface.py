@@ -258,7 +258,7 @@ class Editor(QGraphicsScene):
 class MainWidget(QWidget):
     status_msg = pyqtSignal(object)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, editor_square_length=50):
         # General initializations
         super(MainWidget, self).__init__(parent)
         self.system = PowerSystem()
@@ -266,7 +266,7 @@ class MainWidget(QWidget):
         self.curves = []
         self.max_niter = 20
 
-        self.editor = Editor()
+        self.editor = Editor(length=editor_square_length)
 
         self.view = self.editor.view
         self.editor_layout = QHBoxLayout()  # Layout for editor
@@ -1157,12 +1157,17 @@ class Window(QMainWindow):
     def __init__(self):
         super(Window, self).__init__()
         self.status_bar = self.statusBar()
+        screen_resolution = QDesktopWidget().availableGeometry()
+        max_width = screen_resolution.width()
+        max_height = screen_resolution.height()
         # Central widget
-        self.main_widget = MainWidget()
+        self.main_widget = MainWidget(editor_square_length=max_width // 30)
         self.main_widget.status_msg.connect(self.status_bar.showMessage)
         self.setCentralWidget(self.main_widget)
-
+        self.setWindowTitle("Electrical Grid Analysis Tool")
+        self.setGeometry(50, 50, .7 * max_width, .7 * max_height)
         self.initUI()
+        self.show()
 
     def initUI(self):
         self.status_bar.showMessage("Ready")
@@ -1216,13 +1221,6 @@ class Window(QMainWindow):
 
         settings = menu_bar.addMenu('S&ettings')
         settings.addAction(configure_simulation)
-
-        self.setWindowTitle("Electrical Grid Analysis Tool")
-        screen_resolution = QDesktopWidget().availableGeometry()
-        max_width = screen_resolution.width()
-        max_height = screen_resolution.height()
-        self.setGeometry(50, 50, .7 * max_width, .7 * max_height)
-        self.show()
 
     def resizeEvent(self, event):
         new_width = event.size().width()
