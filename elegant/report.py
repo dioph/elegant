@@ -2,17 +2,23 @@ import datetime
 import os
 import shutil
 
-import matplotlib.pyplot as plt
 import numpy as np
-from pylatex import Document, Section, Command, NoEscape, Figure, \
-    Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable, NewPage
+
+try:
+    PDF_SUPPORT = True
+    import matplotlib.pyplot as plt
+    from pylatex import Document, Section, Command, NoEscape, Figure, \
+        Subsection, MultiColumn, MultiRow, UnsafeCommand, LongTable, NewPage
+except ImportError:
+    PDF_SUPPORT = False
 
 from .core import TransmissionLine, Bus
 
 DIST = 0.30
 MIN_FSIZE = 4
+PDF_SUPPORT &= (shutil.which("latexmk") is not None)
 
-__all__ = ['create_report']
+__all__ = ['create_report', 'PDF_SUPPORT']
 
 
 def matplotlib_coordpairs(curve):
@@ -248,13 +254,26 @@ def get_scheme(tr, is_tex=True):
 
 
 def create_report(system, curves, grid, filename):
-    if shutil.which("latexmk") is not None:
+    """Automatic generation of human-readable reports
+
+    Parameters
+    ----------
+    system: PowerSystem object
+        Contains all the information to be written on the report tables
+    curves: list of LineSegment objects
+        Used to draw the system schematic
+    grid: array-like
+        Positions of Bus objects in the canvas
+    filename: string
+        Path to report
+    """
+    if PDF_SUPPORT:
         latex_report(system, curves, grid, filename)
     else:
-        text_report(system, curves, grid, filename)
+        text_report(system, filename)
 
 
-def text_report(system, curves, grid, filename):
+def text_report(system, filename):
     lines = system.lines
     trafos = system.trafos
     buses = system.buses
