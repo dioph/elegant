@@ -189,7 +189,7 @@ class TransmissionLine(object):
         d12 = np.angle(self.v1) - np.angle(self.v2)
         z = np.abs(self.Zpu)
         y = np.abs(self.Ypu)
-        dz = np.angle(self.Zpu) * 2
+        dz = np.angle(self.Zpu)
         s11 = v1 ** 2 / z
         s12 = v1 * v2 / z
         P1 = s11 * np.cos(dz) - s12 * np.cos(d12 + dz)
