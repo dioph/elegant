@@ -11,6 +11,18 @@ version = re.search(
 with open("README.md", 'r') as f:
     long_description = f.read()
 
+install_requires = [
+    "networkx >= 1.1",
+    "numpy",
+    "PyQt5"
+]
+
+extras_require = {
+    "PDF": ["matplotlib", "pylatex"],
+    "docs": ["numpydoc", "sphinx_rtd_theme"],
+    "dev": ["PyQt5-stubs", "pytest"]
+}
+
 setup(
     name="elegant",
     version=version,
@@ -22,7 +34,8 @@ setup(
     url="https://github.com/dioph/elegant",
     packages=["elegant"],
     entry_points={"console_scripts": ['elegant=elegant.interface:main']},
-    install_requires=["networkx", "numpy"],
+    install_requires=install_requires,
+    extras_require=extras_require,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
