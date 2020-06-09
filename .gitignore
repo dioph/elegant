@@ -5,3 +5,4 @@ docs/build
 venv
 __pycache__
 windows
+.vscode
