@@ -8,7 +8,7 @@ from PyQt5.QtGui import QPen, QBrush, QDoubleValidator, QRegExpValidator, QIntVa
 from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget, QHBoxLayout, \
     QVBoxLayout, QLayout, QRadioButton, QGroupBox, QFormLayout, QLineEdit, QComboBox, \
     QPushButton, QSlider, QLabel, QCheckBox, QMainWindow, QAction, QFileDialog, \
-    QApplication
+    QDesktopWidget, QApplication
 
 from .core import Bus, TransmissionLine, Transformer, PowerSystem
 from .report import create_report
