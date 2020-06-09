@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget, QHBoxLayout,
 
 from .core import Bus, TransmissionLine, Transformer, PowerSystem
 from .report import create_report
-from .utils import LineSegment, getSessionsDir, safe_repr, interface_coordpairs
+from .utils import LineSegment, getSessionsDir, safe_repr, safe_float, interface_coordpairs
 
 STAR = 0
 EARTH = 1
@@ -418,6 +418,9 @@ class MainWidget(QWidget):
         ell: line length (m)
         vbase: voltage base (V)
         """
+        if any(np.isnan([ell, vbase])):
+            self.status_msg.emit("Undefined parameter. Fill all parameters")
+            return
         curve = self.curve_at(self._curr_element_coord)
         if isinstance(curve.obj, TransmissionLine):
             line = curve.obj
@@ -458,6 +461,9 @@ class MainWidget(QWidget):
         ell: line length (m)
         vbase: voltage base (V)
         """
+        if any(np.isnan([tl_r, tl_x, tl_b, ell, vbase])):
+            self.status_msg.emit("Undefined parameter. Fill all parameters")
+            return
         curve = self.curve_at(self._curr_element_coord)
         if isinstance(curve.obj, TransmissionLine):
             line = curve.obj
@@ -545,9 +551,9 @@ class MainWidget(QWidget):
         trafo_secondary.setCurrentText(PY_TO_SYMBOL[trafo.secondary])
 
         def submit_trafo():
-            snom = float(s_nom_trafo_line_edit.text()) * 1e6
-            x0 = float(x_zero_seq_trafo_line_edit.text()) / 100
-            x1 = float(x_pos_seq_trafo_line_edit.text()) / 100
+            snom = safe_float(s_nom_trafo_line_edit.text(), 1e6)
+            x0 = safe_float(x_zero_seq_trafo_line_edit.text(), 0.01)
+            x1 = safe_float(x_pos_seq_trafo_line_edit.text(), 0.01)
             primary = SYMBOL_TO_PY[trafo_primary.currentText()]
             secondary = SYMBOL_TO_PY[trafo_secondary.currentText()]
             self.submit_trafo(snom, x0, x1, primary, secondary)
@@ -623,19 +629,19 @@ class MainWidget(QWidget):
         tl_b_line_edit.setValidator(QDoubleValidator(bottom=0.))
 
         def submit_line_by_impedance():
-            tl_r = float(tl_r_line_edit.text()) / 100
-            tl_x = float(tl_x_line_edit.text()) / 100
-            tl_b = float(tl_b_line_edit.text()) / 100
-            ell = float(ell_line_edit.text()) * 1e3
-            vbase = float(vbase_line_edit.text()) * 1e3
+            tl_r = safe_float(tl_r_line_edit.text(), 0.01)
+            tl_x = safe_float(tl_x_line_edit.text(), 0.01)
+            tl_b = safe_float(tl_b_line_edit.text(), 0.01)
+            ell = safe_float(ell_line_edit.text(), 1e3)
+            vbase = safe_float(vbase_line_edit.text(), 1e3)
             self.submit_line_by_impedance(tl_r, tl_x, tl_b, ell, vbase)
         tl_submit_by_impedance_button = QPushButton("Submit by impedance")
         tl_submit_by_impedance_button.pressed.connect(submit_line_by_impedance)
 
         def submit_line_by_model():
             selected_model = self.line_types[choose_line_model.currentText()]
-            ell = float(ell_line_edit.text()) * 1e3
-            vbase = float(vbase_line_edit.text()) * 1e3
+            ell = safe_float(ell_line_edit.text(), 1e3)
+            vbase = safe_float(vbase_line_edit.text(), 1e3)
             self.submit_line_by_model(selected_model, ell, vbase)
         tl_submit_by_model_button = QPushButton("Submit by model")
         tl_submit_by_model_button.pressed.connect(submit_line_by_model)
@@ -708,18 +714,15 @@ class MainWidget(QWidget):
 
         def add_new_line_model():
             name = model_name.text()
-
-            def float_or_nan(s):
-                return np.nan if s == '' else float(s)
             new_param = dict(
-                r=float_or_nan(r_line_edit.text()) / 1e3,
-                d12=float_or_nan(d12_line_edit.text()),
-                d23=float_or_nan(d23_line_edit.text()),
-                d31=float_or_nan(d31_line_edit.text()),
-                d=float_or_nan(d_line_edit.text()),
-                rho=float_or_nan(rho_line_edit.text()) / 1e9,
-                m=float_or_nan(m_line_edit.text()),
-                imax=float_or_nan(imax_line_edit.text())
+                r=safe_float(r_line_edit.text(), 1e-3),
+                d12=safe_float(d12_line_edit.text()),
+                d23=safe_float(d23_line_edit.text()),
+                d31=safe_float(d31_line_edit.text()),
+                d=safe_float(d_line_edit.text()),
+                rho=safe_float(rho_line_edit.text(), 1e-9),
+                m=safe_float(m_line_edit.text()),
+                imax=safe_float(imax_line_edit.text())
             )
             self.add_new_line_model(name, new_param)
 
@@ -805,14 +808,10 @@ class MainWidget(QWidget):
         # Button to add generation
         if edit_gen:
             def submit_gen():
-                bus_v = float(bus_v_value.text())
-                pg = float(pg_input.text()) / 100
-                if xd_line_edit.text() == "\u221E":
-                    xd = np.inf
-                else:
-                    xd = float(xd_line_edit.text()) / 100
+                bus_v = safe_float(bus_v_value.text())
+                pg = safe_float(pg_input.text(), 0.01)
+                xd = safe_float(xd_line_edit.text(), 0.01)
                 self.submit_gen(bus_v, pg, gen_ground.isChecked(), xd)
-
             add_generation_button = QPushButton('OK')
             add_generation_button.pressed.connect(submit_gen)
         elif is_slack:
@@ -855,11 +854,10 @@ class MainWidget(QWidget):
         # PushButton that binds to three different methods
         if edit_load:
             def submit_load():
-                pl = float(pl_input.text()) / 100
-                ql = float(ql_input.text()) / 100
+                pl = safe_float(pl_input.text(), 0.01)
+                ql = safe_float(ql_input.text(), 0.01)
                 lg = SYMBOL_TO_PY[load_ground.currentText()]
                 self.submit_load(pl, ql, lg)
-
             add_load_button = QPushButton('OK')
             add_load_button.pressed.connect(submit_load)
         elif has_load:
@@ -949,6 +947,9 @@ class MainWidget(QWidget):
         trafo or converts a line into a trafo with the inputted parameters
         Called by: trafo_submit_push_button.pressed
         """
+        if any(np.isnan([snom, x0, x1])):
+            self.status_msg.emit("Undefined parameter. Fill all parameters")
+            return
         curve = self.curve_at(self._curr_element_coord)
         if isinstance(curve.obj, TransmissionLine):
             # Transform line into a trafo
