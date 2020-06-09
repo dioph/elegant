@@ -54,5 +54,4 @@ def debug(f):
 def safe_repr(val, unit=1.0, fmt="{:.3g}"):
     if val == np.inf:
         return "\u221E"
-    else:
-        return fmt.format(val / unit)
+    return fmt.format(val / unit)
