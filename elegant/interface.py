@@ -1158,7 +1158,7 @@ class Window(QMainWindow):
         self.setCentralWidget(self.main_widget)
         self.setWindowTitle("Electrical Grid Analysis Tool")
         self.setGeometry(50, 50, .7 * max_width, .7 * max_height)
-        self.initUI()
+        self.init_ui()
         self.show()
 
     def init_ui(self):
