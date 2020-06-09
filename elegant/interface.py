@@ -85,7 +85,7 @@ class ScrollView(QGraphicsView):
         self.verticalScrollBar().valueChanged.connect(self.erase)
 
     def erase(self):
-        if self.scene().cursor is not None:
+        if self.scene() is not None and self.scene().cursor is not None:
             self.scene().removeItem(self.scene().cursor)
             self.scene().cursor = None
 
