@@ -526,11 +526,11 @@ class MainWidget(QWidget):
         choose_line_or_trafo_box.setLayout(choose_line_or_trafo)
 
         trafo_form_layout = QFormLayout()
-        s_nom_trafo_line_edit = QLineEdit("{:.3g}".format(trafo.snom / 1e6))
+        s_nom_trafo_line_edit = QLineEdit(safe_repr(trafo.snom, 1e6))
         s_nom_trafo_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        x_zero_seq_trafo_line_edit = QLineEdit("{:.3g}".format(trafo.jx0 * 100))
+        x_zero_seq_trafo_line_edit = QLineEdit(safe_repr(trafo.jx0, 0.01))
         x_zero_seq_trafo_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        x_pos_seq_trafo_line_edit = QLineEdit("{:.3g}".format(trafo.jx1 * 100))
+        x_pos_seq_trafo_line_edit = QLineEdit(safe_repr(trafo.jx1, 0.01))
         x_pos_seq_trafo_line_edit.setValidator(QDoubleValidator(bottom=0.))
 
         trafo_primary = QComboBox()
@@ -615,15 +615,15 @@ class MainWidget(QWidget):
             choose_line_model.addItem(model)
         choose_line_model.setCurrentText(line_model)
 
-        ell_line_edit = QLineEdit("{:.03g}".format(line.ell / 1e3))
+        ell_line_edit = QLineEdit(safe_repr(line.ell, 1000))
         ell_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        vbase_line_edit = QLineEdit("{:.03g}".format(line.vbase / 1e3))
+        vbase_line_edit = QLineEdit(safe_repr(line.vbase, 1000))
         vbase_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        tl_r_line_edit = QLineEdit("{:.04f}".format(line.Zpu.real * 100))
+        tl_r_line_edit = QLineEdit(safe_repr(line.Zpu.real, 0.01, "{:.4f}"))
         tl_r_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        tl_x_line_edit = QLineEdit("{:.04f}".format(line.Zpu.imag * 100))
+        tl_x_line_edit = QLineEdit(safe_repr(line.Zpu.imag, 0.01, "{:.4f}"))
         tl_x_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        tl_b_line_edit = QLineEdit("{:.04f}".format(line.Ypu.imag * 100))
+        tl_b_line_edit = QLineEdit(safe_repr(line.Ypu.imag, 0.01, "{:.4f}"))
         tl_b_line_edit.setValidator(QDoubleValidator(bottom=0.))
 
         def submit_line_by_impedance():
@@ -782,11 +782,11 @@ class MainWidget(QWidget):
         bus_title.setMaximumWidth(self.sidebar_width)
 
         # Bus voltage
-        bus_v_value = QLineEdit("{:.3g}".format(bus.v))
+        bus_v_value = QLineEdit(safe_repr(bus.v))
         bus_v_value.setValidator(QDoubleValidator(bottom=0., top=100.))
         bus_v_value.setEnabled(edit_gen)
         # Bus angle
-        bus_angle_value = QLineEdit("{:.3g}".format(bus.delta * 180 / np.pi))
+        bus_angle_value = QLineEdit(safe_repr(bus.delta, np.pi / 180))
         bus_angle_value.setEnabled(False)
 
         # FormLayout to hold bus data
@@ -800,15 +800,15 @@ class MainWidget(QWidget):
         add_generation_label.setAlignment(Qt.AlignCenter)
 
         # Line edit to Xd bus
-        xd_line_edit = QLineEdit(safe_repr(bus.xd, unit=0.01, fmt="{:.3g}"))
+        xd_line_edit = QLineEdit(safe_repr(bus.xd, 0.01))
         xd_line_edit.setValidator(QDoubleValidator())
         xd_line_edit.setEnabled(edit_gen)
         # Line edit to input bus Pg
-        pg_input = QLineEdit("{:.4g}".format(bus.pg * 100))
+        pg_input = QLineEdit(safe_repr(bus.pg, 0.01, "{:.4g}"))
         pg_input.setValidator(QDoubleValidator(bottom=0.))
         pg_input.setEnabled(edit_gen and not is_slack)
         # Line edit to input bus Qg
-        qg_input = QLineEdit("{:.4g}".format(bus.qg * 100))
+        qg_input = QLineEdit(safe_repr(bus.qg, 0.01, "{:.4g}"))
         qg_input.setValidator(QDoubleValidator())
         qg_input.setEnabled(False)
         # Check box for generation ground
@@ -852,9 +852,9 @@ class MainWidget(QWidget):
         add_load_label.setAlignment(Qt.AlignCenter)
 
         # LineEdit with Ql, Pl
-        ql_input = QLineEdit("{:.4g}".format(bus.ql * 100))
+        ql_input = QLineEdit(safe_repr(bus.ql, 0.01, "{:.4g}"))
         ql_input.setValidator(QDoubleValidator())
-        pl_input = QLineEdit("{:.4g}".format(bus.pl * 100))
+        pl_input = QLineEdit(safe_repr(bus.pl, 0.01, "{:.4g}"))
         pl_input.setValidator(QDoubleValidator())
         pl_input.setEnabled(edit_load)
         ql_input.setEnabled(edit_load)
