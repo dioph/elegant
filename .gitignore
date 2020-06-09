@@ -1,6 +1,6 @@
 .idea
 .pytest_cache
-*.egg-info
+elegant.egg-info
 docs/build
 venv
 __pycache__

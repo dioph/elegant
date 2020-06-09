@@ -19,12 +19,6 @@ EPS = 8.854e-12
 STAR = 0
 EARTH = 1
 DELTA = 2
-STAR_SYMBOL = "Y"
-EARTH_SYMBOL = "Y\u23DA"
-DELTA_SYMBOL = "\u0394"
-
-PY_TO_SYMBOL = {STAR: STAR_SYMBOL, EARTH: EARTH_SYMBOL, DELTA: DELTA_SYMBOL}
-SYMBOL_TO_PY = {STAR_SYMBOL: STAR, EARTH_SYMBOL: EARTH, DELTA_SYMBOL: DELTA}
 
 
 class Bus(object):
@@ -63,7 +57,8 @@ class Bus(object):
 
 
 class TransmissionLine(object):
-    def __init__(self, orig, dest, ell=10e3, r=1e-2, d12=1, d23=1, d31=1, d=0.5, rho=1.78e-8, m=1,
+    def __init__(self, orig, dest,
+                 ell=10e3, r=1e-2, d12=1, d23=1, d31=1, d=0.5, rho=1.78e-8, m=1,
                  vbase=1e4, imax=np.inf, v1=0., v2=0., z=None, y=None):
         self.orig = orig
         self.dest = dest
@@ -193,9 +188,12 @@ class TransmissionLine(object):
         v2 = np.abs(self.v2)
         d12 = np.angle(self.v1) - np.angle(self.v2)
         z = np.abs(self.Zpu)
+        y = np.abs(self.Ypu)
         dz = np.angle(self.Zpu)
-        P1 = v1 ** 2 / z * np.cos(dz) - v1 * v2 / z * np.cos(d12 + dz)
-        Q1 = v1 ** 2 / z * np.sin(dz) - v1 * v2 / z * np.sin(d12 + dz) - v1 ** 2 * np.abs(self.Ypu) / 2
+        s11 = v1 ** 2 / z
+        s12 = v1 * v2 / z
+        P1 = s11 * np.cos(dz) - s12 * np.cos(d12 + dz)
+        Q1 = s11 * np.sin(dz) - s12 * np.sin(d12 + dz) - v1 ** 2 * y / 2
         return P1 + 1j * Q1
 
     @property
@@ -204,14 +202,19 @@ class TransmissionLine(object):
         v2 = np.abs(self.v2)
         d12 = np.angle(self.v1) - np.angle(self.v2)
         z = np.abs(self.Zpu)
+        y = np.abs(self.Ypu)
         dz = np.angle(self.Zpu)
-        P2 = -v2 ** 2 / z * np.cos(dz) + v1 * v2 / z * np.cos(-d12 + dz)
-        Q2 = -v2 ** 2 / z * np.sin(dz) + v1 * v2 / z * np.sin(-d12 + dz) + v2 ** 2 * np.abs(self.Ypu) / 2
+        s22 = v2 ** 2 / z
+        s21 = v1 * v2 / z
+        P2 = -s22 * np.cos(dz) + s21 * np.cos(-d12 + dz)
+        Q2 = -s22 * np.sin(dz) + s21 * np.sin(-d12 + dz) + v2 ** 2 * y / 2
         return P2 + 1j * Q2
 
 
 class Transformer(object):
-    def __init__(self, orig, dest, snom=1e8, jx0=0.5, jx1=0.5, primary=STAR, secondary=STAR, v1=0., v2=0.):
+    def __init__(self, orig, dest,
+                 snom=1e8, jx0=0.5, jx1=0.5, primary=STAR, secondary=STAR,
+                 v1=0., v2=0.):
         self.orig = orig
         self.dest = dest
         self.snom = snom

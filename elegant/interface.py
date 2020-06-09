@@ -1,13 +1,18 @@
 import pickle
 import shutil
+import sys
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+import numpy as np
+from PyQt5.QtCore import pyqtSignal, Qt, QRegExp
+from PyQt5.QtGui import QPen, QBrush, QDoubleValidator, QRegExpValidator, QIntValidator
+from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget, QHBoxLayout, \
+    QVBoxLayout, QLayout, QRadioButton, QGroupBox, QFormLayout, QLineEdit, QComboBox, \
+    QPushButton, QSlider, QLabel, QCheckBox, QMainWindow, QAction, QFileDialog, \
+    QApplication
 
-from .core import *
+from .core import Bus, TransmissionLine, Transformer, PowerSystem
 from .report import create_report
-from .utils import *
+from .utils import LineSegment, getSessionsDir, safe_repr, interface_coordpairs
 
 STAR = 0
 EARTH = 1
@@ -197,7 +202,7 @@ class Editor(QGraphicsScene):
         if self.cursor is not None:
             self.removeItem(self.cursor)
         self.selectorHistory.set_current(x - self.square_length / 2,
-                                          y - self.square_length / 2)
+                                         y - self.square_length / 2)
         self.cursor = self.draw_square(self.selectorHistory.current)
 
     def is_drawing_blocked(self):
@@ -521,11 +526,11 @@ class MainWidget(QWidget):
         choose_line_or_trafo_box.setLayout(choose_line_or_trafo)
 
         trafo_form_layout = QFormLayout()
-        s_nom_trafo_line_edit = QLineEdit("{:.3g}".format(trafo.snom / 1e6))
+        s_nom_trafo_line_edit = QLineEdit(safe_repr(trafo.snom, 1e6))
         s_nom_trafo_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        x_zero_seq_trafo_line_edit = QLineEdit("{:.3g}".format(trafo.jx0 * 100))
+        x_zero_seq_trafo_line_edit = QLineEdit(safe_repr(trafo.jx0, 0.01))
         x_zero_seq_trafo_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        x_pos_seq_trafo_line_edit = QLineEdit("{:.3g}".format(trafo.jx1 * 100))
+        x_pos_seq_trafo_line_edit = QLineEdit(safe_repr(trafo.jx1, 0.01))
         x_pos_seq_trafo_line_edit.setValidator(QDoubleValidator(bottom=0.))
 
         trafo_primary = QComboBox()
@@ -553,7 +558,7 @@ class MainWidget(QWidget):
         remove_trafo_push_button = QPushButton("Remove trafo")
         remove_trafo_push_button.pressed.connect(self.remove_trafo)
         """
-        Reason of direct button bind to self.update_layout: 
+        Reason of direct button bind to self.update_layout:
         The layout should disappear only when a line or trafo is excluded.
         The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
@@ -606,15 +611,15 @@ class MainWidget(QWidget):
             choose_line_model.addItem(model)
         choose_line_model.setCurrentText(line_model)
 
-        ell_line_edit = QLineEdit("{:.03g}".format(line.ell / 1e3))
+        ell_line_edit = QLineEdit(safe_repr(line.ell, 1000))
         ell_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        vbase_line_edit = QLineEdit("{:.03g}".format(line.vbase / 1e3))
+        vbase_line_edit = QLineEdit(safe_repr(line.vbase, 1000))
         vbase_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        tl_r_line_edit = QLineEdit("{:.04f}".format(line.Zpu.real * 100))
+        tl_r_line_edit = QLineEdit(safe_repr(line.Zpu.real, 0.01, "{:.4f}"))
         tl_r_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        tl_x_line_edit = QLineEdit("{:.04f}".format(line.Zpu.imag * 100))
+        tl_x_line_edit = QLineEdit(safe_repr(line.Zpu.imag, 0.01, "{:.4f}"))
         tl_x_line_edit.setValidator(QDoubleValidator(bottom=0.))
-        tl_b_line_edit = QLineEdit("{:.04f}".format(line.Ypu.imag * 100))
+        tl_b_line_edit = QLineEdit(safe_repr(line.Ypu.imag, 0.01, "{:.4f}"))
         tl_b_line_edit.setValidator(QDoubleValidator(bottom=0.))
 
         def submit_line_by_impedance():
@@ -628,10 +633,10 @@ class MainWidget(QWidget):
         tl_submit_by_impedance_button.pressed.connect(submit_line_by_impedance)
 
         def submit_line_by_model():
-            line_model = self.line_types[choose_line_model.currentText()]
+            selected_model = self.line_types[choose_line_model.currentText()]
             ell = float(ell_line_edit.text()) * 1e3
             vbase = float(vbase_line_edit.text()) * 1e3
-            self.submit_line_by_model(line_model, ell, vbase)
+            self.submit_line_by_model(selected_model, ell, vbase)
         tl_submit_by_model_button = QPushButton("Submit by model")
         tl_submit_by_model_button.pressed.connect(submit_line_by_model)
 
@@ -644,10 +649,10 @@ class MainWidget(QWidget):
 
         remove_tl_push_button = QPushButton("Remove TL")
         remove_tl_push_button.pressed.connect(self.remove_line)
-        """" 
-        # Reason of direct button bind to self.LayoutManager: 
-        #     The layout should disappear only when a line or trafo is excluded.
-        #     The conversion trafo <-> line calls the method remove_selected_(line/trafo)
+        """
+        Reason of direct button bind to self.update_layout:
+        The layout should disappear only when a line or trafo is excluded.
+        The conversion trafo <-> line calls the method remove_selected_(line/trafo)
         """
         remove_tl_push_button.pressed.connect(self.update_layout)
 
@@ -763,12 +768,11 @@ class MainWidget(QWidget):
         bus_title.setAlignment(Qt.AlignCenter)
 
         # Bus voltage
-        bus_v_value = QLineEdit("{:.3g}".format(bus.v))
+        bus_v_value = QLineEdit(safe_repr(bus.v))
         bus_v_value.setValidator(QDoubleValidator(bottom=0., top=100.))
-        if not edit_gen:
-            bus_v_value.setEnabled(False)
+        bus_v_value.setEnabled(edit_gen)
         # Bus angle
-        bus_angle_value = QLineEdit("{:.3g}".format(bus.delta * 180 / np.pi))
+        bus_angle_value = QLineEdit(safe_repr(bus.delta, np.pi / 180))
         bus_angle_value.setEnabled(False)
 
         # FormLayout to hold bus data
@@ -782,27 +786,21 @@ class MainWidget(QWidget):
         add_generation_label.setAlignment(Qt.AlignCenter)
 
         # Line edit to Xd bus
-        if bus.xd == np.inf:
-            xd_line_edit = QLineEdit("\u221E")
-        else:
-            xd_line_edit = QLineEdit("{:.3g}".format(bus.xd * 100))
+        xd_line_edit = QLineEdit(safe_repr(bus.xd, 0.01))
         xd_line_edit.setValidator(QDoubleValidator())
-        if not edit_gen:
-            xd_line_edit.setEnabled(False)
+        xd_line_edit.setEnabled(edit_gen)
         # Line edit to input bus Pg
-        pg_input = QLineEdit("{:.4g}".format(bus.pg * 100))
+        pg_input = QLineEdit(safe_repr(bus.pg, 0.01, "{:.4g}"))
         pg_input.setValidator(QDoubleValidator(bottom=0.))
-        if is_slack or not edit_gen:
-            pg_input.setEnabled(False)
+        pg_input.setEnabled(edit_gen and not is_slack)
         # Line edit to input bus Qg
-        qg_input = QLineEdit("{:.4g}".format(bus.qg * 100))
+        qg_input = QLineEdit(safe_repr(bus.qg, 0.01, "{:.4g}"))
         qg_input.setValidator(QDoubleValidator())
         qg_input.setEnabled(False)
         # Check box for generation ground
         gen_ground = QCheckBox("\u23DA")
         gen_ground.setChecked(bus.gen_ground)
-        if not edit_gen:
-            gen_ground.setEnabled(False)
+        gen_ground.setEnabled(edit_gen)
 
         # Button to add generation
         if edit_gen:
@@ -840,21 +838,19 @@ class MainWidget(QWidget):
         add_load_label.setAlignment(Qt.AlignCenter)
 
         # LineEdit with Ql, Pl
-        ql_input = QLineEdit("{:.4g}".format(bus.ql * 100))
+        ql_input = QLineEdit(safe_repr(bus.ql, 0.01, "{:.4g}"))
         ql_input.setValidator(QDoubleValidator())
-        pl_input = QLineEdit("{:.4g}".format(bus.pl * 100))
+        pl_input = QLineEdit(safe_repr(bus.pl, 0.01, "{:.4g}"))
         pl_input.setValidator(QDoubleValidator())
-        if not edit_load:
-            pl_input.setEnabled(False)
-            ql_input.setEnabled(False)
+        pl_input.setEnabled(edit_load)
+        ql_input.setEnabled(edit_load)
         # Check box to load ground
         load_ground = QComboBox()
         load_ground.addItem("Y")
         load_ground.addItem("Y\u23DA")
         load_ground.addItem("\u0394")
         load_ground.setCurrentText(PY_TO_SYMBOL[bus.load_ground])
-        if not edit_load:
-            load_ground.setEnabled(False)
+        load_ground.setEnabled(edit_load)
 
         # PushButton that binds to three different methods
         if edit_load:
@@ -1144,10 +1140,6 @@ class MainWidget(QWidget):
             self._start_line = True
             if curr_curve.remove:
                 self.remove_curve(curr_curve)
-            for curve in self.curves:
-                assert curve.obj.orig is not None
-                assert curve.obj.dest is not None
-                assert curve.obj.dest != curve.obj.orig
         if self.max_niter > 0:
             self.system.update(Nmax=self.max_niter)
         self.update_layout()
@@ -1169,7 +1161,7 @@ class Window(QMainWindow):
         self.initUI()
         self.show()
 
-    def initUI(self):
+    def init_ui(self):
         self.status_bar.showMessage("Ready")
         # Actions
         new_sys = QAction("Start new system", self)
@@ -1316,11 +1308,6 @@ class Window(QMainWindow):
         self.main_widget.curves = db['CURVES']
         self.main_widget.line_types = db['LINE_TYPES']
         self.main_widget.editor.bus_grid = db['GRID']
-        for bus in self.main_widget.system.buses:
-            assert bus in self.main_widget.editor.bus_grid
-        for curve in self.main_widget.curves:
-            assert curve.obj in self.main_widget.system.lines or\
-                   curve.obj in self.main_widget.system.trafos
 
     def store_data(self, file):
         filtered_curves = []
