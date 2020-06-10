@@ -55,3 +55,13 @@ def safe_repr(val, unit=1.0, fmt="{:.3g}"):
     if val == np.inf:
         return "\u221E"
     return fmt.format(val / unit)
+
+
+def safe_float(txt, unit=1.0):
+    if txt == "\u221E":
+        return np.inf
+    try:
+        val = float(txt) * unit
+    except ValueError:
+        val = np.nan
+    return val
