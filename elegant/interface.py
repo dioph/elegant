@@ -1275,7 +1275,7 @@ class Window(QMainWindow):
         if PDF_SUPPORT:
             file_type = "PDF Files (*.pdf)"
         else:
-            file_type = "Data Files (*.dat)"
+            file_type = "Markdown Files (*.md)"
         filename, _ = QFileDialog.getSaveFileName(parent=self,
                                                   caption="Save Report",
                                                   directory=sessions_dir,
