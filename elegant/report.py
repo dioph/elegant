@@ -237,13 +237,13 @@ def check_inf(x, is_tex=True):
     else:
         if np.abs(x) < 1e3:
             if isinstance(x, complex):
-                return f'{np.abs(x):.02f}∡{np.angle(x, deg=True):.02f}'
+                return f'{np.abs(x):5.02f}∡{np.angle(x, deg=True):7.02f}'
             else:
                 return f'{np.abs(x):6.02f}'
         else:
             if np.abs(x) < 1e6:
                 if isinstance(x, complex):
-                    return f'{np.abs(x):.02f}∡{np.angle(x, deg=True):.02f}'
+                    return f'{np.abs(x):5.02f}∡{np.angle(x, deg=True):7.02f}'
                 else:
                     return f'{np.abs(x):6.02E}'.replace('+0', '')
             else:
@@ -291,54 +291,56 @@ def markdown_report(system, filename):
             f'{now.hour:02d}:{now.minute:02d}:{now.second:02d}\n\n')
     f.write('# 1 Buses\n\n')
     f.write('## 1.1 Load-Flow Solution\n\n')
-    f.write('Bus | \|V\| (pu) | \u03B4 (deg) | Pg (MW) |'
-            'Qg (Mvar) | Pl (MW) | Ql (Mvar) | Zl (pu)\n')
-    f.write(':---: | ---: | ---: | ---: | ---: | ---: | ---: | ---:\n')
+    f.write('Bus   | \|V\| (pu) | δ (deg) | Pg (MW) |'
+            ' Qg (Mvar) | Pl (MW) | Ql (Mvar) | Zl (pu)\n')
+    f.write(':---: | ---------: | ------: | ------: | --------: | ------: | --------: | ------:\n')
     for b in buses:
-        f.write(f'{b.bus_id + 1:3d} | '
-                f'{b.v:7.04f} | '
+        f.write(f'{b.bus_id + 1:5d} | '
+                f'{b.v:10.04f} | '
                 f'{b.delta*180/np.pi:7.02f} | '
-                f'{b.pg*100:6.02f} | '
-                f'{b.qg*100:8.02f} | '
-                f'{b.pl*100:6.02f} | '
-                f'{b.ql*100:8.02f} | '
+                f'{b.pg*100:7.02f} | '
+                f'{b.qg*100:9.02f} | '
+                f'{b.pl*100:7.02f} | '
+                f'{b.ql*100:9.02f} | '
                 f'{check_inf(b.Z, is_tex=False)}\n')
-    f.write('## 1.2 Fault Calculations\n\n')
-    f.write('Bus | iTPGa (pu) | iSLGa (pu) | iDLGb (pu) | iDLGc (pu) | iLLb (pu)\n')
-    f.write(':---: | ---: | ---: | ---: | ---: | ---:\n')
+    f.write('\n## 1.2 Fault Calculations\n\n')
+    f.write('Bus   | iTPGa (pu)    | iSLGa (pu)    | iDLGb (pu)    | iDLGc (pu)    | iLLb (pu)\n')
+    f.write(':---: | ------------: | ------------: | ------------: | ------------: | ------------:\n')
     for b in buses:
-        f.write(f'{b.bus_id + 1:3d} |'
+        f.write(f'{b.bus_id + 1:5d} | '
                 f'{check_inf(b.iTPG, is_tex=False)} | '
                 f'{check_inf(b.iSLG, is_tex=False)} | '
                 f'{check_inf(b.iDLGb, is_tex=False)} | '
                 f'{check_inf(b.iDLGc, is_tex=False)} | '
                 f'{check_inf(b.iLL, is_tex=False)}\n')
-    f.write('# 2 Lines\n\n')
-    f.write('Line | R (%pu) | Xl (%pu) | Bc (%pu) | Ploss(MW) | Qloss (Mvar) |'
+    f.write('\n# 2 Lines\n\n')
+    f.write('Line  | R (%pu)  | Xl (%pu) | Bc (%pu) | Ploss(MW) | Qloss (Mvar) |'
             'Pflow (MW) | Qflow (Mvar) | I/Imax(%)\n')
-    f.write(':---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---:\n')
+    f.write(':---: | -------: | -------: | -------: | --------: | -----------: |'
+            ' --------: | -----------: | --------:\n')
     for lt in lines:
         f.write(f'{lt.orig.bus_id+1:2d}-{lt.dest.bus_id+1:<2d} | '
                 f'{lt.Zpu.real*100:8.04f} | '
                 f'{lt.Zpu.imag*100:8.04f} | '
                 f'{lt.Ypu.imag*100:8.04f} | '
-                f'{lt.Sper.real*100:6.02f} | '
-                f'{lt.Sper.imag*100:7.02f} | '
-                f'{lt.S2.real*100:6.02f} | '
-                f'{lt.S2.imag*100:7.02f} | '
+                f'{lt.Sper.real*100:9.02f} | '
+                f'{lt.Sper.imag*100:12.02f} | '
+                f'{lt.S2.real*100:9.02f} | '
+                f'{lt.S2.imag*100:12.02f} | '
                 f'{np.abs(lt.Ia)/lt.imax*100:9.02f}\n')
-    f.write('# 3 Trafos\n\n')
+    f.write('\n# 3 Trafos\n\n')
     f.write('Trafo | x+ (%pu) | x0 (%pu) | Config. | Qloss (Mvar) |'
             'Pflow (MW) | Qflow (Mvar) | S/Snom(%)\n')
-    f.write(':---: | ---: | ---: | ---: | ---: | ---: | ---: | ---:\n')
+    f.write(':---: | -------: | -------: | ------: | -----------: | '
+            '--------: | -----------: | --------:\n')
     for tr in trafos:
         f.write(f'{tr.orig.bus_id+1:2d}-{tr.dest.bus_id+1:<2d} | '
-                f'{tr.Z1.imag*100:7.02f} | '
-                f'{tr.Z0.imag*100:7.02f} | '
+                f'{tr.Z1.imag*100:8.02f} | '
+                f'{tr.Z0.imag*100:8.02f} | '
                 f'{get_scheme(tr, is_tex=False)} | '
-                f'{tr.Sper.imag*100:7.02f} | '
-                f'{tr.S2.real*100:6.02f} | '
-                f'{tr.S2.imag*100:7.02f} | '
+                f'{tr.Sper.imag*100:12.02f} | '
+                f'{tr.S2.real*100:9.02f} | '
+                f'{tr.S2.imag*100:12.02f} | '
                 f'{np.abs(tr.S2)*1e8/tr.snom*100:9.02f}\n')
     f.close()
     return f'{filepath}.md'
