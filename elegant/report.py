@@ -295,7 +295,7 @@ def markdown_report(system, filename):
             ' Qg (Mvar) | Pl (MW) | Ql (Mvar) | Zl (pu)\n')
     f.write(':---: | ---------: | ------: | ------: | --------: | ------: | --------: | ------:\n')
     for b in buses:
-        f.write(f'{b.bus_id + 1:5d} | '
+        f.write(f'{b.bus_id + 1:<5d} | '
                 f'{b.v:10.04f} | '
                 f'{b.delta*180/np.pi:7.02f} | '
                 f'{b.pg*100:7.02f} | '
@@ -307,7 +307,7 @@ def markdown_report(system, filename):
     f.write('Bus   | iTPGa (pu)    | iSLGa (pu)    | iDLGb (pu)    | iDLGc (pu)    | iLLb (pu)\n')
     f.write(':---: | ------------: | ------------: | ------------: | ------------: | ------------:\n')
     for b in buses:
-        f.write(f'{b.bus_id + 1:5d} | '
+        f.write(f'{b.bus_id + 1:<5d} | '
                 f'{check_inf(b.iTPG, is_tex=False)} | '
                 f'{check_inf(b.iSLG, is_tex=False)} | '
                 f'{check_inf(b.iDLGb, is_tex=False)} | '
